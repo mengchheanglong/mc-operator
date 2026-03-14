@@ -14,6 +14,7 @@ import type {
   ContextFileReference,
   ContextFocusType,
   ContextPack,
+  ContextTier,
 } from "@/types/context-pack";
 
 function ensureDir(dirPath: string) {
@@ -77,6 +78,26 @@ export function getContextFileReferences(
       purpose: "Project-wide view of active quests, recent activity, and next work to resume.",
     },
     {
+      label: "Active Context Summary",
+      fileName: "ACTIVE_CONTEXT_SUMMARY.md",
+      purpose: "Smallest startup brief when cost or context budget matters most.",
+    },
+    {
+      label: "Active Context Full",
+      fileName: "ACTIVE_CONTEXT_FULL.md",
+      purpose: "Expanded context with more supporting details and history.",
+    },
+    {
+      label: "Memory Brief",
+      fileName: "MEMORY_BRIEF.md",
+      purpose: "Durable rules and recent highlights promoted from docs and daily work logs.",
+    },
+    {
+      label: "Promotion Candidates",
+      fileName: "PROMOTION_CANDIDATES.md",
+      purpose: "Repeated work patterns that should probably become durable docs or maps.",
+    },
+    {
       label: "Prompt Pack",
       fileName: "PROMPT_PACK.md",
       purpose: "The latest generated task brief tailored for the selected focus.",
@@ -103,10 +124,11 @@ export function getContextFileReferences(
   }));
 }
 
-function renderPack(pack: ContextPack) {
+export function renderContextPackMarkdown(pack: ContextPack) {
   const lines: string[] = [
     `# ${pack.scope.label || "Workspace Prompt Pack"}`,
     `Generated: ${pack.timestamp}`,
+    `Tier: ${pack.tier}`,
     "",
     "## Active Project",
     `- ${pack.project.name}`,
@@ -163,6 +185,55 @@ function renderPack(pack: ContextPack) {
       ? ["", "### Suggested Setup", ...pack.repoSnapshot.codeIntel.suggestions.map((item) => `- ${item}`)]
       : []),
     "",
+    "### CodeGraphContext",
+    `- ${pack.repoSnapshot.codeIntel.codeGraphContext.summary}`,
+    `- Source: ${pack.repoSnapshot.codeIntel.codeGraphContext.source}`,
+    `- Indexed: ${pack.repoSnapshot.codeIntel.codeGraphContext.indexed ? "yes" : "no"}`,
+    ...(pack.repoSnapshot.codeIntel.codeGraphContext.localRepoPath
+      ? [`- Local repo: ${pack.repoSnapshot.codeIntel.codeGraphContext.localRepoPath}`]
+      : []),
+    ...(pack.repoSnapshot.codeIntel.codeGraphContext.projectConfigPath
+      ? [`- Project config: ${pack.repoSnapshot.codeIntel.codeGraphContext.projectConfigPath}`]
+      : []),
+    ...(pack.repoSnapshot.codeIntel.codeGraphContext.installHint
+      ? [`- Install hint: ${pack.repoSnapshot.codeIntel.codeGraphContext.installHint}`]
+      : []),
+    ...(pack.repoSnapshot.codeIntel.codeGraphContext.supportedCapabilities.length
+      ? [
+          "  Capabilities:",
+          ...pack.repoSnapshot.codeIntel.codeGraphContext.supportedCapabilities.map(
+            (item) => `  - ${item}`,
+          ),
+        ]
+      : []),
+    ...(pack.repoSnapshot.codeIntel.codeGraphContext.statsPreview.length
+      ? [
+          "  Stats preview:",
+          ...pack.repoSnapshot.codeIntel.codeGraphContext.statsPreview.map(
+            (item) => `  - ${item}`,
+          ),
+        ]
+      : []),
+    ...(pack.repoSnapshot.codeIntel.codeGraphContext.notes.length
+      ? pack.repoSnapshot.codeIntel.codeGraphContext.notes.map((item) => `- ${item}`)
+      : []),
+    ...(pack.repoSnapshot.codeIntel.codeGraphContext.suggestedCommands.length
+      ? [
+          "  Suggested commands:",
+          ...pack.repoSnapshot.codeIntel.codeGraphContext.suggestedCommands.map(
+            (item) => `  - ${item.label}: ${item.command}`,
+          ),
+        ]
+      : []),
+    ...(pack.repoSnapshot.codeIntel.codeGraphContext.queryPresets.length
+      ? [
+          "  Query presets:",
+          ...pack.repoSnapshot.codeIntel.codeGraphContext.queryPresets.map(
+            (item) => `  - ${item.label}: ${item.command}`,
+          ),
+        ]
+      : []),
+    "",
     "### Git",
     `- ${pack.repoSnapshot.git.summary}`,
     ...(pack.repoSnapshot.git.changedFiles.length
@@ -178,8 +249,73 @@ function renderPack(pack: ContextPack) {
         )
       : ["- None"]),
     "",
+    "### Automation Layer",
+    `- ${pack.automation.summary}`,
+    `- n8n status: ${pack.automation.status}`,
+    ...(pack.automation.baseUrl ? [`- n8n base URL: ${pack.automation.baseUrl}`] : []),
+    ...(pack.automation.webhookBaseUrl
+      ? [`- n8n webhook base URL: ${pack.automation.webhookBaseUrl}`]
+      : []),
+    `- Mission Control session brief URL: ${pack.automation.missionControl.sessionBriefUrl}`,
+    `- Mission Control report URL: ${pack.automation.missionControl.reportUrl}`,
+    ...(pack.automation.workflows.length
+      ? pack.automation.workflows.map(
+          (workflow) =>
+            `- Workflow: ${workflow.name}${workflow.active ? " (active)" : ""}`,
+        )
+      : ["- No active workflows were discovered from Mission Control."]),
+    ...(pack.automation.suggestions.length
+      ? [
+          "",
+          "### Automation Suggestions",
+          ...pack.automation.suggestions.map((item) => `- ${item}`),
+        ]
+      : []),
+    "",
     "## Success Criteria",
     ...pack.successCriteria.map((item) => `- ${item}`),
+    "",
+    "## Memory Brief",
+    pack.memoryBrief.summary,
+    "",
+    "### Durable Notes",
+    ...(pack.memoryBrief.durableNotes.length
+      ? pack.memoryBrief.durableNotes.map((item) => `- ${item}`)
+      : ["- None yet"]),
+    "",
+    "### Recent Highlights",
+    ...(pack.memoryBrief.recentHighlights.length
+      ? pack.memoryBrief.recentHighlights.map((item) => `- ${item}`)
+      : ["- None yet"]),
+    "",
+    "### Memory Sources",
+    ...(pack.memoryBrief.sources.length
+      ? pack.memoryBrief.sources.map(
+          (source) =>
+            `- ${source.label}: ${source.reason}${source.path ? ` (${source.path})` : ""}`,
+        )
+      : ["- None"]),
+    "",
+    "## Doc Graph Health",
+    pack.docGraphHealth.summary,
+    ...(pack.docGraphHealth.hubDocs.length
+      ? ["", "### Hub Docs", ...pack.docGraphHealth.hubDocs.map((item) => `- ${item}`)]
+      : []),
+    ...(pack.docGraphHealth.bridgeDocs.length
+      ? ["", "### Bridge Docs", ...pack.docGraphHealth.bridgeDocs.map((item) => `- ${item}`)]
+      : []),
+    ...(pack.docGraphHealth.orphanDocs.length
+      ? ["", "### Orphan Docs", ...pack.docGraphHealth.orphanDocs.map((item) => `- ${item}`)]
+      : []),
+    "",
+    "## Promotion Candidates",
+    pack.promotionCandidates.summary,
+    ...(pack.promotionCandidates.candidates.length
+      ? pack.promotionCandidates.candidates.map(
+          (candidate) =>
+            `- ${candidate.suggestedDocTitle} (${candidate.kind}): ${candidate.reason} Source days: ${candidate.sourceDays.join(", ")}`,
+        )
+      : ["- None right now"]),
     "",
     "## Active Quests",
     ...(pack.activeQuests.length
@@ -238,10 +374,89 @@ function renderPack(pack: ContextPack) {
     }
   }
 
+  lines.push("");
+  lines.push("## Provenance");
+  lines.push(
+    ...(pack.provenance.length
+      ? pack.provenance.map(
+          (item) =>
+            `- [${item.section}] ${item.label}: ${item.reason}${item.path ? ` (${item.path})` : ""}`,
+        )
+      : ["- None"]),
+  );
+
   return `${lines.join("\n").trim()}\n`;
 }
 
-function renderSessionHandoff(pack: ContextPack) {
+export function renderMemoryBriefMarkdown(pack: ContextPack) {
+  const lines = [
+    "# Memory Brief",
+    `Generated: ${pack.timestamp}`,
+    `Project: ${pack.project.name}`,
+    `Tier: ${pack.tier}`,
+    "",
+    "## Summary",
+    pack.memoryBrief.summary,
+    "",
+    "## Durable Notes",
+    ...(pack.memoryBrief.durableNotes.length
+      ? pack.memoryBrief.durableNotes.map((item) => `- ${item}`)
+      : ["- None yet"]),
+    "",
+    "## Recent Highlights",
+    ...(pack.memoryBrief.recentHighlights.length
+      ? pack.memoryBrief.recentHighlights.map((item) => `- ${item}`)
+      : ["- None yet"]),
+    "",
+    "## Sources",
+    ...(pack.memoryBrief.sources.length
+      ? pack.memoryBrief.sources.map(
+          (source) =>
+            `- ${source.label}: ${source.reason}${source.path ? ` (${source.path})` : ""}`,
+        )
+      : ["- None"]),
+  ];
+
+  return `${lines.join("\n").trim()}\n`;
+}
+
+export function renderPromotionCandidatesMarkdown(pack: ContextPack) {
+  const lines = [
+    "# Promotion Candidates",
+    `Generated: ${pack.timestamp}`,
+    `Project: ${pack.project.name}`,
+    "",
+    "## Summary",
+    pack.promotionCandidates.summary,
+    "",
+    "## Candidates",
+    ...(pack.promotionCandidates.candidates.length
+      ? pack.promotionCandidates.candidates.flatMap((candidate) => [
+          `### ${candidate.suggestedDocTitle}`,
+          `- Kind: ${candidate.kind}`,
+          `- Label: ${candidate.label}`,
+          `- Reason: ${candidate.reason}`,
+          `- Source days: ${candidate.sourceDays.join(", ") || "none"}`,
+          "",
+        ])
+      : ["- None right now"]),
+  ];
+
+  return `${lines.join("\n").trim()}\n`;
+}
+
+function getActiveContextFileName(tier: ContextTier) {
+  switch (tier) {
+    case "summary":
+      return "ACTIVE_CONTEXT_SUMMARY.md";
+    case "full":
+      return "ACTIVE_CONTEXT_FULL.md";
+    default:
+      return "ACTIVE_CONTEXT.md";
+  }
+}
+
+export function renderSessionHandoffMarkdown(pack: ContextPack) {
   const lines = [
     "# Session Handoff",
     `Generated: ${pack.timestamp}`,
@@ -282,8 +497,17 @@ export async function writeDashboardContextFiles(
 ) {
   try {
     const dir = getContextDir(project);
+    const summaryPack = await buildContextPack(userId, project, {
+      focusType: "workspace",
+      tier: "summary",
+    });
     const workspacePack = await buildContextPack(userId, project, {
       focusType: "workspace",
+      tier: "overview",
+    });
+    const fullPack = await buildContextPack(userId, project, {
+      focusType: "workspace",
+      tier: "full",
     });
     const readiness = buildWorkspaceReadiness(userId, project, {
       assumeContextFiles: true,
@@ -330,12 +554,29 @@ export async function writeDashboardContextFiles(
       "- `REPO_MAP.md` summarizes stack, routes, scripts, git state, and key files.",
       "- `IDE_AGENT_SETUP.md` explains verification, code-intelligence setup, and handoff expectations for IDE agents.",
       "- `ACTIVE_CONTEXT.md` gives the current project state.",
+      "- `ACTIVE_CONTEXT_SUMMARY.md` gives the cheapest startup brief.",
+      "- `ACTIVE_CONTEXT_FULL.md` gives the expanded context view.",
+      "- `MEMORY_BRIEF.md` captures durable docs plus recent daily-log memory.",
       "- `PROMPT_PACK.md` gives the latest generated work brief.",
       "- `SESSION_HANDOFF.md` gives a short next-step summary for handoffs.",
       `Generated: ${new Date().toISOString()}`,
     ].join("\n");
 
-    fs.writeFileSync(path.join(dir, "ACTIVE_CONTEXT.md"), `${activeContext}\n`, "utf8");
+    fs.writeFileSync(
+      path.join(dir, getActiveContextFileName("summary")),
+      renderContextPackMarkdown(summaryPack),
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(dir, getActiveContextFileName("overview")),
+      `${activeContext}\n`,
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(dir, getActiveContextFileName("full")),
+      renderContextPackMarkdown(fullPack),
+      "utf8",
+    );
     fs.writeFileSync(path.join(dir, "PROJECT_CONTEXT.md"), `${projectContext}\n`, "utf8");
     fs.writeFileSync(
       path.join(dir, "COLLABORATION_GUIDE.md"),
@@ -357,8 +598,18 @@ export async function writeDashboardContextFiles(
       "utf8",
     );
     fs.writeFileSync(
+      path.join(dir, "MEMORY_BRIEF.md"),
+      renderMemoryBriefMarkdown(workspacePack),
+      "utf8",
+    );
+    fs.writeFileSync(
+      path.join(dir, "PROMOTION_CANDIDATES.md"),
+      renderPromotionCandidatesMarkdown(workspacePack),
+      "utf8",
+    );
+    fs.writeFileSync(
       path.join(dir, "SESSION_HANDOFF.md"),
-      renderSessionHandoff(workspacePack),
+      renderSessionHandoffMarkdown(workspacePack),
       "utf8",
     );
   } catch (error) {
@@ -371,20 +622,29 @@ export async function writeFocusedContextFile(
   project: WorkspaceProject,
   focusType: ContextFocusType,
   focusId?: string,
+  tier: ContextTier = "overview",
 ) {
   const dir = getContextDir(project);
-  const pack = await buildContextPack(userId, project, { focusType, focusId });
+  const pack = await buildContextPack(userId, project, { focusType, focusId, tier });
   const fileName = getFocusFileName(focusType);
 
-  fs.writeFileSync(path.join(dir, "PROMPT_PACK.md"), renderPack(pack), "utf8");
+  fs.writeFileSync(
+    path.join(dir, "PROMPT_PACK.md"),
+    renderContextPackMarkdown(pack),
+    "utf8",
+  );
   fs.writeFileSync(
     path.join(dir, "SESSION_HANDOFF.md"),
-    renderSessionHandoff(pack),
+    renderSessionHandoffMarkdown(pack),
     "utf8",
   );
 
   if (focusType !== "workspace") {
-    fs.writeFileSync(path.join(dir, fileName), renderPack(pack), "utf8");
+    fs.writeFileSync(
+      path.join(dir, fileName),
+      renderContextPackMarkdown(pack),
+      "utf8",
+    );
   }
 
   return pack;

@@ -5,6 +5,7 @@ import path from "path";
 import { randomUUID } from "crypto";
 import { normalizeDocumentTitle } from "@/lib/parser/extractLinks";
 import {
+  findWorkspaceProject,
   getControlPlaneProjectId,
   toProjectStorageSlug,
 } from "@/server/projects/workspace-projects";
@@ -23,10 +24,12 @@ export interface DocRow {
 
 export interface DocWithTags extends DocRow {
   tags: string[];
+  scope: "project" | "shared";
 }
 
 interface StoredDocFile extends DocWithTags {
   filePath: string;
+  storageScope: "project" | "shared";
 }
 
 function normTitle(title: string) {
@@ -37,11 +40,18 @@ function getDefaultProjectId() {
   return getControlPlaneProjectId();
 }
 
-function getKnowledgeDir(): string {
-  if (process.env.OPENCLAW_KNOWLEDGE_PATH) {
-    const envDir = path.resolve(process.env.OPENCLAW_KNOWLEDGE_PATH);
-    if (!fs.existsSync(envDir)) {
-      fs.mkdirSync(envDir, { recursive: true });
+function ensureDir(dirPath: string) {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+}
+
+function getSharedKnowledgeDir(ensure = true): string {
+  const configuredDir = process.env.OPENCLAW_SHARED_KNOWLEDGE_PATH || process.env.OPENCLAW_KNOWLEDGE_PATH;
+  if (configuredDir) {
+    const envDir = path.resolve(configuredDir);
+    if (ensure) {
+      ensureDir(envDir);
     }
     return envDir;
   }
@@ -52,13 +62,29 @@ function getKnowledgeDir(): string {
   const legacyExists = fs.existsSync(legacyDir);
 
   const dir = repoExists || !legacyExists ? repoDir : legacyDir;
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+  if (ensure) {
+    ensureDir(dir);
   }
   return dir;
 }
 
-function parseDocFile(filePath: string): StoredDocFile | null {
+function getProjectKnowledgeDir(projectId: string, ensure = false): string {
+  const project = findWorkspaceProject(projectId);
+  if (!project) {
+    return getSharedKnowledgeDir(ensure);
+  }
+
+  const dir = path.join(project.rootPath, ".openclaw", "knowledge");
+  if (ensure) {
+    ensureDir(dir);
+  }
+  return dir;
+}
+
+function parseDocFile(
+  filePath: string,
+  storageScope: "project" | "shared",
+): StoredDocFile | null {
   try {
     const raw = fs.readFileSync(filePath, "utf-8");
     const parsed = matter(raw);
@@ -69,6 +95,7 @@ function parseDocFile(filePath: string): StoredDocFile | null {
     const title = String(data.title || "").trim();
     const createdAt = String(data.createdAt || "").trim();
     const updatedAt = String(data.updatedAt || "").trim();
+    const scope = data.scope === "shared" ? "shared" : "project";
     const tags = Array.isArray(data.tags)
       ? data.tags.map((tag) => String(tag).trim()).filter(Boolean)
       : [];
@@ -86,7 +113,9 @@ function parseDocFile(filePath: string): StoredDocFile | null {
       createdAt: createdAt || new Date().toISOString(),
       updatedAt: updatedAt || new Date().toISOString(),
       tags,
+      scope,
       filePath,
+      storageScope,
     };
   } catch {
     return null;
@@ -94,20 +123,26 @@ function parseDocFile(filePath: string): StoredDocFile | null {
 }
 
 function stripFilePath(doc: StoredDocFile): DocWithTags {
-  const { filePath: _filePath, ...rest } = doc;
+  const { filePath: _filePath, storageScope: _storageScope, ...rest } = doc;
   return rest;
 }
 
 function buildDocFileName(doc: DocWithTags) {
-  const safeProject = toProjectStorageSlug(doc.projectId || getDefaultProjectId());
+  const scopePrefix =
+    doc.scope === "shared"
+      ? "shared"
+      : toProjectStorageSlug(doc.projectId || getDefaultProjectId());
   const safeTitle = (doc.titleNormalized || doc.id.substring(0, 8))
     .replace(/[^a-z0-9_-]/gi, "-")
     .toLowerCase();
-  return `${safeProject}__${safeTitle}.md`;
+  return `${scopePrefix}__${safeTitle}.md`;
 }
 
 function writeDocFile(doc: DocWithTags, previousFilePath?: string): void {
-  const dir = getKnowledgeDir();
+  const dir =
+    doc.scope === "shared"
+      ? getSharedKnowledgeDir(true)
+      : getProjectKnowledgeDir(doc.projectId || getDefaultProjectId(), true);
   const nextFilePath = path.join(dir, buildDocFileName(doc));
 
   const output = matter.stringify(doc.content, {
@@ -118,6 +153,7 @@ function writeDocFile(doc: DocWithTags, previousFilePath?: string): void {
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
     tags: doc.tags,
+    scope: doc.scope,
   });
 
   if (
@@ -137,19 +173,51 @@ function deleteDocFile(filePath: string): void {
   }
 }
 
-function getAllDocFiles(userId: string, projectId: string): StoredDocFile[] {
-  const dir = getKnowledgeDir();
+function collectDocsFromDir(
+  dir: string,
+  storageScope: "project" | "shared",
+): StoredDocFile[] {
+  if (!fs.existsSync(dir)) {
+    return [];
+  }
+
   const files = fs.readdirSync(dir).filter((file) => file.endsWith(".md"));
   const docs: StoredDocFile[] = [];
 
   for (const file of files) {
-    const parsed = parseDocFile(path.join(dir, file));
-    if (parsed && parsed.userId === userId && parsed.projectId === projectId) {
+    const parsed = parseDocFile(path.join(dir, file), storageScope);
+    if (parsed) {
       docs.push(parsed);
     }
   }
 
-  return docs.sort(
+  return docs;
+}
+
+function getAllDocFiles(userId: string, projectId: string): StoredDocFile[] {
+  const projectDocs = collectDocsFromDir(getProjectKnowledgeDir(projectId, false), "project");
+  const sharedDocs = collectDocsFromDir(getSharedKnowledgeDir(false), "shared");
+  const visibleDocs = [...projectDocs, ...sharedDocs].filter((doc) => {
+    if (doc.userId !== userId) {
+      return false;
+    }
+
+    if (doc.projectId === projectId) {
+      return true;
+    }
+
+    return doc.scope === "shared";
+  });
+
+  const dedupedDocs = new Map<string, StoredDocFile>();
+  for (const doc of visibleDocs) {
+    const existing = dedupedDocs.get(doc.id);
+    if (!existing || (existing.storageScope === "shared" && doc.storageScope === "project")) {
+      dedupedDocs.set(doc.id, doc);
+    }
+  }
+
+  return Array.from(dedupedDocs.values()).sort(
     (left, right) =>
       new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
   );
@@ -247,6 +315,7 @@ export function createDoc(
     content?: string;
     fileType?: string;
     tags?: string[];
+    scope?: "project" | "shared";
   },
 ): DocWithTags {
   const titleNorm = normTitle(data.title);
@@ -268,6 +337,7 @@ export function createDoc(
     createdAt: now,
     updatedAt: now,
     tags: data.tags || [],
+    scope: data.scope || "project",
   };
 
   writeDocFile(newDoc);
@@ -283,6 +353,7 @@ export function updateDoc(
     content?: string;
     tags?: string[];
     fileType?: string;
+    scope?: "project" | "shared";
   },
 ): DocWithTags | null {
   const existing = findDocFileById(userId, projectId, id);
@@ -302,6 +373,7 @@ export function updateDoc(
     content: data.content ?? existing.content,
     fileType: data.fileType ?? existing.fileType,
     tags: data.tags ?? existing.tags,
+    scope: data.scope ?? existing.scope,
     updatedAt: new Date().toISOString(),
   };
 

@@ -1,139 +1,95 @@
-"use client";
+import GraphPageClient from "./GraphPageClient";
+import { extractLinks } from "@/lib/parser/extractLinks";
+import { resolveProjectContext } from "@/server/context/project-context";
+import { listWorkspaceGraphProjects } from "@/server/projects/workspace-projects";
+import { resolveUserContext } from "@/server/context/user-context";
+import { listDocs } from "@/server/repositories/docs-repo";
+import { listQuests } from "@/server/repositories/quests-repo";
+import { listReports } from "@/server/repositories/reports-repo";
+import { buildN8nAutomationSnapshot } from "@/server/services/n8n-service";
+import {
+  deriveTopicGraphModel,
+  type TopicGraphDocumentRecord,
+  type TopicGraphQuestRecord,
+  type TopicGraphReportRecord,
+  type TopicGraphWorkflowRecord,
+} from "@/lib/graph/deriveTopicGraph";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
-import axios from "axios";
-import { Loader2, Network } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
-import GraphView from "@/components/graph/GraphView";
-import { buildPromptPackHref } from "@/lib/context-pack/href";
-import type { KnowledgeDocument } from "@/types/document";
+export const dynamic = "force-dynamic";
 
-function GraphPageContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const focusedDocumentId = searchParams.get("focus");
+export default async function GraphPage() {
+  const user = await resolveUserContext();
+  const project = await resolveProjectContext();
 
-  const fetchDocuments = useCallback(async (showLoading: boolean) => {
-    try {
-      if (showLoading) {
-        setLoading(true);
-      }
+  const [docs, quests, reports, automation] = await Promise.all([
+    Promise.resolve(listDocs(user.id, project.id)),
+    Promise.resolve(listQuests(user.id, project.id, { limit: 100 })),
+    Promise.resolve(listReports(user.id, project.id, { limit: 60 })),
+    buildN8nAutomationSnapshot(project),
+  ]);
+  const workspaceProjects = project.isControlPlane
+    ? listWorkspaceGraphProjects()
+        .filter((item) => !item.isControlPlane)
+        .map((item) => ({
+          id: item.id,
+          name: item.name,
+          relativePath: item.relativePath,
+          category: item.category,
+          hasGit: item.hasGit,
+          hasPackageJson: item.hasPackageJson,
+          isControlPlane: item.isControlPlane,
+        }))
+    : [];
 
-      const response = await axios.get("/api/docs");
-      const docs = Array.isArray(response.data?.docs)
-        ? response.data.docs
-        : [];
+  const normalizedDocs: TopicGraphDocumentRecord[] = docs.map((doc) => ({
+    id: doc.id,
+    title: doc.title,
+    content: doc.content,
+    links: extractLinks(doc.content),
+    tags: doc.tags,
+    updatedAt: doc.updatedAt,
+    createdAt: doc.createdAt,
+  }));
 
-      setDocuments(
-        docs.map((doc: Partial<KnowledgeDocument>) => ({
-          id: String(doc.id || ""),
-          title: String(doc.title || ""),
-          content: String(doc.content || ""),
-          links: Array.isArray(doc.links)
-            ? doc.links.map((link) => String(link))
-            : [],
-        })),
-      );
-      setError("");
-    } catch {
-      setError("Unable to load knowledge graph.");
-    } finally {
-      if (showLoading) {
-        setLoading(false);
-      }
-    }
-  }, []);
+  const normalizedQuests: TopicGraphQuestRecord[] = quests.map((quest) => ({
+    id: quest.id,
+    goal: quest.goal,
+    topics: quest.topics,
+    completed: quest.completed,
+    date: quest.date,
+  }));
 
-  useEffect(() => {
-    void fetchDocuments(true);
+  const normalizedReports: TopicGraphReportRecord[] = reports.map((report) => ({
+    id: report.id,
+    title: report.title,
+    content: report.content,
+    topics: report.topics,
+    category: report.category,
+    status: report.status,
+    source: report.source,
+    date: report.date,
+  }));
 
-    const intervalId = window.setInterval(() => {
-      void fetchDocuments(false);
-    }, 15000);
+  const normalizedWorkflows: TopicGraphWorkflowRecord[] = automation.workflows.map((workflow) => ({
+    id: workflow.id,
+    name: workflow.name,
+    tags: workflow.tags,
+    active: workflow.active,
+  }));
 
-    const handleFocus = () => {
-      void fetchDocuments(false);
-    };
-
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        void fetchDocuments(false);
-      }
-    };
-
-    window.addEventListener("focus", handleFocus);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener("focus", handleFocus);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [fetchDocuments]);
+  const model = deriveTopicGraphModel({
+    projectTitle: project.name || "Project",
+    docs: normalizedDocs,
+    quests: normalizedQuests,
+    reports: normalizedReports,
+    workflows: normalizedWorkflows,
+    workspaceProjects,
+  });
 
   return (
-    <div className="sidebar-shell-transition fixed top-0 right-0 bottom-0 flex w-[calc(100%-var(--sidebar-width))] overflow-hidden bg-bg-base">
-      {error && (
-        <div className="absolute left-6 top-6 z-20 rounded-lg border border-status-error/30 bg-status-error/10 px-4 py-3 text-sm text-status-error shadow-lg">
-          {error}
-        </div>
-      )}
-
-      {loading ? (
-        <div className="flex flex-1 items-center justify-center">
-          <div className="flex items-center gap-3 rounded-xl border border-border bg-bg-card px-5 py-3 text-sm text-text-secondary shadow-lg">
-            <Loader2 className="h-4 w-4 animate-spin text-accent-primary" />
-            Building graph...
-          </div>
-        </div>
-      ) : documents.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 text-text-secondary">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-bg-card">
-            <Network className="h-7 w-7 text-accent-primary/60" />
-          </div>
-          <div className="text-center">
-            <p className="text-sm font-medium text-white">No documents yet.</p>
-            <p className="mt-1 text-xs text-text-muted">
-              Create a document in Docs to populate the knowledge graph.
-            </p>
-          </div>
-        </div>
-      ) : (
-        <GraphView
-          documents={documents}
-          onOpenDocument={(documentId) =>
-            router.push(`/dashboard/docs?doc=${encodeURIComponent(documentId)}`)
-          }
-          onBuildPromptPack={(documentId) =>
-            router.push(
-              documentId
-                ? buildPromptPackHref("graph_focus", documentId)
-                : buildPromptPackHref("workspace"),
-            )
-          }
-          focusedDocumentId={focusedDocumentId}
-        />
-      )}
-    </div>
-  );
-}
-
-export default function GraphPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex h-full min-h-[60vh] items-center justify-center">
-          <div className="flex items-center gap-3 rounded-xl border border-border bg-bg-card px-5 py-3 text-sm text-text-secondary shadow-lg">
-            <Loader2 className="h-4 w-4 animate-spin text-accent-primary" />
-            Building graph...
-          </div>
-        </div>
-      }
-    >
-      <GraphPageContent />
-    </Suspense>
+    <GraphPageClient
+      initialModel={model}
+      initialN8nBaseUrl={automation.baseUrl ?? null}
+    />
   );
 }

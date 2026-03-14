@@ -91,6 +91,28 @@ export interface RepoCodeIntelTool {
   detail: string;
 }
 
+export interface RepoCodeGraphContextCommand {
+  label: string;
+  command: string;
+}
+
+export interface RepoCodeGraphContextSnapshot {
+  status: "missing" | "available" | "configured";
+  source: "cli" | "local_repo" | "none";
+  summary: string;
+  localRepoPath: string | null;
+  projectConfigPath: string | null;
+  installHint: string | null;
+  notes: string[];
+  suggestedCommands: RepoCodeGraphContextCommand[];
+  queryPresets: RepoCodeGraphContextCommand[];
+  supportedCapabilities: string[];
+  indexed: boolean;
+  indexedRepositoryCount: number | null;
+  statsPreview: string[];
+  lastError: string | null;
+}
+
 export interface RepoCodeIntelSnapshot {
   overallStatus: RepoCodeIntelStatus;
   summary: string;
@@ -100,6 +122,7 @@ export interface RepoCodeIntelSnapshot {
   overrideFilePath: string;
   hasOverrides: boolean;
   overrideError: string | null;
+  codeGraphContext: RepoCodeGraphContextSnapshot;
 }
 
 export interface RepoSnapshot {
@@ -163,6 +186,13 @@ function pathExists(targetPath: string) {
 }
 
 const commandExistsCache = new Map<string, boolean>();
+const codeGraphContextCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    snapshot: RepoCodeGraphContextSnapshot;
+  }
+>();
 
 function commandExists(commandName: string) {
   const cacheKey = `${process.platform}:${commandName}`;
@@ -249,6 +279,16 @@ function readPackageJson(project: WorkspaceProject): PackageJsonLike {
 
 function getContextDir(project: WorkspaceProject) {
   return path.join(project.rootPath, ".openclaw", "context");
+}
+
+function getWorkspaceRoot(project: WorkspaceProject) {
+  return project.category === "root"
+    ? path.dirname(project.rootPath)
+    : path.dirname(path.dirname(project.rootPath));
+}
+
+function toWorkspaceRelativePath(project: WorkspaceProject, absolutePath: string) {
+  return path.relative(getWorkspaceRoot(project), absolutePath).replace(/\\/g, "/");
 }
 
 function humanizeSegment(value: string) {
@@ -617,6 +657,311 @@ function buildCodeIntelSummary(
   return { overallStatus, summary };
 }
 
+function runCodeGraphContextCli(args: string[]) {
+  try {
+    return execFileSync("cgc", args, {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: 12000,
+      env: {
+        ...process.env,
+        PYTHONIOENCODING: "utf-8",
+      },
+    }).trim();
+  } catch (error) {
+    if (error instanceof Error) {
+      return error.message.trim();
+    }
+
+    return "";
+  }
+}
+
+export function clearCodeGraphContextSnapshotCache(project?: WorkspaceProject) {
+  if (project) {
+    codeGraphContextCache.delete(project.rootPath);
+    return;
+  }
+
+  codeGraphContextCache.clear();
+}
+
+export function indexProjectWithCodeGraphContext(project: WorkspaceProject) {
+  if (!commandExists("cgc")) {
+    return {
+      success: false,
+      message:
+        "CodeGraphContext CLI is not available on PATH yet. Install it before indexing the active project.",
+      output: "",
+    };
+  }
+
+  try {
+    const output = execFileSync("cgc", ["index", project.rootPath], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: 120000,
+      env: {
+        ...process.env,
+        PYTHONIOENCODING: "utf-8",
+      },
+    }).trim();
+    clearCodeGraphContextSnapshotCache(project);
+
+    return {
+      success: true,
+      message: "Active project indexed with CodeGraphContext.",
+      output,
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "CodeGraphContext indexing failed.";
+    clearCodeGraphContextSnapshotCache(project);
+
+    return {
+      success: false,
+      message: "Failed to index the active project with CodeGraphContext.",
+      output: message.trim(),
+    };
+  }
+}
+
+function buildCodeGraphContextQueryPresets(project: WorkspaceProject) {
+  const quotedPath = `"${project.rootPath}"`;
+
+  return [
+    {
+      label: "Repository stats",
+      command: `cgc stats`,
+    },
+    {
+      label: "Find callers",
+      command: "cgc analyze callers <symbol>",
+    },
+    {
+      label: "Find callees",
+      command: "cgc analyze calls <symbol>",
+    },
+    {
+      label: "Trace call chain",
+      command: "cgc analyze chain <from-symbol> <to-symbol>",
+    },
+    {
+      label: "Check dead code",
+      command: `cgc analyze dead-code`,
+    },
+    {
+      label: "Watch active repo",
+      command: `cgc watch ${quotedPath}`,
+    },
+  ];
+}
+
+function collectCodeGraphContextSnapshot(
+  project: WorkspaceProject,
+): RepoCodeGraphContextSnapshot {
+  const cached = codeGraphContextCache.get(project.rootPath);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.snapshot;
+  }
+
+  const workspaceRoot = getWorkspaceRoot(project);
+  const preferredLocalRepoAbsolutePath = path.join(
+    workspaceRoot,
+    "tools",
+    "CodeGraphContext",
+  );
+  const legacyLocalRepoAbsolutePath = path.join(
+    workspaceRoot,
+    "projects",
+    "CodeGraphContext",
+  );
+  const localRepoAbsolutePath = pathExists(preferredLocalRepoAbsolutePath)
+    ? preferredLocalRepoAbsolutePath
+    : legacyLocalRepoAbsolutePath;
+  const cliAvailable = commandExists("cgc");
+  const hasLocalRepo = pathExists(localRepoAbsolutePath);
+  const projectConfigAbsolutePath = repoPath(project, ".cgcignore");
+  const hasProjectConfig = pathExists(projectConfigAbsolutePath);
+  const source: RepoCodeGraphContextSnapshot["source"] = cliAvailable
+    ? "cli"
+    : hasLocalRepo
+      ? "local_repo"
+      : "none";
+  const status: RepoCodeGraphContextSnapshot["status"] =
+    source === "none"
+      ? "missing"
+      : hasProjectConfig
+        ? "configured"
+        : "available";
+  const localRepoPath = hasLocalRepo
+    ? toWorkspaceRelativePath(project, localRepoAbsolutePath)
+    : null;
+  const projectConfigPath = hasProjectConfig
+    ? toRepoRelativePath(project, projectConfigAbsolutePath)
+    : null;
+  const notes: string[] = [];
+  const suggestedCommands: RepoCodeGraphContextCommand[] = [];
+  const queryPresets = buildCodeGraphContextQueryPresets(project);
+  const supportedCapabilities = [
+    "Repository indexing",
+    "Caller and callee tracing",
+    "Dependency and inheritance analysis",
+    "Complexity and dead-code checks",
+    "Repository stats for prompt context",
+  ];
+
+  const finish = (snapshot: RepoCodeGraphContextSnapshot) => {
+    codeGraphContextCache.set(project.rootPath, {
+      expiresAt: Date.now() + 30000,
+      snapshot,
+    });
+    return snapshot;
+  };
+
+  if (source === "none") {
+    return finish({
+      status,
+      source,
+      summary:
+        "CodeGraphContext is not available yet. Install the CLI or keep the local repo in workspace/tools if you want graph-backed code queries.",
+      localRepoPath,
+      projectConfigPath,
+      installHint: "python -m pip install codegraphcontext",
+      notes,
+      suggestedCommands,
+      queryPresets,
+      supportedCapabilities,
+      indexed: false,
+      indexedRepositoryCount: null,
+      statsPreview: [],
+      lastError: null,
+    });
+  }
+
+  if (source === "cli") {
+    const listOutput = runCodeGraphContextCli(["list"]);
+    const normalizedProjectPath = project.rootPath.replace(/\\/g, "/").toLowerCase();
+    const listLines = listOutput
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const indexedRepositoryCount = listLines.filter((line) =>
+      /^\d+\./.test(line),
+    ).length;
+    const indexed = listLines.some((line) =>
+      line.replace(/\\/g, "/").toLowerCase().includes(normalizedProjectPath),
+    );
+    const statsOutput = indexed ? runCodeGraphContextCli(["stats"]) : "";
+    const statsPreview = statsOutput
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .slice(0, 4);
+
+    notes.push(
+      "Use CodeGraphContext for deeper code queries like callers, callees, chains, and complexity without adding raw symbol nodes to the Mission Control topic graph.",
+    );
+    suggestedCommands.push(
+      {
+        label: "Index active repo",
+        command: `cgc index "${project.rootPath}"`,
+      },
+      {
+        label: "Show indexed repo stats",
+        command: `cgc stats`,
+      },
+      {
+        label: "Trace callers or callees",
+        command: "cgc analyze callers <symbol>",
+      },
+    );
+
+    if (indexed) {
+      notes.push(
+        "The active repo already appears in the CodeGraphContext index, so prompt packs can reference repository stats and code-relationship queries immediately.",
+      );
+    } else {
+      notes.push(
+        "The active repo is not indexed in CodeGraphContext yet. Run the index command once before relying on CGC queries.",
+      );
+    }
+
+    if (hasProjectConfig) {
+      notes.push(
+        "This repo already has a .cgcignore file, so indexing can stay scoped and avoid noisy files.",
+      );
+    } else {
+      notes.push(
+        "Add a .cgcignore file in the active repo if you want to keep generated files or vendor folders out of the code graph.",
+      );
+    }
+
+    return finish({
+      status,
+      source,
+      summary:
+        status === "configured"
+          ? indexed
+            ? "CodeGraphContext CLI is available, this repo declares indexing exclusions, and the active project already appears in the graph index."
+            : "CodeGraphContext CLI is available and this repo already declares indexing exclusions."
+          : indexed
+            ? "CodeGraphContext CLI is available and the active project already appears in the graph index."
+            : "CodeGraphContext CLI is available for on-demand indexing, call-chain tracing, and code relationship queries.",
+      localRepoPath,
+      projectConfigPath,
+      installHint: null,
+      notes,
+      suggestedCommands,
+      queryPresets,
+      supportedCapabilities,
+      indexed,
+      indexedRepositoryCount,
+      statsPreview,
+      lastError: null,
+    });
+  }
+
+  notes.push(
+    "A local CodeGraphContext checkout exists in the workspace, but the cgc CLI is not installed on PATH yet.",
+  );
+  notes.push(
+    "Install the local repo in editable mode if you want to use it as a code-intel backend for the active project.",
+  );
+  suggestedCommands.push(
+    {
+      label: "Install local CodeGraphContext repo",
+      command: `python -m pip install -e "${localRepoAbsolutePath}"`,
+    },
+    {
+      label: "Index active repo after install",
+      command: `cgc index "${project.rootPath}"`,
+    },
+  );
+
+  return finish({
+    status,
+    source,
+    summary:
+      status === "configured"
+        ? "The local CodeGraphContext repo is available and this project already has a .cgcignore file, but the CLI still needs to be installed."
+        : "The local CodeGraphContext repo is available as a workspace tool, but the CLI is not installed yet.",
+    localRepoPath,
+    projectConfigPath,
+    installHint: `python -m pip install -e "${localRepoAbsolutePath}"`,
+    notes,
+    suggestedCommands,
+    queryPresets,
+    supportedCapabilities,
+    indexed: false,
+    indexedRepositoryCount: null,
+    statsPreview: [],
+    lastError: "cgc CLI not installed",
+  });
+}
+
 function collectCodeIntelSnapshot(
   project: WorkspaceProject,
   pkg: PackageJsonLike,
@@ -786,6 +1131,7 @@ function collectCodeIntelSnapshot(
     ...overrides.tools,
   ];
   const summary = buildCodeIntelSummary(mergedTools);
+  const codeGraphContext = collectCodeGraphContextSnapshot(project);
 
   if (overrides.overrideError) {
     suggestions.add(
@@ -806,6 +1152,7 @@ function collectCodeIntelSnapshot(
     overrideFilePath: overrides.overrideFilePath,
     hasOverrides: overrides.hasOverrides,
     overrideError: overrides.overrideError,
+    codeGraphContext,
   };
 }
 
@@ -1023,6 +1370,7 @@ export function buildWorkspaceReadiness(
     "COLLABORATION_GUIDE.md",
     "REPO_MAP.md",
     "ACTIVE_CONTEXT.md",
+    "MEMORY_BRIEF.md",
   ];
   const hasContextFiles = options.assumeContextFiles
     ? true
@@ -1106,7 +1454,7 @@ export function buildWorkspaceReadiness(
       detail:
         connections > 0
           ? `${connections} document links connect the project knowledge base.`
-          : "Link related docs so focused prompt packs have usable local context.",
+          : "Link related docs so generated agent tasks have usable local context.",
       href: "/dashboard/graph",
     },
     {
@@ -1117,7 +1465,7 @@ export function buildWorkspaceReadiness(
         repoSnapshot.verificationPresets.length > 0
           ? "The project exposes commands for linting, testing, building, or checking."
           : "Add scripts or document commands so IDE work can be verified consistently.",
-      href: "/dashboard/prompt-pack",
+      href: "/dashboard/automations",
     },
     {
       id: "code-intel",
@@ -1127,7 +1475,7 @@ export function buildWorkspaceReadiness(
         repoSnapshot.codeIntel.tools.length > 0
           ? repoSnapshot.codeIntel.summary
           : "No language-server-backed project signals were detected for the active repo yet.",
-      href: "/dashboard/prompt-pack",
+      href: "/dashboard/automations",
     },
     {
       id: "git",
@@ -1144,8 +1492,8 @@ export function buildWorkspaceReadiness(
       ready: hasContextFiles,
       detail: hasContextFiles
         ? "Project, collaboration, repo, and active context files are available for the IDE."
-        : "Generate a prompt pack or update workspace artifacts to write the context files.",
-      href: "/dashboard/prompt-pack",
+        : "Generate an agent task or update workspace artifacts to write the context files.",
+      href: "/dashboard/automations",
     },
   ];
 
@@ -1249,6 +1597,55 @@ export function renderRepoSnapshotMarkdown(snapshot: RepoSnapshot) {
       : []),
     ...(snapshot.codeIntel.suggestions.length
       ? ["", "### Suggested Setup", ...snapshot.codeIntel.suggestions.map((item) => `- ${item}`)]
+      : []),
+    "",
+    "### CodeGraphContext",
+    `- ${snapshot.codeIntel.codeGraphContext.summary}`,
+    `- Source: ${snapshot.codeIntel.codeGraphContext.source}`,
+    `- Indexed: ${snapshot.codeIntel.codeGraphContext.indexed ? "yes" : "no"}`,
+    ...(snapshot.codeIntel.codeGraphContext.localRepoPath
+      ? [`- Local repo: \`${snapshot.codeIntel.codeGraphContext.localRepoPath}\``]
+      : []),
+    ...(snapshot.codeIntel.codeGraphContext.projectConfigPath
+      ? [`- Project config: \`${snapshot.codeIntel.codeGraphContext.projectConfigPath}\``]
+      : []),
+    ...(snapshot.codeIntel.codeGraphContext.installHint
+      ? [`- Install hint: \`${snapshot.codeIntel.codeGraphContext.installHint}\``]
+      : []),
+    ...(snapshot.codeIntel.codeGraphContext.supportedCapabilities.length
+      ? [
+          "  Capabilities:",
+          ...snapshot.codeIntel.codeGraphContext.supportedCapabilities.map(
+            (item) => `  - ${item}`,
+          ),
+        ]
+      : []),
+    ...(snapshot.codeIntel.codeGraphContext.statsPreview.length
+      ? [
+          "  Stats preview:",
+          ...snapshot.codeIntel.codeGraphContext.statsPreview.map(
+            (item) => `  - ${item}`,
+          ),
+        ]
+      : []),
+    ...(snapshot.codeIntel.codeGraphContext.notes.length
+      ? snapshot.codeIntel.codeGraphContext.notes.map((item) => `- ${item}`)
+      : []),
+    ...(snapshot.codeIntel.codeGraphContext.suggestedCommands.length
+      ? [
+          "  Suggested commands:",
+          ...snapshot.codeIntel.codeGraphContext.suggestedCommands.map(
+            (item) => `  - ${item.label}: \`${item.command}\``,
+          ),
+        ]
+      : []),
+    ...(snapshot.codeIntel.codeGraphContext.queryPresets.length
+      ? [
+          "  Query presets:",
+          ...snapshot.codeIntel.codeGraphContext.queryPresets.map(
+            (item) => `  - ${item.label}: \`${item.command}\``,
+          ),
+        ]
       : []),
     "",
     "## Dashboard Surfaces",
@@ -1363,6 +1760,48 @@ export function renderIdeAgentSetupMarkdown({
       ? ["", "### Suggested Setup", ...snapshot.codeIntel.suggestions.map((item) => `- ${item}`)]
       : []),
     "",
+    "### CodeGraphContext",
+    `- Summary: ${snapshot.codeIntel.codeGraphContext.summary}`,
+    `- Source: ${snapshot.codeIntel.codeGraphContext.source}`,
+    `- Indexed: ${snapshot.codeIntel.codeGraphContext.indexed ? "yes" : "no"}`,
+    ...(snapshot.codeIntel.codeGraphContext.localRepoPath
+      ? [`- Local repo: \`${snapshot.codeIntel.codeGraphContext.localRepoPath}\``]
+      : []),
+    ...(snapshot.codeIntel.codeGraphContext.projectConfigPath
+      ? [`- Project config: \`${snapshot.codeIntel.codeGraphContext.projectConfigPath}\``]
+      : []),
+    ...(snapshot.codeIntel.codeGraphContext.installHint
+      ? [`- Install hint: \`${snapshot.codeIntel.codeGraphContext.installHint}\``]
+      : []),
+    ...(snapshot.codeIntel.codeGraphContext.notes.length
+      ? snapshot.codeIntel.codeGraphContext.notes.map((note) => `- ${note}`)
+      : []),
+    ...(snapshot.codeIntel.codeGraphContext.statsPreview.length
+      ? [
+          "",
+          "### CGC Stats Preview",
+          ...snapshot.codeIntel.codeGraphContext.statsPreview.map((item) => `- ${item}`),
+        ]
+      : []),
+    ...(snapshot.codeIntel.codeGraphContext.suggestedCommands.length
+      ? [
+          "",
+          "### Suggested CGC Commands",
+          ...snapshot.codeIntel.codeGraphContext.suggestedCommands.map(
+            (item) => `- ${item.label}: \`${item.command}\``,
+          ),
+        ]
+      : []),
+    ...(snapshot.codeIntel.codeGraphContext.queryPresets.length
+      ? [
+          "",
+          "### CGC Query Presets",
+          ...snapshot.codeIntel.codeGraphContext.queryPresets.map(
+            (item) => `- ${item.label}: \`${item.command}\``,
+          ),
+        ]
+      : []),
+    "",
     "## Workflow Expectations",
     ...guide.workflow.map((item) => `- ${item}`),
     "",
@@ -1409,6 +1848,17 @@ export function buildBootstrapTemplates(
           ),
         ]
       : ["- Record which language servers or semantic tooling this project relies on."];
+  const codeGraphContextLines = [
+    `- ${snapshot.codeIntel.codeGraphContext.summary}`,
+    ...(snapshot.codeIntel.codeGraphContext.localRepoPath
+      ? [`- Local repo: \`${snapshot.codeIntel.codeGraphContext.localRepoPath}\``]
+      : []),
+    ...(snapshot.codeIntel.codeGraphContext.suggestedCommands.length > 0
+      ? snapshot.codeIntel.codeGraphContext.suggestedCommands.map(
+          (item) => `- ${item.label}: \`${item.command}\``,
+        )
+      : []),
+  ];
 
   return [
     {
@@ -1482,6 +1932,9 @@ export function buildBootstrapTemplates(
         "## Code Intelligence Setup",
         ...codeIntelLines,
         "",
+        "## Code Graph Context",
+        ...codeGraphContextLines,
+        "",
         "## Handoff Rules",
         "- Update Docs when structure or decisions change.",
         "- Keep Quests concrete and current.",
@@ -1549,6 +2002,9 @@ export function buildBootstrapTemplates(
             )
           : ["- Fill in the language servers or semantic tools this repo expects."]),
         "",
+        "## CodeGraphContext",
+        ...codeGraphContextLines,
+        "",
         "## Editor Notes",
         "- Record any editor-specific settings, extensions, workspace files, or commands here.",
         "",
@@ -1556,6 +2012,37 @@ export function buildBootstrapTemplates(
         "- Generate Prompt Pack before implementation sessions.",
         "- Keep Session Handoff current before ending the session.",
         "- Update this file if editor tooling or semantic setup changes.",
+      ].join("\n"),
+    },
+    {
+      title: "Automation Operating Model",
+      tags: ["workflow", "automation", "n8n"],
+      matchKeywords: ["automation", "n8n", "webhook", "workflow orchestration"],
+      content: [
+        "# Automation Operating Model",
+        "",
+        "## Purpose",
+        "Define how n8n or other local automation tools support both project work and broader business workflows.",
+        "",
+        "## Shared Token",
+        "- Set `OPENCLAW_AUTOMATION_TOKEN` in the Mission Control `.env` file.",
+        "- Use the `x-openclaw-automation-token` header from local automation calls.",
+        "",
+        "## Recommended Flows",
+        "- Session brief generation before IDE work starts.",
+        "- Daily workspace review written back as a Mission Control report.",
+        "- Business workflow results written back as Mission Control reports.",
+        "- Manual webhook that records external automation results as reports.",
+        "",
+        "## API Surface",
+        "- `GET /api/automation/session-brief`",
+        "- `GET /api/automation/n8n/status`",
+        "- `POST /api/automation/reports`",
+        "",
+        "## Rules",
+        "- Keep automation optional and local-first.",
+        "- Use reports for durable automation outcomes across both project and business workflows.",
+        "- Do not move core app logic into automation flows.",
       ].join("\n"),
     },
   ];

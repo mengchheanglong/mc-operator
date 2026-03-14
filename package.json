@@ -6,11 +6,13 @@
     "node": ">=20.9.0"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
+    "dev:turbo": "next dev",
     "dev:openclaw": "./start-openclaw.sh",
     "clean:next": "node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true});console.log('Removed .next cache')}catch(e){console.log('No .next cache to remove')}\"",
-    "dev:reset": "npm run clean:next && next dev",
+    "dev:reset": "npm run clean:next && next dev --webpack",
     "build": "next build",
+    "build:webpack": "next build --webpack",
     "start": "next start",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "typecheck": "tsc --noEmit --project tsconfig.typecheck.json --incremental false",

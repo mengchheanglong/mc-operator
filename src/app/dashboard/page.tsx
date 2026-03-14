@@ -2,10 +2,10 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import {
   Activity,
-  AlertTriangle,
   ArrowRight,
   CheckCircle2,
-  Clock,
+  Copy,
+  FileCode2,
   FileText,
   FolderKanban,
   GitBranch,
@@ -13,16 +13,14 @@ import {
   ScrollText,
   Sparkles,
   StickyNote,
-  Tag,
   Target,
-  Copy,
   TerminalSquare,
+  Clock3,
 } from "lucide-react";
-import { buildDashboardSnapshot } from "@/server/services/dashboard-service";
+import { buildPromptPackHref } from "@/lib/context-pack/href";
 import { resolveProjectContext } from "@/server/context/project-context";
 import { resolveUserContext } from "@/server/context/user-context";
-import { buildPromptPackHref } from "@/lib/context-pack/href";
-import BootstrapWorkspaceButton from "@/components/BootstrapWorkspaceButton";
+import { buildDashboardSnapshot } from "@/server/services/dashboard-service";
 
 export const dynamic = "force-dynamic";
 
@@ -45,12 +43,35 @@ function relativeTime(dateValue: string) {
   return `${days}d ago`;
 }
 
+function trimText(value: string, maxLength: number) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxLength - 1).trim()}...`;
+}
+
+function formatDayLabel(dayKey: string) {
+  const date = new Date(`${dayKey}T00:00:00`);
+  if (Number.isNaN(date.getTime())) {
+    return dayKey;
+  }
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
+}
+
 function difficultyTone(difficulty: string) {
   switch (difficulty) {
     case "easy":
     case "hard":
     case "nightmare":
     case "hell":
+    case "normal":
     default:
       return "border-border bg-bg-panel text-text-secondary";
   }
@@ -64,16 +85,7 @@ function activityTone(tone: "default" | "success" | "warning" | undefined) {
   return "border-border bg-bg-panel/55 text-text-secondary";
 }
 
-function metricTone(tone: "primary" | "warning" | "graph") {
-  switch (tone) {
-    case "warning":
-    case "graph":
-    default:
-      return "border-border bg-bg-panel text-text-primary";
-  }
-}
-
-function DashboardPanel({
+function Section({
   title,
   subtitle,
   actionHref,
@@ -91,11 +103,8 @@ function DashboardPanel({
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
           <h2 className="matte-panel-heading">{title}</h2>
-          {subtitle ? (
-            <p className="mt-1 matte-panel-copy">{subtitle}</p>
-          ) : null}
+          {subtitle ? <p className="mt-1 matte-panel-copy">{subtitle}</p> : null}
         </div>
-
         {actionHref && actionLabel ? (
           <Link
             href={actionHref}
@@ -106,7 +115,6 @@ function DashboardPanel({
           </Link>
         ) : null}
       </div>
-
       {children}
     </section>
   );
@@ -118,14 +126,12 @@ function MetricCard({
   detail,
   href,
   icon,
-  tone,
 }: {
   title: string;
   value: number;
   detail: string;
   href: string;
   icon: ReactNode;
-  tone: "primary" | "warning" | "graph";
 }) {
   return (
     <Link
@@ -133,12 +139,7 @@ function MetricCard({
       className="matte-panel group p-5 transition duration-200 hover:border-text-muted/18 hover:bg-bg-card"
     >
       <div className="mb-5 flex items-start justify-between">
-        <div
-          className={cn(
-            "flex h-11 w-11 items-center justify-center rounded-xl border transition group-hover:scale-105",
-            metricTone(tone),
-          )}
-        >
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-bg-panel text-text-primary transition group-hover:scale-105">
           {icon}
         </div>
         <ArrowRight className="h-4 w-4 text-text-muted transition group-hover:text-white" />
@@ -157,46 +158,34 @@ export default async function DashboardPage() {
   const project = await resolveProjectContext();
   const dashboard = await buildDashboardSnapshot(user.id, project);
 
+  const activeQuests = dashboard.activeQuests.slice(0, 3);
+  const recentRecords = dashboard.recentActivity.slice(0, 6);
+  const changedFiles = dashboard.repoSnapshot.git.changedFiles.slice(0, 6);
+  const verificationPresets = dashboard.repoSnapshot.verificationPresets.slice(0, 4);
+  const recentCommits = dashboard.repoSnapshot.git.recentCommits.slice(0, 3);
+
   return (
     <div className="flex h-full w-full overflow-y-auto">
       <div className="matte-page mx-auto flex w-full max-w-7xl px-6 py-8 sm:px-10">
         <section className="matte-panel overflow-hidden p-6 sm:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="matte-header-copy">
-              <h1 className="matte-hero-title">
-                {dashboard.greeting}
-              </h1>
+              <h1 className="matte-hero-title">{dashboard.greeting}</h1>
               <p className="matte-subtitle">
-                Mission Control is tracking the active project, current repo
-                state, and the next work that is worth resuming across Docs,
-                Graph, Quests, Notes, Reports, and Prompt Pack.
+                Keep the active project, current repo state, next work, and agent-task
+                inputs in one place before jumping back into the IDE or OpenClaw.
               </p>
               <div className="mt-5 flex flex-wrap gap-2.5 text-xs">
-                <span className="matte-chip">
-                  {dashboard.project.name}
-                </span>
-                <span className="matte-chip">
-                  {dashboard.project.relativePath}
-                </span>
-                <span className="matte-chip">
-                  {dashboard.overview.docCount} docs
-                </span>
-                <span className="matte-chip">
-                  {dashboard.overview.decisionCount} decisions
-                </span>
-                <span className="matte-chip">
-                  {dashboard.overview.connectionCount} graph connections
-                </span>
+                <span className="matte-chip">{dashboard.project.name}</span>
+                <span className="matte-chip">{dashboard.project.relativePath}</span>
+                <span className="matte-chip">{dashboard.overview.docCount} docs</span>
+                <span className="matte-chip">{dashboard.metrics.openQuests} open quests</span>
+                <span className="matte-chip">{dashboard.overview.reportCount} reports</span>
                 <span className="matte-chip">
                   {dashboard.metrics.changedFiles} changed files
                 </span>
-                <span className="matte-chip">
-                  {dashboard.overview.reportCount} reports
-                </span>
                 {dashboard.repoSnapshot.git.branch ? (
-                  <span className="matte-chip">
-                    {dashboard.repoSnapshot.git.branch}
-                  </span>
+                  <span className="matte-chip">{dashboard.repoSnapshot.git.branch}</span>
                 ) : null}
               </div>
             </div>
@@ -207,58 +196,41 @@ export default async function DashboardPage() {
                 className="matte-action-primary"
               >
                 <Copy className="h-4 w-4" />
-                Build Prompt Pack
+                Generate Task
               </Link>
-              <Link
-                href="/dashboard/docs"
-                className="matte-action-secondary"
-              >
+              <Link href="/dashboard/docs" className="matte-action-secondary">
                 <FileText className="h-4 w-4" />
-                Open Docs
+                Docs
               </Link>
-              <Link
-                href="/dashboard/graph"
-                className="matte-action-secondary"
-              >
+              <Link href="/dashboard/graph" className="matte-action-secondary">
                 <Network className="h-4 w-4" />
-                View Graph
+                Graph
               </Link>
             </div>
           </div>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard
             title="Open quests"
             value={dashboard.metrics.openQuests}
             detail="Current work still in motion"
             href="/dashboard/quests"
             icon={<Target className="h-5 w-5" />}
-            tone="primary"
           />
           <MetricCard
-            title="Pending notes"
-            value={dashboard.metrics.pendingNotes}
-            detail="Notes waiting for completion"
-            href="/dashboard/notes"
-            icon={<StickyNote className="h-5 w-5" />}
-            tone="primary"
+            title="Reports"
+            value={dashboard.overview.reportCount}
+            detail="Durable session and system records"
+            href="/dashboard/report"
+            icon={<ScrollText className="h-5 w-5" />}
           />
           <MetricCard
-            title="Unresolved links"
-            value={dashboard.metrics.unresolvedLinks}
-            detail="Knowledge gaps still pointing nowhere"
+            title="Docs"
+            value={dashboard.overview.docCount}
+            detail="Project knowledge and durable notes"
             href="/dashboard/docs"
-            icon={<AlertTriangle className="h-5 w-5" />}
-            tone="warning"
-          />
-          <MetricCard
-            title="Orphan docs"
-            value={dashboard.metrics.orphanDocs}
-            detail="Notes disconnected from the graph"
-            href="/dashboard/graph"
-            icon={<GitBranch className="h-5 w-5" />}
-            tone="graph"
+            icon={<FileText className="h-5 w-5" />}
           />
           <MetricCard
             title="Changed files"
@@ -270,20 +242,102 @@ export default async function DashboardPage() {
             }
             href={buildPromptPackHref("workspace")}
             icon={<FolderKanban className="h-5 w-5" />}
-            tone="primary"
           />
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-[1.35fr,0.95fr]">
+        <section className="grid gap-6 lg:grid-cols-2">
+          <Section
+            title="Work Summary"
+            subtitle="Current quest flow and the areas seeing the most activity."
+            actionHref="/dashboard/quests"
+            actionLabel="Open quests"
+          >
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-xl border border-border bg-bg-panel/55 p-4">
+                <div className="matte-section-title">Quest status</div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                  <div className="rounded-xl border border-border bg-bg-panel px-3 py-3">
+                    <div className="text-xs text-text-muted">Open</div>
+                    <div className="mt-1 text-xl font-semibold text-white">{dashboard.workSummary.questStatusCounts.open}</div>
+                  </div>
+                  <div className="rounded-xl border border-border bg-bg-panel px-3 py-3">
+                    <div className="text-xs text-text-muted">In Progress</div>
+                    <div className="mt-1 text-xl font-semibold text-white">{dashboard.workSummary.questStatusCounts.inProgress}</div>
+                  </div>
+                  <div className="rounded-xl border border-border bg-bg-panel px-3 py-3">
+                    <div className="text-xs text-text-muted">Blocked</div>
+                    <div className="mt-1 text-xl font-semibold text-white">{dashboard.workSummary.questStatusCounts.blocked}</div>
+                  </div>
+                  <div className="rounded-xl border border-border bg-bg-panel px-3 py-3">
+                    <div className="text-xs text-text-muted">Done</div>
+                    <div className="mt-1 text-xl font-semibold text-white">{dashboard.workSummary.questStatusCounts.done}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-border bg-bg-panel/55 p-4">
+                <div className="matte-section-title">Top areas</div>
+                <div className="mt-3 space-y-2">
+                  {dashboard.workSummary.questAreas.length === 0 && dashboard.workSummary.reportAreas.length === 0 ? (
+                    <div className="matte-panel-copy">No quest or report areas yet.</div>
+                  ) : (
+                    <>
+                      {dashboard.workSummary.questAreas.map((item) => (
+                        <div key={`quest-${item.area}`} className="flex items-center justify-between rounded-xl border border-border bg-bg-panel px-3 py-2">
+                          <div className="text-sm text-text-primary">{item.area}</div>
+                          <div className="text-xs text-text-muted">{item.count} quests</div>
+                        </div>
+                      ))}
+                      {dashboard.workSummary.reportAreas.map((item) => (
+                        <div key={`report-${item.area}`} className="flex items-center justify-between rounded-xl border border-border bg-bg-panel px-3 py-2">
+                          <div className="text-sm text-text-primary">{item.area}</div>
+                          <div className="text-xs text-text-muted">{item.count} reports</div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Section>
+
+          <Section
+            title="Saved Views"
+            subtitle="Jump back into the work slices you use repeatedly."
+            actionHref="/dashboard/report"
+            actionLabel="Open reports"
+          >
+            <div className="grid gap-3 md:grid-cols-2">
+              <Link
+                href="/dashboard/quests"
+                className="rounded-xl border border-border bg-bg-panel/55 p-4 transition hover:border-text-muted/18 hover:bg-bg-card"
+              >
+                <div className="matte-panel-heading">Quest views</div>
+                <div className="mt-1 matte-panel-copy">
+                  Save filtered work slices by area, topic, and status from the Quests page.
+                </div>
+              </Link>
+              <Link
+                href="/dashboard/report"
+                className="rounded-xl border border-border bg-bg-panel/55 p-4 transition hover:border-text-muted/18 hover:bg-bg-card"
+              >
+                <div className="matte-panel-heading">Report views</div>
+                <div className="mt-1 matte-panel-copy">
+                  Reopen linked, area-scoped, or category-scoped report streams without resetting filters.
+                </div>
+              </Link>
+            </div>
+          </Section>
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-[1.2fr,0.95fr]">
           <div className="space-y-6">
-            <DashboardPanel
-              title="Resume Work"
-              subtitle="Pick up the latest note, graph node, or document focus."
+            <Section
+              title="What To Resume"
+              subtitle="The shortest path back into the current work."
             >
               {dashboard.resumeWork.length === 0 ? (
-                <div className="matte-empty text-sm">
-                  No recent work to resume yet.
-                </div>
+                <div className="matte-empty text-sm">No recent work to resume yet.</div>
               ) : (
                 <div className="grid gap-3 md:grid-cols-2">
                   {dashboard.resumeWork.map((item) => {
@@ -292,6 +346,8 @@ export default async function DashboardPage() {
                         <Network className="h-4 w-4" />
                       ) : item.kind === "note" ? (
                         <StickyNote className="h-4 w-4" />
+                      ) : item.kind === "handoff" ? (
+                        <Copy className="h-4 w-4" />
                       ) : (
                         <FileText className="h-4 w-4" />
                       );
@@ -308,40 +364,34 @@ export default async function DashboardPage() {
                           </div>
                           <ArrowRight className="h-4 w-4 text-text-muted transition group-hover:text-white" />
                         </div>
-                        <div className="text-sm font-semibold text-white">
-                          {item.title}
-                        </div>
-                        <div className="mt-1 matte-panel-copy">
-                          {item.description}
-                        </div>
+                        <div className="text-sm font-semibold text-white">{item.title}</div>
+                        <div className="mt-1 matte-panel-copy">{item.description}</div>
                       </Link>
                     );
                   })}
                 </div>
               )}
-            </DashboardPanel>
+            </Section>
 
-            <DashboardPanel
+            <Section
               title="Active Quest Stack"
-              subtitle="The first quests that still need movement."
+              subtitle="Matches the open work shown in Quests."
               actionHref="/dashboard/quests"
-              actionLabel="Open board"
+              actionLabel="Open quests"
             >
-              {dashboard.activeQuests.length === 0 ? (
+              {activeQuests.length === 0 ? (
                 <div className="matte-empty text-sm">
-                  No open quests. Queue up the next objective from Docs or build a fresh Prompt Pack.
+                  No open quests. Add the next objective from Quests.
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {dashboard.activeQuests.map((quest) => (
+                  {activeQuests.map((quest) => (
                     <div
                       key={quest.id}
                       className="flex flex-col gap-3 rounded-xl border border-border bg-bg-panel/58 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="min-w-0">
-                        <div className="matte-panel-heading">
-                          {quest.goal}
-                        </div>
+                        <div className="matte-panel-heading">{quest.goal}</div>
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-text-secondary">
                           <span
                             className={cn(
@@ -365,21 +415,86 @@ export default async function DashboardPage() {
                   ))}
                 </div>
               )}
-            </DashboardPanel>
+            </Section>
 
-            <DashboardPanel
-              title="Recent Activity"
-              subtitle="A merged feed of docs, notes, quests, and reports."
+            <Section
+              title="Today Work Log"
+              subtitle="Today’s documentation and memory slice for this project."
               actionHref="/dashboard/report"
-              actionLabel="Open reports"
+              actionLabel="Open daily log"
             >
-              {dashboard.recentActivity.length === 0 ? (
+              {dashboard.todayLog.entryCount === 0 ? (
                 <div className="matte-empty text-sm">
-                  No recent activity yet. Add a doc, note, quest, or report to seed the workspace.
+                  No work log entries for {formatDayLabel(dashboard.todayLog.dayKey)} yet.
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {dashboard.recentActivity.map((item) => {
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-text-secondary">
+                    <span className="matte-chip">
+                      {formatDayLabel(dashboard.todayLog.dayKey)}
+                    </span>
+                    <span className="matte-chip">
+                      {dashboard.todayLog.entryCount} update
+                      {dashboard.todayLog.entryCount === 1 ? "" : "s"}
+                    </span>
+                    {dashboard.todayLog.areas.slice(0, 3).map((area) => (
+                      <span key={area} className="matte-chip">
+                        {area}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="space-y-3">
+                    {dashboard.todayLog.entries.map((entry) => (
+                      <Link
+                        key={entry.id}
+                        href="/dashboard/report"
+                        className="group flex items-start gap-3 rounded-xl border border-border bg-bg-panel/55 px-4 py-3 transition hover:border-text-muted/18 hover:bg-bg-card"
+                      >
+                        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-bg-panel text-text-secondary">
+                          <Clock3 className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="matte-panel-heading">{entry.title}</span>
+                            <span className="text-[11px] text-text-muted">
+                              {relativeTime(entry.date)}
+                            </span>
+                            <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-muted">
+                              {entry.status}
+                            </span>
+                          </div>
+                          <div className="mt-1 matte-panel-copy">
+                            {trimText(entry.content, 120)}
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-text-muted">
+                            <span>{entry.category}</span>
+                            {entry.area ? <span>{entry.area}</span> : null}
+                            {entry.topics.slice(0, 3).map((topic) => (
+                              <span key={topic} className="matte-chip">
+                                {topic}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-text-muted transition group-hover:text-white" />
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Section>
+
+            <Section
+              title="Recent Records"
+              subtitle="The latest durable items from reports, docs, notes, and completed quests."
+              actionHref="/dashboard/report"
+              actionLabel="Open reports"
+            >
+              {recentRecords.length === 0 ? (
+                <div className="matte-empty text-sm">No recent records yet.</div>
+              ) : (
+                <div className="space-y-3">
+                  {recentRecords.map((item) => {
                     const icon =
                       item.kind === "quest" ? (
                         <CheckCircle2 className="h-4 w-4" />
@@ -388,7 +503,7 @@ export default async function DashboardPage() {
                       ) : item.kind === "note" ? (
                         <StickyNote className="h-4 w-4" />
                       ) : (
-                        <FileText className="h-4 w-4" />
+                        <FileCode2 className="h-4 w-4" />
                       );
 
                     return (
@@ -407,16 +522,12 @@ export default async function DashboardPage() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="matte-panel-heading">
-                              {item.title}
-                            </span>
+                            <span className="matte-panel-heading">{item.title}</span>
                             <span className="text-[11px] text-text-muted">
                               {relativeTime(item.timestamp)}
                             </span>
                           </div>
-                          <div className="mt-1 matte-panel-copy">
-                            {item.description}
-                          </div>
+                          <div className="mt-1 matte-panel-copy">{item.description}</div>
                         </div>
                         <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-text-muted transition group-hover:text-white" />
                       </Link>
@@ -424,189 +535,13 @@ export default async function DashboardPage() {
                   })}
                 </div>
               )}
-            </DashboardPanel>
+            </Section>
           </div>
 
           <div className="space-y-6">
-            <DashboardPanel
-              title="Knowledge Health"
-              subtitle="Where the graph is strongest, weakest, and newest."
-              actionHref="/dashboard/graph"
-              actionLabel="Open graph"
-            >
-              <div className="space-y-5">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Link
-                    href={
-                      dashboard.health.mostConnectedDoc
-                        ? `/dashboard/docs?doc=${encodeURIComponent(
-                            dashboard.health.mostConnectedDoc.id,
-                          )}`
-                        : "/dashboard/docs"
-                    }
-                    className="rounded-xl border border-border bg-bg-panel/58 p-4 transition hover:border-text-muted/18 hover:bg-bg-card"
-                  >
-                    <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-text-muted">
-                      Most connected
-                    </div>
-                    <div className="matte-panel-heading">
-                      {dashboard.health.mostConnectedDoc?.title || "No connected docs yet"}
-                    </div>
-                    <div className="mt-1 matte-panel-copy">
-                      {dashboard.health.mostConnectedDoc
-                        ? `Degree ${dashboard.health.mostConnectedDoc.degree} - ${dashboard.health.mostConnectedDoc.outgoingCount} out / ${dashboard.health.mostConnectedDoc.incomingCount} in`
-                        : "Link notes together to build the graph."}
-                    </div>
-                  </Link>
-
-                  <Link
-                    href={
-                      dashboard.health.recentlyUpdatedDoc
-                        ? `/dashboard/docs?doc=${encodeURIComponent(
-                            dashboard.health.recentlyUpdatedDoc.id,
-                          )}`
-                        : "/dashboard/docs"
-                    }
-                    className="rounded-xl border border-border bg-bg-panel/58 p-4 transition hover:border-text-muted/18 hover:bg-bg-card"
-                  >
-                    <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-text-muted">
-                      Recently updated
-                    </div>
-                    <div className="matte-panel-heading">
-                      {dashboard.health.recentlyUpdatedDoc?.title || "No recent doc updates"}
-                    </div>
-                    <div className="mt-1 matte-panel-copy">
-                      {dashboard.health.recentlyUpdatedDoc
-                        ? `Updated ${relativeTime(dashboard.health.recentlyUpdatedDoc.updatedAt)}`
-                        : "Open Docs to start building the knowledge base."}
-                    </div>
-                  </Link>
-                </div>
-
-                <div>
-                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-text-muted">
-                    Unresolved references
-                  </div>
-                  {dashboard.health.unresolvedTargets.length === 0 ? (
-                    <div className="matte-empty text-sm">
-                      No unresolved doc links. The knowledge base is internally closed.
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {dashboard.health.unresolvedTargets.map((target) => (
-                        <div
-                          key={target.title}
-                          className="rounded-xl border border-border bg-bg-panel/55 px-4 py-3"
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="matte-panel-heading">
-                              {target.title}
-                            </span>
-                            <span className="rounded-full border border-[#b3956c]/24 bg-[#b3956c]/12 px-2 py-0.5 text-[11px] font-semibold text-[#eadcc8]">
-                              {target.count}
-                            </span>
-                          </div>
-                          <div className="mt-1 matte-panel-copy">
-                            Referenced by{" "}
-                            {target.sources.map((source) => source.title).join(", ")}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-text-muted">
-                    Orphan docs
-                  </div>
-                  {dashboard.health.orphanDocs.length === 0 ? (
-                    <div className="matte-empty text-sm">
-                      No orphan docs. Everything is linked into the graph.
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {dashboard.health.orphanDocs.map((document) => (
-                        <Link
-                          key={document.id}
-                          href={`/dashboard/docs?doc=${encodeURIComponent(document.id)}`}
-                          className="flex items-center justify-between rounded-xl border border-border bg-bg-panel/55 px-4 py-3 transition hover:border-text-muted/18 hover:bg-bg-card"
-                        >
-                          <div>
-                            <div className="matte-panel-heading">
-                              {document.title}
-                            </div>
-                            <div className="mt-1 matte-panel-copy">
-                              No incoming or outgoing connections yet
-                            </div>
-                          </div>
-                          <ArrowRight className="h-4 w-4 text-text-muted" />
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-text-muted">
-                    Top tags
-                  </div>
-                  {dashboard.health.topTags.length === 0 ? (
-                    <div className="matte-empty text-sm">
-                      No tags assigned to documents yet.
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {dashboard.health.topTags.map((entry) => (
-                        <Link
-                          key={entry.tag}
-                          href="/dashboard/docs"
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-bg-panel/58 px-3 py-1.5 text-xs font-semibold text-text-secondary transition hover:border-text-muted/18 hover:text-white"
-                        >
-                          <Tag className="h-3 w-3 text-text-primary" />
-                          {entry.tag}
-                          <span className="rounded-full bg-white/8 px-1.5 py-0.5 text-[10px] font-bold text-text-muted">
-                            {entry.count}
-                          </span>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {dashboard.health.staleDocs.length > 0 && (
-                  <div>
-                    <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-text-muted">
-                      Stale docs
-                    </div>
-                    <div className="space-y-2">
-                      {dashboard.health.staleDocs.map((document) => (
-                        <Link
-                          key={document.id}
-                          href={`/dashboard/docs?doc=${encodeURIComponent(document.id)}`}
-                          className="flex items-center justify-between rounded-xl border border-[#b3956c]/22 bg-[#b3956c]/10 px-4 py-3 transition hover:bg-[#b3956c]/14"
-                        >
-                          <div>
-                            <div className="matte-panel-heading">
-                              {document.title}
-                            </div>
-                            <div className="mt-1 flex items-center gap-1.5 text-[0.72rem] text-[#eadcc8]/80">
-                              <Clock className="h-3 w-3" />
-                              Last updated {relativeTime(document.updatedAt)} - Degree {document.degree}
-                            </div>
-                          </div>
-                          <ArrowRight className="h-4 w-4 text-[#eadcc8]/50" />
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </DashboardPanel>
-
-            <DashboardPanel
-              title="Session Handoff"
-              subtitle="Use the current git state and verification commands to frame the next IDE session."
+            <Section
+              title="Repo Snapshot"
+              subtitle="The current code state that should drive the next brief."
               actionHref={buildPromptPackHref("workspace")}
               actionLabel="Build handoff"
             >
@@ -617,9 +552,7 @@ export default async function DashboardPage() {
                       <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-text-muted">
                         Active repo
                       </div>
-                      <div className="mt-2 matte-panel-heading">
-                        {dashboard.project.name}
-                      </div>
+                      <div className="mt-2 matte-panel-heading">{dashboard.project.name}</div>
                       <div className="mt-1 font-mono text-[11px] text-text-primary">
                         {dashboard.project.relativePath}
                       </div>
@@ -639,20 +572,18 @@ export default async function DashboardPage() {
                       <FolderKanban className="h-4 w-4 text-text-secondary" />
                       <div className="matte-section-title">Changed Files</div>
                     </div>
-                    {dashboard.repoSnapshot.git.changedFiles.length === 0 ? (
-                      <div className="mt-3 matte-panel-copy">
-                        Working tree is clean.
-                      </div>
+                    {changedFiles.length === 0 ? (
+                      <div className="mt-3 matte-panel-copy">Working tree is clean.</div>
                     ) : (
                       <div className="mt-3 space-y-2">
-                        {dashboard.repoSnapshot.git.changedFiles.map((change) => (
+                        {changedFiles.map((change) => (
                           <div
                             key={`${change.status}-${change.path}`}
                             className="rounded-xl border border-border bg-bg-panel px-3 py-3"
                           >
                             <div className="flex items-center justify-between gap-3">
                               <span className="font-mono text-[11px] text-text-primary">
-                                {change.path}
+                                {trimText(change.path, 44)}
                               </span>
                               <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-muted">
                                 {change.status}
@@ -667,22 +598,20 @@ export default async function DashboardPage() {
                   <div className="rounded-xl border border-border bg-bg-panel/55 p-4">
                     <div className="flex items-center gap-2">
                       <TerminalSquare className="h-4 w-4 text-text-secondary" />
-                      <div className="matte-section-title">Verification Commands</div>
+                      <div className="matte-section-title">Verification</div>
                     </div>
-                    {dashboard.repoSnapshot.verificationPresets.length === 0 ? (
+                    {verificationPresets.length === 0 ? (
                       <div className="mt-3 matte-panel-copy">
                         No stable verification commands detected yet.
                       </div>
                     ) : (
                       <div className="mt-3 space-y-2">
-                        {dashboard.repoSnapshot.verificationPresets.map((preset) => (
+                        {verificationPresets.map((preset) => (
                           <div
                             key={preset.command}
                             className="rounded-xl border border-border bg-bg-panel px-3 py-3"
                           >
-                            <div className="matte-panel-heading">
-                              {preset.label}
-                            </div>
+                            <div className="matte-panel-heading">{preset.label}</div>
                             <div className="mt-1 font-mono text-[11px] text-text-primary">
                               {preset.command}
                             </div>
@@ -693,44 +622,40 @@ export default async function DashboardPage() {
                   </div>
                 </div>
 
-                {dashboard.repoSnapshot.git.recentCommits.length > 0 ? (
+                {recentCommits.length > 0 ? (
                   <div className="rounded-xl border border-border bg-bg-panel/55 p-4">
                     <div className="flex items-center gap-2">
                       <ScrollText className="h-4 w-4 text-text-secondary" />
                       <div className="matte-section-title">Recent Commits</div>
                     </div>
                     <div className="mt-3 space-y-2">
-                      {dashboard.repoSnapshot.git.recentCommits.map((commit) => (
+                      {recentCommits.map((commit) => (
                         <div
                           key={commit.hash}
                           className="rounded-xl border border-border bg-bg-panel px-3 py-3"
                         >
                           <div className="flex items-center justify-between gap-3">
-                            <span className="matte-panel-heading">
-                              {commit.subject}
-                            </span>
+                            <span className="matte-panel-heading">{commit.subject}</span>
                             <span className="font-mono text-[11px] text-text-muted">
                               {commit.hash}
                             </span>
                           </div>
-                          <div className="mt-1 matte-panel-copy">
-                            {commit.date}
-                          </div>
+                          <div className="mt-1 matte-panel-copy">{commit.date}</div>
                         </div>
                       ))}
                     </div>
                   </div>
                 ) : null}
               </div>
-            </DashboardPanel>
+            </Section>
 
-            <DashboardPanel
-              title="Codex Readiness"
-              subtitle="How prepared this project is for repeatable IDE collaboration."
-              actionHref="/dashboard/prompt-pack"
-              actionLabel="Open Prompt Pack"
+            <Section
+              title="Code Context"
+              subtitle="Readiness and the next task-generation inputs for OpenClaw or the IDE."
+              actionHref="/dashboard/automations"
+              actionLabel="Open Automations"
             >
-              <div className="space-y-5">
+              <div className="space-y-4">
                 <div className="rounded-xl border border-border bg-bg-panel/58 p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -751,220 +676,86 @@ export default async function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  {dashboard.assistantReadiness.checks.map((check) => (
-                    <Link
-                      key={check.id}
-                      href={check.href}
-                      className="flex items-start gap-3 rounded-xl border border-border bg-bg-panel/55 px-4 py-3 transition hover:border-text-muted/18 hover:bg-bg-card"
-                    >
-                      <span
-                        className={cn(
-                          "mt-1 h-2.5 w-2.5 rounded-full",
-                          check.ready ? "bg-[#8ab886]" : "bg-[#b3956c]",
-                        )}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="matte-panel-heading">{check.label}</div>
-                        <div className="mt-1 matte-panel-copy">{check.detail}</div>
-                      </div>
-                      <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-text-muted" />
-                    </Link>
-                  ))}
-                </div>
-
+                {/*
                 <div className="rounded-xl border border-border bg-bg-panel/55 p-4">
-                  <div className="flex items-center gap-2">
-                    <TerminalSquare className="h-4 w-4 text-text-secondary" />
-                    <div className="matte-section-title">Repo Shape</div>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {dashboard.repoSnapshot.stack.map((item) => (
-                      <span
-                        key={item}
-                        className="rounded-full border border-border bg-bg-panel px-3 py-1 text-xs text-text-secondary"
-                      >
-                        {item}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-muted">
-                        Surfaces
-                      </div>
-                      <div className="mt-2 space-y-1 text-sm text-text-secondary">
-                        {dashboard.repoSnapshot.dashboardSurfaces.slice(0, 5).map((surface) => (
-                          <div key={surface}>{surface}</div>
-                        ))}
+                      <div className="matte-panel-heading">CodeGraphContext</div>
+                      <div className="mt-1 matte-panel-copy">
+                        {dashboard.repoSnapshot.codeIntel.codeGraphContext.summary}
                       </div>
                     </div>
-                    <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-muted">
-                        Scripts
-                      </div>
-                      <div className="mt-2 space-y-1 text-sm text-text-secondary">
-                        {dashboard.repoSnapshot.scripts.slice(0, 4).map((script) => (
-                          <div key={script.name}>
-                            <span className="font-medium text-white">{script.name}</span>
-                            {" - "}
-                            {script.command}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                    <span className="rounded-full border border-border bg-bg-panel px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-muted">
+                      {dashboard.repoSnapshot.codeIntel.codeGraphContext.status}
+                    </span>
                   </div>
-                  {dashboard.repoSnapshot.hotspots.length > 0 ? (
-                    <div className="mt-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-muted">
-                        Hotspots
-                      </div>
-                      <div className="mt-2 space-y-2 text-sm text-text-secondary">
-                        {dashboard.repoSnapshot.hotspots.map((hotspot) => (
-                          <div
-                            key={hotspot.path}
-                            className="rounded-xl border border-border bg-bg-panel px-3 py-3"
-                          >
-                            <div className="font-mono text-[11px] text-text-primary">
-                              {hotspot.path}
-                            </div>
-                            <div className="mt-1 matte-panel-copy">
-                              {hotspot.reason}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+
+                  {dashboard.repoSnapshot.codeIntel.codeGraphContext.statsPreview.length > 0 ? (
+                    <div className="mt-3 space-y-1 text-sm text-text-secondary">
+                      {dashboard.repoSnapshot.codeIntel.codeGraphContext.statsPreview.map((item) => (
+                        <div key={item}>{item}</div>
+                      ))}
                     </div>
                   ) : null}
-                  <div className="mt-4">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-muted">
-                      Code Intelligence
-                    </div>
-                    <div className="mt-2 rounded-xl border border-border bg-bg-panel px-3 py-3">
-                      <div className="matte-panel-heading">
-                        {dashboard.repoSnapshot.codeIntel.summary}
-                      </div>
-                      <div className="mt-2 font-mono text-[11px] text-text-primary">
-                        {dashboard.repoSnapshot.codeIntel.overrideFilePath}
-                      </div>
-                      {dashboard.repoSnapshot.codeIntel.overrideError ? (
-                        <div className="mt-2 text-xs text-[#eadcc8]">
-                          Override error: {dashboard.repoSnapshot.codeIntel.overrideError}
-                        </div>
-                      ) : null}
-                      {dashboard.repoSnapshot.codeIntel.tools.length === 0 ? (
-                        <div className="mt-1 matte-panel-copy">
-                          No language-specific semantic tooling was detected yet.
-                        </div>
-                      ) : (
-                        <div className="mt-3 space-y-2">
-                          {dashboard.repoSnapshot.codeIntel.tools.map((tool) => (
-                            <div
-                              key={`${tool.language}-${tool.server}`}
-                              className="rounded-xl border border-border bg-bg-base px-3 py-3"
-                            >
-                              <div className="flex items-center justify-between gap-3">
-                                <span className="matte-panel-heading">
-                                  {tool.language}
-                                </span>
-                                <span
-                                  className={cn(
-                                    "rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em]",
-                                    tool.status === "ready"
-                                      ? "border-border bg-bg-panel text-text-secondary"
-                                      : tool.status === "partial"
-                                        ? "border-[#6f7694]/22 bg-[#6f7694]/10 text-text-primary"
-                                        : "border-[#b3956c]/22 bg-[#b3956c]/10 text-[#eadcc8]",
-                                  )}
-                                >
-                                  {tool.status}
-                                </span>
-                              </div>
-                              <div className="mt-1 matte-panel-copy">
-                                {tool.detail}
-                              </div>
-                              <div className="mt-2 text-[11px] text-text-muted">
-                                {tool.server} - {tool.source}
-                              </div>
+
+                  {dashboard.repoSnapshot.codeIntel.codeGraphContext.queryPresets.length > 0 ? (
+                    <div className="mt-4 space-y-2">
+                      {dashboard.repoSnapshot.codeIntel.codeGraphContext.queryPresets
+                        .slice(0, 3)
+                        .map((item) => (
+                          <div
+                            key={item.command}
+                            className="rounded-xl border border-border bg-bg-panel px-3 py-3"
+                          >
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-text-muted">
+                              {item.label}
                             </div>
-                          ))}
-                        </div>
-                      )}
-                      {dashboard.repoSnapshot.codeIntel.notes.length > 0 ? (
-                        <div className="mt-3 space-y-1 text-sm text-text-secondary">
-                          {dashboard.repoSnapshot.codeIntel.notes.map((item) => (
-                            <div key={item}>{item}</div>
-                          ))}
-                        </div>
-                      ) : null}
-                      {dashboard.repoSnapshot.codeIntel.suggestions.length > 0 ? (
-                        <div className="mt-3 space-y-1 text-sm text-text-secondary">
-                          {dashboard.repoSnapshot.codeIntel.suggestions.map((item) => (
-                            <div key={item}>{item}</div>
-                          ))}
-                        </div>
-                      ) : null}
+                            <div className="mt-1 font-mono text-[11px] text-text-primary">
+                              {item.command}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  ) : null}
+
+                  {dashboard.repoSnapshot.codeIntel.codeGraphContext.source === "cli" ? (
+                    <div className="mt-4">
+                      <CodeGraphContextIndexButton
+                        label={
+                          dashboard.repoSnapshot.codeIntel.codeGraphContext.indexed
+                            ? "Refresh Repo Index"
+                            : "Index Active Repo"
+                        }
+                        className="inline-flex items-center gap-2 rounded-xl border border-border bg-bg-card px-4 py-3 text-sm font-semibold text-text-secondary transition hover:bg-bg-panel hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      />
+                    </div>
+                  ) : null}
+                </div>
+
+
+                {false && (
+                  <div className="rounded-xl border border-[#b3956c]/22 bg-[#b3956c]/10 p-4">
+                    <div className="flex items-center gap-2 text-[#eadcc8]">
+                      <AlertTriangle className="h-4 w-4" />
+                      <div className="text-sm font-semibold">Knowledge gaps</div>
+                    </div>
+                    <div className="mt-2 text-sm text-[#eadcc8]/85">
+                      {dashboard.metrics.unresolvedLinks > 0
+                        ? `${dashboard.metrics.unresolvedLinks} unresolved links`
+                        : "No unresolved links"}
+                      {" · "}
+                      {dashboard.metrics.orphanDocs > 0
+                        ? `${dashboard.metrics.orphanDocs} orphan docs`
+                        : "No orphan docs"}
                     </div>
                   </div>
-                </div>
-
-                {dashboard.assistantReadiness.status !== "ready" ? (
-                  <BootstrapWorkspaceButton
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-bg-card px-4 py-3 text-sm font-semibold text-text-secondary transition hover:bg-bg-panel hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                  />
-                ) : null}
+                )}
+                */}
               </div>
-            </DashboardPanel>
-
-            <DashboardPanel
-              title="Next Actions"
-              subtitle="Workspace suggestions that can be turned into a focused Prompt Pack."
-              actionHref={buildPromptPackHref("workspace")}
-              actionLabel="Open Prompt Pack"
-            >
-              {dashboard.suggestions.length === 0 ? (
-                <div className="matte-empty text-sm">
-                  No suggested prompt packs yet. Build a workspace pack to start the first IDE brief.
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {dashboard.suggestions.map((suggestion) => (
-                    <Link
-                      key={suggestion.id}
-                      href={suggestion.href}
-                      className={cn(
-                        "block rounded-xl border p-4 transition",
-                        suggestion.tone === "warning"
-                          ? "border-[#b3956c]/22 bg-[#b3956c]/10 hover:bg-[#b3956c]/14"
-                          : suggestion.tone === "primary"
-                            ? "border-border bg-bg-elevated hover:bg-bg-card"
-                            : "border-[#6f7694]/22 bg-[#6f7694]/10 hover:bg-[#6f7694]/14",
-                      )}
-                    >
-                      <div className="mb-2 flex items-center justify-between gap-3">
-                        <div className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-bg-panel/75 text-text-primary">
-                          <ScrollText className="h-4 w-4" />
-                        </div>
-                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-text-primary">
-                          {suggestion.cta}
-                          <ArrowRight className="h-3.5 w-3.5" />
-                        </span>
-                      </div>
-                      <div className="matte-panel-heading">
-                        {suggestion.title}
-                      </div>
-                      <div className="mt-1 matte-panel-copy">
-                        {suggestion.description}
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </DashboardPanel>
+            </Section>
           </div>
         </section>
       </div>
     </div>
   );
 }
-

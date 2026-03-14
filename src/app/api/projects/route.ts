@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import {
   listAvailableProjects,
-  resolveProjectFromRequest,
+  resolveProjectContext,
 } from "@/server/context/project-context";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  const activeProject = resolveProjectFromRequest(req);
+  const activeProject = await resolveProjectContext();
   const projects = listAvailableProjects().map((project) => ({
     id: project.id,
     name: project.name,

@@ -9,23 +9,109 @@ import {
   type SimulationNodeDatum,
 } from "d3-force";
 import type { Edge, XYPosition } from "@xyflow/react";
-import { normalizeDocumentTitle } from "@/lib/parser/extractLinks";
 import type {
   GraphBuildResult,
   GraphDocumentNode,
-  KnowledgeDocument,
+  KnowledgeGraphEntity,
+  KnowledgeGraphModel,
+  KnowledgeGraphRelation,
 } from "@/types/document";
 
 interface LayoutNode extends SimulationNodeDatum {
   id: string;
+  kind: KnowledgeGraphEntity["kind"];
   degree: number;
   layoutRadius: number;
   visualRadius: number;
+  fx?: number;
+  fy?: number;
 }
 
 interface LayoutLink extends SimulationLinkDatum<LayoutNode> {
   source: string | LayoutNode;
   target: string | LayoutNode;
+  kind: KnowledgeGraphRelation["kind"];
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function formatGraphLabel(title: string, kind: KnowledgeGraphEntity["kind"]) {
+  const cleaned = title.trim();
+  const maxLength =
+    kind === "project"
+      ? 24
+      : kind === "workspace-project"
+        ? 20
+        : kind === "topic"
+          ? 18
+          : 16;
+
+  if (cleaned.length <= maxLength) {
+    return cleaned;
+  }
+
+  const words = cleaned.split(/\s+/);
+  if (words.length > 1) {
+    const fitted: string[] = [];
+    let current = "";
+
+    for (const word of words) {
+      const candidate = current ? `${current} ${word}` : word;
+      if (candidate.length <= maxLength) {
+        current = candidate;
+        continue;
+      }
+
+      if (current) {
+        fitted.push(current);
+        current = word;
+      } else {
+        fitted.push(word.slice(0, maxLength - 1).trim());
+        current = "";
+      }
+
+      if (fitted.length >= 2) {
+        break;
+      }
+    }
+
+    if (current && fitted.length < 2) {
+      fitted.push(current);
+    }
+
+    const joined = fitted.join("\n").trim();
+    if (joined) {
+      return joined.length >= cleaned.length ? joined : `${joined}...`;
+    }
+  }
+
+  return `${cleaned.slice(0, maxLength - 1).trim()}...`;
+}
+
+function getLabelMetrics(kind: KnowledgeGraphEntity["kind"], title: string) {
+  const displayTitle = formatGraphLabel(title, kind);
+  const lines = displayTitle.split("\n");
+  const widestLine = lines.reduce((max, line) => Math.max(max, line.length), 0);
+  const widthFactor =
+    kind === "project"
+      ? 6.4
+      : kind === "workspace-project"
+        ? 6
+        : kind === "topic"
+          ? 5.8
+          : 5.2;
+  const width = clamp(18 + widestLine * widthFactor, 56, kind === "project" ? 168 : 136);
+  const lineHeight = kind === "project" ? 15 : 13;
+  const height = lines.length * lineHeight;
+
+  return {
+    displayTitle,
+    lines,
+    width,
+    height,
+  };
 }
 
 function createSeedPositions(count: number): XYPosition[] {
@@ -50,106 +136,197 @@ function createSeedPositions(count: number): XYPosition[] {
   });
 }
 
-function buildEdgeId(source: string, target: string) {
-  return `${source}::${target}`;
+function buildEdgeId(source: string, target: string, relation = "related") {
+  return `${source}::${target}::${relation}`;
 }
 
-function getNodeRadius(degree: number) {
-  return Math.max(2.8, Math.min(5.8, 3 + degree * 0.38));
+function getNodeRadius(kind: KnowledgeGraphEntity["kind"], degree: number) {
+  if (kind === "project") {
+    return 7.4;
+  }
+
+  if (kind === "workspace-project") {
+    return Math.max(5.2, Math.min(7.2, 5.8 + degree * 0.16));
+  }
+
+  if (kind === "topic") {
+    return Math.max(5.4, Math.min(8.8, 6.2 + degree * 0.22));
+  }
+
+  return Math.max(2.8, Math.min(5.4, 3 + degree * 0.34));
 }
 
-function getLayoutRadius(title: string, degree: number) {
-  const labelWidth = Math.max(22, title.length * 4.3 + 6);
-  return Math.max(14, Math.min(36, 9 + labelWidth * 0.28 + degree * 0.75));
+function getLayoutRadius(kind: KnowledgeGraphEntity["kind"], title: string, degree: number) {
+  const metrics = getLabelMetrics(kind, title);
+  const labelWidth = metrics.width;
+  const labelHeight = metrics.height;
+
+  if (kind === "project") {
+    return clamp(26 + labelWidth * 0.22 + labelHeight * 0.24, 36, 62);
+  }
+
+  if (kind === "workspace-project") {
+    return clamp(18 + labelWidth * 0.22 + labelHeight * 0.22 + degree * 0.42, 28, 56);
+  }
+
+  if (kind === "topic") {
+    return clamp(18 + labelWidth * 0.24 + labelHeight * 0.26 + degree * 0.54, 28, 54);
+  }
+
+  return clamp(14 + labelWidth * 0.22 + labelHeight * 0.24 + degree * 0.68, 24, 44);
 }
 
-export function buildGraph(documents: KnowledgeDocument[]): GraphBuildResult {
-  const orderedDocuments = [...documents].sort((left, right) =>
-    left.title.localeCompare(right.title),
-  );
+function getRadialDistance(kind: KnowledgeGraphEntity["kind"], degree: number) {
+  if (kind === "project") {
+    return 0;
+  }
 
-  const positions = createSeedPositions(orderedDocuments.length);
-  const documentsByTitle = new Map(
-    orderedDocuments.map((document) => [
-      normalizeDocumentTitle(document.title),
-      document,
-    ]),
-  );
+  if (kind === "workspace-project") {
+    return Math.max(108, 138 - degree * 1.6);
+  }
 
+  if (kind === "topic") {
+    return Math.max(82, 108 - degree * 2.2);
+  }
+
+  return Math.max(132, 176 - degree * 3.1);
+}
+
+function getKindOrder(kind: KnowledgeGraphEntity["kind"]) {
+  if (kind === "project") {
+    return 0;
+  }
+
+  if (kind === "workspace-project") {
+    return 1;
+  }
+
+  if (kind === "topic") {
+    return 2;
+  }
+
+  return 3;
+}
+
+export function buildGraph(model: KnowledgeGraphModel): GraphBuildResult {
+  const entityMap = new Map(model.entities.map((entity) => [entity.id, entity]));
+  const orderedEntities = [...model.entities].sort((left, right) => {
+    const kindOrder = getKindOrder(left.kind) - getKindOrder(right.kind);
+    if (kindOrder !== 0) {
+      return kindOrder;
+    }
+
+    return left.title.localeCompare(right.title);
+  });
+  const positions = createSeedPositions(orderedEntities.length);
   const incomingCounts = new Map<string, number>();
   const outgoingCounts = new Map<string, number>();
   const edges: Edge[] = [];
   const seenEdges = new Set<string>();
 
-  for (const document of orderedDocuments) {
-    incomingCounts.set(document.id, 0);
-    outgoingCounts.set(document.id, 0);
+  for (const entity of orderedEntities) {
+    incomingCounts.set(entity.id, 0);
+    outgoingCounts.set(entity.id, 0);
   }
 
-  for (const document of orderedDocuments) {
-    for (const link of document.links) {
-      const target = documentsByTitle.get(normalizeDocumentTitle(link));
-      if (!target || target.id === document.id) {
-        continue;
-      }
-
-      const edgeId = buildEdgeId(document.id, target.id);
-      if (seenEdges.has(edgeId)) {
-        continue;
-      }
-
-      seenEdges.add(edgeId);
-      outgoingCounts.set(document.id, (outgoingCounts.get(document.id) || 0) + 1);
-      incomingCounts.set(target.id, (incomingCounts.get(target.id) || 0) + 1);
-
-      edges.push({
-        id: edgeId,
-        source: document.id,
-        target: target.id,
-        type: "straight",
-      });
+  for (const relation of model.relations) {
+    const source = entityMap.get(relation.source);
+    const target = entityMap.get(relation.target);
+    if (!source || !target || source.id === target.id) {
+      continue;
     }
+
+    const edgeId = buildEdgeId(source.id, target.id, relation.kind);
+    if (seenEdges.has(edgeId)) {
+      continue;
+    }
+
+    seenEdges.add(edgeId);
+    outgoingCounts.set(source.id, (outgoingCounts.get(source.id) || 0) + 1);
+    incomingCounts.set(target.id, (incomingCounts.get(target.id) || 0) + 1);
+
+    edges.push({
+      id: edgeId,
+      source: source.id,
+      target: target.id,
+      type: "straight",
+      data: {
+        kind: relation.kind,
+      },
+    });
   }
 
-  const layoutNodes: LayoutNode[] = orderedDocuments.map((document, index) => {
+  const layoutNodes: LayoutNode[] = orderedEntities.map((entity, index) => {
     const degree =
-      (incomingCounts.get(document.id) || 0) + (outgoingCounts.get(document.id) || 0);
+      (incomingCounts.get(entity.id) || 0) + (outgoingCounts.get(entity.id) || 0);
+    const kind = entity.kind;
 
     return {
-      id: document.id,
+      id: entity.id,
+      kind,
       degree,
-      visualRadius: getNodeRadius(degree),
-      layoutRadius: getLayoutRadius(document.title, degree),
-      x: positions[index]?.x ?? 0,
-      y: positions[index]?.y ?? 0,
+      visualRadius: getNodeRadius(kind, degree),
+      layoutRadius: getLayoutRadius(kind, entity.title, degree),
+      x: kind === "project" ? 0 : positions[index]?.x ?? 0,
+      y: kind === "project" ? 0 : positions[index]?.y ?? 0,
+      fx: kind === "project" ? 0 : undefined,
+      fy: kind === "project" ? 0 : undefined,
     };
   });
 
   const layoutLinks: LayoutLink[] = edges.map((edge) => ({
     source: edge.source,
     target: edge.target,
+    kind: String(edge.data?.kind || "reference") as KnowledgeGraphRelation["kind"],
   }));
 
   const simulation = forceSimulation(layoutNodes)
     .force(
       "charge",
-      forceManyBody<LayoutNode>().strength((node) => -31 - node.degree * 7),
+      forceManyBody<LayoutNode>().strength((node) => {
+        if (node.kind === "project") {
+          return -22;
+        }
+
+        if (node.kind === "workspace-project") {
+          return -86 - node.degree * 4;
+        }
+
+        if (node.kind === "topic") {
+          return -104 - node.degree * 5;
+        }
+
+        return -52 - node.degree * 6;
+      }),
     )
     .force(
       "link",
       forceLink<LayoutNode, LayoutLink>(layoutLinks)
         .id((node) => node.id)
         .distance((link) => {
-          const source =
-            typeof link.source === "string" ? null : (link.source as LayoutNode);
-          const target =
-            typeof link.target === "string" ? null : (link.target as LayoutNode);
-          const sourceDegree = source?.degree ?? 0;
-          const targetDegree = target?.degree ?? 0;
+          if (link.kind === "project") {
+            const targetKind =
+              typeof link.target === "string" ? null : link.target.kind;
+            return targetKind === "workspace-project" ? 104 : 86;
+          }
 
-          return Math.max(28, 46 - Math.min(sourceDegree + targetDegree, 8) * 1.05);
+          if (link.kind === "topic") {
+            return 66;
+          }
+
+          return 54;
         })
-        .strength(0.4),
+        .strength((link) => {
+          if (link.kind === "project") {
+            return 0.82;
+          }
+
+          if (link.kind === "topic") {
+            return 0.56;
+          }
+
+          return 0.24;
+        }),
     )
     .force("center", forceCenter(0, 0))
     .force(
@@ -161,38 +338,52 @@ export function buildGraph(documents: KnowledgeDocument[]): GraphBuildResult {
     .force(
       "radial",
       forceRadial<LayoutNode>(
-        (node) => (node.degree === 0 ? 108 : Math.max(22, 66 - node.degree * 4)),
+        (node) => getRadialDistance(node.kind, node.degree),
         0,
         0,
-      ).strength(0.022),
+      ).strength((node) =>
+        node.kind === "project"
+          ? 1
+          : node.kind === "workspace-project"
+            ? 0.18
+            : node.kind === "topic"
+              ? 0.14
+              : 0.1,
+      ),
     );
 
-  for (let index = 0; index < 280; index += 1) {
+  for (let index = 0; index < 420; index += 1) {
     simulation.tick();
   }
 
   simulation.stop();
 
-  const nodes: GraphDocumentNode[] = orderedDocuments.map((document, index) => ({
-    id: document.id,
-    type: "document",
-    position: {
-      x: layoutNodes[index]?.x ?? positions[index]?.x ?? 0,
-      y: layoutNodes[index]?.y ?? positions[index]?.y ?? 0,
-    },
-    draggable: true,
-    data: {
-      title: document.title,
-      linkCount: document.links.length,
-      incomingCount: incomingCounts.get(document.id) || 0,
-      outgoingCount: outgoingCounts.get(document.id) || 0,
-      degree:
-        (incomingCounts.get(document.id) || 0) + (outgoingCounts.get(document.id) || 0),
-      radius: layoutNodes[index]?.visualRadius ?? getNodeRadius(0),
-      isActive: false,
-      isConnected: false,
-    },
-  }));
+  const nodes: GraphDocumentNode[] = orderedEntities.map((entity, index) => {
+    const labelMetrics = getLabelMetrics(entity.kind, entity.title);
+
+    return {
+      id: entity.id,
+      type: "document",
+      position: {
+        x: layoutNodes[index]?.x ?? positions[index]?.x ?? 0,
+        y: layoutNodes[index]?.y ?? positions[index]?.y ?? 0,
+      },
+      draggable: true,
+      data: {
+        title: entity.title,
+        displayTitle: labelMetrics.displayTitle,
+        kind: entity.kind,
+        linkCount: entity.links.length,
+        incomingCount: incomingCounts.get(entity.id) || 0,
+        outgoingCount: outgoingCounts.get(entity.id) || 0,
+        degree:
+          (incomingCounts.get(entity.id) || 0) + (outgoingCounts.get(entity.id) || 0),
+        radius: layoutNodes[index]?.visualRadius ?? getNodeRadius(entity.kind, 0),
+        isActive: false,
+        isConnected: false,
+      },
+    };
+  });
 
   return {
     nodes,

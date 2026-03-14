@@ -4,6 +4,7 @@ import { listDocs } from "@/server/repositories/docs-repo";
 import { listNotes } from "@/server/repositories/notes-repo";
 import { listQuests } from "@/server/repositories/quests-repo";
 import { countReports, listReports } from "@/server/repositories/reports-repo";
+import { findUserById } from "@/server/repositories/users-repo";
 import type { WorkspaceProject } from "@/server/projects/workspace-projects";
 import {
   buildRepoSnapshot,
@@ -11,6 +12,8 @@ import {
   type RepoSnapshot,
   type WorkspaceReadiness,
 } from "@/server/services/workspace-intel-service";
+import { buildN8nAutomationSnapshot } from "@/server/services/n8n-service";
+import type { AutomationSnapshotView } from "@/types/context-pack";
 
 type DashboardDoc = {
   id: string;
@@ -48,6 +51,8 @@ type DashboardReport = {
   category: string;
   status: string;
   source: string;
+  area: string | null;
+  topics: string[];
   date: string;
 };
 
@@ -89,7 +94,6 @@ export interface DashboardSnapshot {
     noteCount: number;
     connectionCount: number;
     reportCount: number;
-    decisionCount: number;
   };
   metrics: {
     openQuests: number;
@@ -97,6 +101,32 @@ export interface DashboardSnapshot {
     orphanDocs: number;
     pendingNotes: number;
     changedFiles: number;
+  };
+  workSummary: {
+    questStatusCounts: {
+      open: number;
+      inProgress: number;
+      blocked: number;
+      done: number;
+    };
+    questAreas: Array<{ area: string; count: number }>;
+    reportAreas: Array<{ area: string; count: number }>;
+  };
+  todayLog: {
+    dayKey: string;
+    entryCount: number;
+    areas: string[];
+    entries: Array<{
+      id: string;
+      title: string;
+      content: string;
+      status: string;
+      category: string;
+      area: string | null;
+      topics: string[];
+      source: string;
+      date: string;
+    }>;
   };
   resumeWork: DashboardActionItem[];
   activeQuests: DashboardQuest[];
@@ -113,6 +143,7 @@ export interface DashboardSnapshot {
     staleDocs: DashboardDoc[];
   };
   assistantReadiness: WorkspaceReadiness;
+  automation: AutomationSnapshotView;
   repoSnapshot: Pick<
     RepoSnapshot,
     | "project"
@@ -142,14 +173,31 @@ function trimText(value: string, maxLength: number) {
   return `${normalized.slice(0, maxLength - 1).trim()}...`;
 }
 
+function formatDayKey(dateValue: string, timezone: string) {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  const parts = formatter.formatToParts(new Date(dateValue));
+  const year = parts.find((part) => part.type === "year")?.value ?? "0000";
+  const month = parts.find((part) => part.type === "month")?.value ?? "00";
+  const day = parts.find((part) => part.type === "day")?.value ?? "00";
+  return `${year}-${month}-${day}`;
+}
+
 export async function buildDashboardSnapshot(
   userId: string,
   project: WorkspaceProject,
 ): Promise<DashboardSnapshot> {
+  const timezone = findUserById(userId)?.timezone || "Asia/Bangkok";
   const docRows = listDocs(userId, project.id);
   const questRows = listQuests(userId, project.id);
   const noteRows = listNotes(userId, project.id);
   const reportRows = listReports(userId, project.id, { limit: 8 });
+  const reportRowsForToday = listReports(userId, project.id, { limit: 200 });
 
   const docs: DashboardDoc[] = docRows.map((row) => ({
     id: String(row.id),
@@ -188,15 +236,41 @@ export async function buildDashboardSnapshot(
     content: String(row.content || ""),
     category: String(row.category || "system"),
     status: String(row.status || "info"),
+    area: row.area || null,
     source: String(row.source || "OpenClaw"),
+    topics: Array.isArray(row.topics)
+      ? row.topics.map((topic) => String(topic || "").trim()).filter(Boolean)
+      : [],
     date: toIsoString(row.date),
   }));
+
+  const todayDayKey = formatDayKey(new Date().toISOString(), timezone);
+  const todayReports = reportRowsForToday
+    .map((row) => ({
+      id: String(row.id),
+      title: String(row.title || "Untitled"),
+      content: String(row.content || ""),
+      category: String(row.category || "system"),
+      status: String(row.status || "info"),
+      area: row.area || null,
+      source: String(row.source || "OpenClaw"),
+      topics: Array.isArray(row.topics)
+        ? row.topics.map((topic) => String(topic || "").trim()).filter(Boolean)
+        : [],
+      date: toIsoString(row.date),
+    }))
+    .filter((report) => formatDayKey(report.date, timezone) === todayDayKey)
+    .sort(
+      (left, right) =>
+        new Date(right.date).getTime() - new Date(left.date).getTime(),
+    );
 
   const docsByTitle = new Map(
     docs.map((document) => [normalizeDocumentTitle(document.title), document]),
   );
   const assistantReadiness = buildWorkspaceReadiness(userId, project);
   const repoSnapshot = buildRepoSnapshot(project);
+  const automation = await buildN8nAutomationSnapshot(project);
   const unresolvedMap = new Map<
     string,
     {
@@ -285,10 +359,6 @@ export async function buildDashboardSnapshot(
   const latestDoc = docsByUpdated[0] || null;
   const latestNote = notes[0] || null;
   const mostConnectedDoc = docsByConnectivity[0] || null;
-  const decisionCount = docs.filter((document) =>
-    document.tags.some((tag) => ["decision", "adr"].includes(tag.toLowerCase())),
-  ).length;
-
   const resumeWork: DashboardActionItem[] = [];
 
   if (latestDoc) {
@@ -410,23 +480,12 @@ export async function buildDashboardSnapshot(
       id: "suggest-code-intel",
       title: "Tighten code intelligence",
       description: repoSnapshot.codeIntel.summary,
-      href: "/dashboard/prompt-pack",
+      href: "/dashboard/automations",
       cta: "Review setup",
       tone:
         repoSnapshot.codeIntel.overallStatus === "missing"
           ? "warning"
           : "secondary",
-    });
-  }
-
-  if (decisionCount === 0) {
-    suggestions.push({
-      id: "suggest-first-decision",
-      title: "Start the decision log",
-      description: "Capture the first durable architecture decision for this project.",
-      href: "/dashboard/decisions",
-      cta: "Open decisions",
-      tone: "secondary",
     });
   }
 
@@ -436,7 +495,7 @@ export async function buildDashboardSnapshot(
       title: "Resolve dangling references",
       description: `${unresolvedTargets.length} unresolved links led by ${unresolvedTargets[0].title}.`,
       href: buildPromptPackHref("workspace"),
-      cta: "Build prompt pack",
+      cta: "Generate task",
       tone: "warning",
     });
   }
@@ -458,7 +517,7 @@ export async function buildDashboardSnapshot(
       title: "Advance the active quest stack",
       description: `Start with ${trimText(activeQuests[0].goal, 72)}.`,
       href: buildPromptPackHref("quest_focus", activeQuests[0].id),
-      cta: "Build quest pack",
+      cta: "Generate quest task",
       tone: "primary",
     });
   }
@@ -469,7 +528,7 @@ export async function buildDashboardSnapshot(
       title: "Continue recent document work",
       description: `Resume ${latestDoc.title} or expand its linked notes.`,
       href: buildPromptPackHref("doc_focus", latestDoc.id),
-      cta: "Build doc pack",
+      cta: "Generate doc task",
       tone: "primary",
     });
   }
@@ -509,6 +568,31 @@ export async function buildDashboardSnapshot(
     .slice(0, 4);
 
   const pendingNotes = notes.filter((note) => !note.completed).length;
+  const questStatusCounts = questRows.reduce(
+    (acc, row) => {
+      const status = String((row as { status?: string }).status || (row.completed ? "done" : "open"));
+      if (status === "in_progress") acc.inProgress += 1;
+      else if (status === "blocked") acc.blocked += 1;
+      else if (status === "done") acc.done += 1;
+      else acc.open += 1;
+      return acc;
+    },
+    { open: 0, inProgress: 0, blocked: 0, done: 0 },
+  );
+
+  const questAreaMap = new Map<string, number>();
+  for (const row of questRows) {
+    const area = String((row as { area?: string | null }).area || "").trim();
+    if (!area) continue;
+    questAreaMap.set(area, (questAreaMap.get(area) || 0) + 1);
+  }
+
+  const reportAreaMap = new Map<string, number>();
+  for (const row of reportRows) {
+    const area = String((row as { area?: string | null }).area || "").trim();
+    if (!area) continue;
+    reportAreaMap.set(area, (reportAreaMap.get(area) || 0) + 1);
+  }
 
   const hour = new Date().getHours();
   let greeting: string;
@@ -517,6 +601,10 @@ export async function buildDashboardSnapshot(
   else if (hour < 17) greeting = "Good afternoon";
   else if (hour < 21) greeting = "Good evening";
   else greeting = "Burning the midnight oil";
+
+  const todayAreaSet = new Set(
+    todayReports.map((report) => report.area).filter(Boolean) as string[],
+  );
 
   return {
     project: {
@@ -529,7 +617,6 @@ export async function buildDashboardSnapshot(
       noteCount: notes.length,
       connectionCount,
       reportCount: countReports(userId, project.id),
-      decisionCount,
     },
     metrics: {
       openQuests: pendingQuests.length,
@@ -537,6 +624,23 @@ export async function buildDashboardSnapshot(
       orphanDocs: orphanDocs.length,
       pendingNotes,
       changedFiles: repoSnapshot.git.changedFiles.length,
+    },
+    workSummary: {
+      questStatusCounts,
+      questAreas: Array.from(questAreaMap.entries())
+        .map(([area, count]) => ({ area, count }))
+        .sort((left, right) => right.count - left.count)
+        .slice(0, 5),
+      reportAreas: Array.from(reportAreaMap.entries())
+        .map(([area, count]) => ({ area, count }))
+        .sort((left, right) => right.count - left.count)
+        .slice(0, 5),
+    },
+    todayLog: {
+      dayKey: todayDayKey,
+      entryCount: todayReports.length,
+      areas: Array.from(todayAreaSet),
+      entries: todayReports.slice(0, 4),
     },
     resumeWork,
     activeQuests,
@@ -549,6 +653,7 @@ export async function buildDashboardSnapshot(
       staleDocs,
     },
     assistantReadiness,
+    automation,
     repoSnapshot: {
       project: repoSnapshot.project,
       stack: repoSnapshot.stack,

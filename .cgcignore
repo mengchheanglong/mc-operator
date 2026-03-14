@@ -1,0 +1,11 @@
+.git/
+.next/
+node_modules/
+coverage/
+dist/
+build/
+.openclaw/context/
+data/
+tmp/
+logs/
+*.log

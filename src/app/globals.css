@@ -41,6 +41,11 @@
     width var(--sidebar-transition);
 }
 
+.dashboard-route-stage {
+  min-height: calc(100vh - 4rem);
+  will-change: opacity, transform;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -132,6 +137,21 @@ body {
 
 .input-discord::placeholder {
   color: var(--color-text-muted);
+}
+
+.project-switcher-select {
+  color-scheme: dark;
+}
+
+.project-switcher-select option {
+  background: #111318;
+  color: var(--color-text-primary);
+}
+
+.project-switcher-select option:checked,
+.project-switcher-select option:hover {
+  background: #1d2330;
+  color: #ffffff;
 }
 
 .matte-page {

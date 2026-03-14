@@ -1,22 +1,23 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
+  Bot,
   Network,
   StickyNote,
-  ScrollText,
   Target,
   LayoutDashboard,
   FileText,
   ClipboardList,
-  Scale,
+  Sparkles,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
 import AIBadge from "@/components/AIBadge";
 import ProjectSwitcher from "@/components/ProjectSwitcher";
+import type { ProjectsPayload } from "@/types/projects";
 
 interface NavItem {
   href: string;
@@ -24,28 +25,90 @@ interface NavItem {
   icon: ReactNode;
 }
 
+const NAV_ITEMS: NavItem[] = [
+  { href: "/dashboard", label: "Dashboard", icon: <LayoutDashboard className="h-5 w-5" /> },
+  { href: "/dashboard/notes", label: "Notes", icon: <StickyNote className="h-5 w-5" /> },
+  { href: "/dashboard/quests", label: "Quest", icon: <Target className="h-5 w-5" /> },
+  { href: "/dashboard/graph", label: "Graph", icon: <Network className="h-5 w-5" /> },
+  { href: "/dashboard/agents", label: "Agents", icon: <Bot className="h-5 w-5" /> },
+  { href: "/dashboard/automations", label: "Automations", icon: <Sparkles className="h-5 w-5" /> },
+  { href: "/dashboard/docs", label: "Docs", icon: <FileText className="h-5 w-5" /> },
+  { href: "/dashboard/report", label: "Report", icon: <ClipboardList className="h-5 w-5" /> },
+];
+
 interface NavItemProps extends NavItem {
   active: boolean;
   collapsed: boolean;
+  pending: boolean;
+  onHoverIntent: (href: string) => void;
+  onNavigateIntent: (href: string) => void;
 }
 
-function SidebarNavItem({ href, label, icon, active, collapsed }: NavItemProps) {
+function subscribeSidebarPreference(callback: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  const handler = () => callback();
+  window.addEventListener("storage", handler);
+  window.addEventListener("mission-control:sidebar-pref-change", handler);
+
+  return () => {
+    window.removeEventListener("storage", handler);
+    window.removeEventListener("mission-control:sidebar-pref-change", handler);
+  };
+}
+
+function getSidebarCollapsedSnapshot() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return window.localStorage.getItem("mission-control:sidebar-collapsed") === "1";
+}
+
+function setSidebarCollapsed(nextValue: boolean) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(
+    "mission-control:sidebar-collapsed",
+    nextValue ? "1" : "0",
+  );
+  window.dispatchEvent(new Event("mission-control:sidebar-pref-change"));
+}
+
+function SidebarNavItem({
+  href,
+  label,
+  icon,
+  active,
+  collapsed,
+  pending,
+  onHoverIntent,
+  onNavigateIntent,
+}: NavItemProps) {
   return (
     <Link
       href={href}
+      prefetch
       title={collapsed ? label : undefined}
+      onMouseEnter={() => onHoverIntent(href)}
+      onFocus={() => onHoverIntent(href)}
+      onClick={() => onNavigateIntent(href)}
       className={[
         "group relative flex items-center rounded-xl text-[0.89rem] font-medium transition-all duration-150",
         collapsed ? "justify-center px-3 py-3" : "gap-3 px-3.5 py-3",
-        active
-          ? "bg-bg-elevated text-white"
+        active || pending
+          ? "bg-bg-elevated text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
           : "text-text-secondary hover:bg-bg-panel/72 hover:text-white",
       ].join(" ")}
     >
       <span
         className={[
           "shrink-0 transition-colors duration-200",
-          active
+          active || pending
             ? "text-accent-glow"
             : "text-text-muted group-hover:text-text-secondary",
         ].join(" ")}
@@ -65,7 +128,7 @@ function SidebarNavItem({ href, label, icon, active, collapsed }: NavItemProps) 
       <span
         className={[
           "absolute inset-y-3 left-1 w-0.5 rounded-full transition-opacity duration-300",
-          active ? "bg-text-primary opacity-100" : "bg-transparent opacity-0",
+          active || pending ? "bg-text-primary opacity-100" : "bg-transparent opacity-0",
         ].join(" ")}
       />
     </Link>
@@ -79,71 +142,76 @@ function isNavItemActive(itemHref: string, pathname: string): boolean {
   return pathname === itemHref;
 }
 
-export default function Sidebar() {
+export default function Sidebar({
+  initialProjectsPayload,
+}: {
+  initialProjectsPayload: ProjectsPayload;
+}) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
+  const router = useRouter();
+  const collapsed = useSyncExternalStore(
+    subscribeSidebarPreference,
+    getSidebarCollapsedSnapshot,
+    () => false,
+  );
+  const previousSidebarWidthRef = useRef<number | null>(null);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   useEffect(() => {
+    const nextWidth = collapsed ? 72 : 248;
+    const previousWidth = previousSidebarWidthRef.current ?? nextWidth;
+
     document.documentElement.style.setProperty(
       "--sidebar-width",
-      collapsed ? "4.5rem" : "17rem",
+      collapsed ? "4.5rem" : "15.5rem",
     );
+
+    window.dispatchEvent(
+      new CustomEvent("mission-control:sidebar-resize", {
+        detail: {
+          collapsed,
+          width: nextWidth,
+          fromWidth: previousWidth,
+          toWidth: nextWidth,
+          duration: 300,
+        },
+      }),
+    );
+
+    previousSidebarWidthRef.current = nextWidth;
   }, [collapsed]);
 
-  const navItems: NavItem[] = [
-    {
-      href: "/dashboard",
-      label: "Dashboard",
-      icon: <LayoutDashboard className="h-5 w-5" />,
-    },
-    {
-      href: "/dashboard/notes",
-      label: "Notes",
-      icon: <StickyNote className="h-5 w-5" />,
-    },
-    {
-      href: "/dashboard/quests",
-      label: "Quest",
-      icon: <Target className="h-5 w-5" />,
-    },
-    {
-      href: "/dashboard/graph",
-      label: "Graph",
-      icon: <Network className="h-5 w-5" />,
-    },
-    {
-      href: "/dashboard/prompt-pack",
-      label: "Prompt Pack",
-      icon: <ScrollText className="h-5 w-5" />,
-    },
-    {
-      href: "/dashboard/docs",
-      label: "Docs",
-      icon: <FileText className="h-5 w-5" />,
-    },
-    {
-      href: "/dashboard/decisions",
-      label: "Decisions",
-      icon: <Scale className="h-5 w-5" />,
-    },
-    {
-      href: "/dashboard/report",
-      label: "Report",
-      icon: <ClipboardList className="h-5 w-5" />,
-    },
-  ];
+  useEffect(() => {
+    NAV_ITEMS.forEach(({ href }) => {
+      router.prefetch(href);
+    });
+  }, [router]);
+
+  function handleHoverIntent(href: string) {
+    router.prefetch(href);
+  }
+
+  function handleNavigateIntent(href: string) {
+    router.prefetch(href);
+    if (href !== pathname) {
+      setPendingHref(href);
+    }
+  }
+
+  const effectivePendingHref = pendingHref === pathname ? null : pendingHref;
 
   return (
     <aside
       className={[
         "fixed z-[1000] flex h-screen flex-col overflow-hidden border-r border-border/80 bg-bg-sidebar/98 backdrop-blur-xl transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
+        "bg-[linear-gradient(180deg,rgba(15,16,19,0.98),rgba(11,12,14,0.98))]",
         "w-[var(--sidebar-width)]",
       ].join(" ")}
     >
       <div
         className={[
-          "relative min-h-24 overflow-hidden border-b border-border/70",
-          collapsed ? "px-2" : "px-5",
+          "relative min-h-[5rem] overflow-hidden border-b border-border/70",
+          collapsed ? "px-2" : "px-4",
         ].join(" ")}
       >
         <div
@@ -156,7 +224,7 @@ export default function Sidebar() {
         >
           <button
             type="button"
-            onClick={() => setCollapsed(false)}
+            onClick={() => setSidebarCollapsed(false)}
             className="group relative flex h-10 w-10 items-center justify-center overflow-hidden text-text-primary transition-colors duration-200 hover:text-white"
             title="Expand sidebar"
           >
@@ -177,24 +245,24 @@ export default function Sidebar() {
               : "translate-x-0 opacity-100",
           ].join(" ")}
         >
-          <div className="flex w-full items-center justify-between gap-3 px-5">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-bg-panel text-text-primary">
+          <div className="flex w-full items-center justify-between gap-3 px-4">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-border bg-bg-panel/80 text-text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
                 <AIBadge className="text-lg" />
               </div>
               <div className="min-w-0 overflow-hidden">
-                <div className="text-[0.64rem] font-semibold uppercase tracking-[0.18em] text-text-muted">
+                <div className="text-[0.58rem] font-semibold uppercase tracking-[0.2em] text-text-muted">
                   Workspace
                 </div>
-                <div className="mt-1 truncate text-[0.98rem] font-semibold tracking-tight text-white">
+                <div className="mt-0.5 truncate text-[0.96rem] font-semibold tracking-[-0.03em] text-white">
                   Mission Control
                 </div>
               </div>
             </div>
             <button
               type="button"
-              onClick={() => setCollapsed(true)}
-              className="flex h-9 w-9 shrink-0 items-center justify-center text-text-muted transition-colors duration-200 hover:text-white"
+              onClick={() => setSidebarCollapsed(true)}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-text-muted transition-colors duration-200 hover:bg-bg-panel/70 hover:text-white"
               title="Collapse sidebar"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -203,32 +271,41 @@ export default function Sidebar() {
         </div>
       </div>
 
-      <ProjectSwitcher collapsed={collapsed} />
+      <ProjectSwitcher collapsed={collapsed} initialPayload={initialProjectsPayload} />
 
       <div
         className={[
           "overflow-hidden px-4 transition-[max-height,opacity,padding] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
-          collapsed ? "max-h-0 px-2 pt-0 opacity-0" : "max-h-14 pt-5 opacity-100",
+          collapsed ? "max-h-0 px-2 pt-0 opacity-0" : "max-h-10 pt-3 opacity-100",
         ].join(" ")}
       >
-        <div className="text-[0.64rem] font-semibold uppercase tracking-[0.18em] text-text-muted">
+        <div className="px-1 text-[0.58rem] font-semibold uppercase tracking-[0.2em] text-text-muted">
           Navigate
         </div>
       </div>
 
       <nav
-        className={`flex-1 space-y-1.5 py-4 transition-[padding] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${collapsed ? "px-2" : "px-4"}`}
+        className={`flex-1 space-y-1 py-2 transition-[padding] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${collapsed ? "px-2" : "px-3"}`}
       >
-        {navItems.map((item) => (
-          <SidebarNavItem
-            key={item.href}
-            href={item.href}
-            label={item.label}
-            icon={item.icon}
-            active={isNavItemActive(item.href, pathname)}
-            collapsed={collapsed}
-          />
-        ))}
+        {NAV_ITEMS.map((item) => {
+          const active = isNavItemActive(item.href, pathname);
+          const pending = effectivePendingHref === item.href;
+          const selected = effectivePendingHref ? pending : active;
+
+          return (
+            <SidebarNavItem
+              key={item.href}
+              href={item.href}
+              label={item.label}
+              icon={item.icon}
+              active={selected}
+              collapsed={collapsed}
+              pending={pending}
+              onHoverIntent={handleHoverIntent}
+              onNavigateIntent={handleNavigateIntent}
+            />
+          );
+        })}
       </nav>
     </aside>
   );

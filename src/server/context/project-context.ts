@@ -42,7 +42,7 @@ export function serializeProjectCookieValue(projectId: string) {
 }
 
 export function listAvailableProjects() {
-  return listWorkspaceProjects();
+  return listWorkspaceProjects().filter((project) => project.category !== "archive");
 }
 
 export function resolveProjectById(projectId?: string | null): WorkspaceProject {

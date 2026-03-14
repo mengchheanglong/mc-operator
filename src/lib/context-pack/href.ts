@@ -1,6 +1,6 @@
 import type { ContextFocusType } from "@/types/context-pack";
 
-export const PROMPT_PACK_ROUTE = "/dashboard/prompt-pack";
+export const PROMPT_PACK_ROUTE = "/dashboard/automations";
 
 export function buildPromptPackHref(
   focusType: ContextFocusType,

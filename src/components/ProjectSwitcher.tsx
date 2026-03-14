@@ -1,135 +1,112 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import { FolderKanban, Loader2 } from "lucide-react";
+import type { ProjectsPayload } from "@/types/projects";
 
-interface ProjectOption {
-  id: string;
-  name: string;
-  relativePath: string;
-  category: "root" | "projects" | "archive";
-  isControlPlane: boolean;
-  hasGit: boolean;
-  hasPackageJson: boolean;
-}
-
-interface ProjectsPayload {
-  activeProject: ProjectOption;
-  projects: ProjectOption[];
-}
-
-function cn(...values: Array<string | false | null | undefined>) {
-  return values.filter(Boolean).join(" ");
-}
-
-export default function ProjectSwitcher({ collapsed }: { collapsed: boolean }) {
-  const router = useRouter();
-  const [payload, setPayload] = useState<ProjectsPayload | null>(null);
+export default function ProjectSwitcher({
+  collapsed,
+  initialPayload,
+}: {
+  collapsed: boolean;
+  initialPayload: ProjectsPayload;
+}) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [payload, setPayload] = useState<ProjectsPayload>(initialPayload);
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadProjects() {
-      try {
-        const response = await fetch("/api/projects", { cache: "no-store" });
-        const data = (await response.json()) as ProjectsPayload;
-        if (!response.ok) {
-          throw new Error("Unable to load projects.");
-        }
-
-        if (!cancelled) {
-          setPayload(data);
-          setError("");
-        }
-      } catch {
-        if (!cancelled) {
-          setError("Unable to load projects.");
-        }
+  const loadProjects = useCallback(async () => {
+    try {
+      const response = await fetch("/api/projects", { cache: "no-store" });
+      const data = (await response.json()) as ProjectsPayload;
+      if (!response.ok) {
+        throw new Error("Unable to load projects.");
       }
+      setPayload(data);
+      setError("");
+    } catch {
+      setError("Unable to load projects.");
     }
-
-    void loadProjects();
-
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
-  async function handleProjectChange(nextProjectId: string) {
+  useEffect(() => {
+    setPayload(initialPayload);
+  }, [initialPayload]);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      void loadProjects();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [loadProjects]);
+
+  function handleProjectChange(nextProjectId: string) {
     if (!payload || nextProjectId === payload.activeProject.id) {
       return;
     }
 
-    const response = await fetch("/api/projects/active", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ projectId: nextProjectId }),
-    });
-
-    if (!response.ok) {
-      setError("Unable to switch projects.");
-      return;
-    }
-
-    const updated = (await response.json()) as {
-      project: ProjectOption;
-    };
-
-    setPayload((current) =>
-      current
-        ? {
-            ...current,
-            activeProject: updated.project,
-          }
-        : current,
-    );
-    setError("");
-
     startTransition(() => {
-      router.refresh();
+      setPayload((current) => ({
+        ...current,
+        activeProject:
+          current.projects.find((project) => project.id === nextProjectId) ||
+          current.activeProject,
+      }));
+
+      const query = searchParams.toString();
+      const nextPath = query ? `${pathname}?${query}` : pathname;
+      window.location.assign(
+        `/api/projects/activate?projectId=${encodeURIComponent(nextProjectId)}&next=${encodeURIComponent(nextPath)}`,
+      );
     });
   }
 
   if (collapsed) {
     return (
-      <div className="px-2">
+      <div className="px-2 py-3">
         <div
-          className="flex h-10 items-center justify-center rounded-xl border border-border bg-bg-panel/55 text-text-secondary"
-          title={payload?.activeProject?.name || "Project"}
+          className="flex h-10 items-center justify-center rounded-2xl border border-border bg-bg-panel/55 text-text-secondary"
+          title={payload.activeProject?.name || "Project"}
         >
-          {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <FolderKanban className="h-4 w-4" />}
+          {isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <FolderKanban className="h-4 w-4" />
+          )}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="px-4 pb-4">
-      <div className="rounded-2xl border border-border bg-bg-panel/55 px-3 py-3">
+    <div className="px-3 pb-3 pt-2">
+      <div className="rounded-[1.2rem] border border-border/85 bg-bg-panel/40 px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
         <div className="flex items-center gap-2">
-          <FolderKanban className="h-4 w-4 text-text-secondary" />
-          <div className="text-[0.64rem] font-semibold uppercase tracking-[0.18em] text-text-muted">
+          <FolderKanban className="h-3.5 w-3.5 text-text-secondary" />
+          <div className="text-[0.58rem] font-semibold uppercase tracking-[0.2em] text-text-muted">
             Active Project
           </div>
         </div>
 
-        <div className="mt-3 flex items-center gap-3 rounded-xl border border-border bg-bg-base px-3 py-3">
+        <div className="mt-2.5 flex items-center gap-2 rounded-[1rem] border border-border bg-bg-base/92 px-3 py-2">
           <select
-            value={payload?.activeProject.id || ""}
+            value={payload.activeProject.id || ""}
             onChange={(event) => {
-              void handleProjectChange(event.target.value);
+              handleProjectChange(event.target.value);
             }}
-            disabled={!payload || isPending}
-            className="w-full bg-transparent text-sm text-white outline-none disabled:text-text-muted"
+            disabled={isPending}
+            className="project-switcher-select w-full truncate bg-transparent pr-2 text-[0.88rem] font-medium tracking-[-0.025em] text-white outline-none disabled:text-text-muted"
           >
-            {payload?.projects?.map((project) => (
+            {payload.projects.map((project) => (
               <option key={project.id} value={project.id}>
-                {project.name} - {project.relativePath}
+                {project.name}
               </option>
             ))}
           </select>
@@ -138,31 +115,21 @@ export default function ProjectSwitcher({ collapsed }: { collapsed: boolean }) {
           ) : null}
         </div>
 
-        <div className="mt-2 text-[11px] text-text-muted">
-          {payload?.activeProject.relativePath || "Loading project metadata..."}
+        <div className="mt-2.5 flex items-center justify-between gap-3 text-[10px] text-text-muted">
+          <div
+            className="min-w-0 truncate uppercase tracking-[0.16em]"
+            title={payload.activeProject.relativePath}
+          >
+            {payload.activeProject.relativePath}
+          </div>
+          <div className="shrink-0 uppercase tracking-[0.16em]">
+            {payload.activeProject.isControlPlane
+              ? "control"
+              : `${payload.activeProject.category}${payload.activeProject.hasGit ? " · git" : ""}`}
+          </div>
         </div>
 
-        {error ? (
-          <div className="mt-2 text-[11px] text-[#eadcc8]">{error}</div>
-        ) : null}
-
-        {payload?.activeProject ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <span className="rounded-full border border-border bg-bg-panel px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-muted">
-              {payload.activeProject.category}
-            </span>
-            <span
-              className={cn(
-                "rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]",
-                payload.activeProject.hasGit
-                  ? "border-border bg-bg-panel text-text-secondary"
-                  : "border-[#b3956c]/22 bg-[#b3956c]/10 text-[#eadcc8]",
-              )}
-            >
-              {payload.activeProject.hasGit ? "git" : "no git"}
-            </span>
-          </div>
-        ) : null}
+        {error ? <div className="mt-2 text-[11px] text-[#eadcc8]">{error}</div> : null}
       </div>
     </div>
   );

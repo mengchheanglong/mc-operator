@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { resolveProjectFromRequest } from '@/server/context/project-context';
 import { resolveUserContext } from '@/server/context/user-context';
-import { updateQuest, deleteQuest, type QuestRow } from '@/server/repositories/quests-repo';
+import { updateQuest, deleteQuest, type QuestRow, type QuestStatus } from '@/server/repositories/quests-repo';
 import { serverError } from '@/server/http/api-response';
 import { writeDashboardContextFiles, writeQuestContextFile } from '@/server/services/workspace-context-writer';
 
 export const dynamic = 'force-dynamic';
+
+type QuestDifficulty = 'easy' | 'normal' | 'hard' | 'nightmare' | 'hell';
 
 interface RouteContext {
   params: Promise<{
@@ -57,10 +59,30 @@ export async function PUT(req: Request, { params }: RouteContext) {
       return NextResponse.json({ msg: 'Goal must be 100 characters or less.' }, { status: 400 });
     }
 
-    const updateData: { goal: string; difficulty?: 'easy' | 'normal' | 'hard' | 'nightmare' | 'hell' } = { goal };
+    const updateData: {
+      goal: string;
+      difficulty?: QuestDifficulty;
+      topics?: string[];
+      status?: QuestStatus;
+      area?: string | null;
+    } = { goal };
 
     if (body.difficulty && ['easy', 'normal', 'hard', 'nightmare', 'hell'].includes(body.difficulty)) {
-      updateData.difficulty = body.difficulty as 'easy' | 'normal' | 'hard' | 'nightmare' | 'hell';
+      updateData.difficulty = body.difficulty as QuestDifficulty;
+    }
+
+    if (body.status && ['open', 'in_progress', 'blocked', 'done'].includes(body.status)) {
+      updateData.status = body.status as QuestStatus;
+    }
+
+    if (body.area !== undefined) {
+      updateData.area = String(body.area || '').trim() || null;
+    }
+
+    if (body.topics !== undefined) {
+      updateData.topics = Array.isArray(body.topics)
+        ? body.topics.map((topic: unknown) => String(topic || ""))
+        : [];
     }
 
     const quest = updateQuest(user.id, project.id, id, updateData);

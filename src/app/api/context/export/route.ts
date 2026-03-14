@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolveProjectFromRequest } from "@/server/context/project-context";
 import { resolveUserContext } from "@/server/context/user-context";
 import { writeDashboardContextFiles, writeFocusedContextFile } from "@/server/services/workspace-context-writer";
-import type { ContextFocusType } from "@/types/context-pack";
+import type { ContextFocusType, ContextTier } from "@/types/context-pack";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +12,8 @@ const VALID_FOCUS_TYPES = new Set<ContextFocusType>([
   "doc_focus",
   "graph_focus",
 ]);
+
+const VALID_TIERS = new Set<ContextTier>(["summary", "overview", "full"]);
 
 export async function GET(req: NextRequest) {
   try {
@@ -23,12 +25,16 @@ export async function GET(req: NextRequest) {
       ? (rawFocusType as ContextFocusType)
       : "workspace";
     const focusId = url.searchParams.get("focusId") || undefined;
+    const rawTier = url.searchParams.get("tier") || "overview";
+    const tier = VALID_TIERS.has(rawTier as ContextTier)
+      ? (rawTier as ContextTier)
+      : "overview";
 
     await writeDashboardContextFiles(user.id, project);
     const pack =
       focusType === "workspace"
-        ? await writeFocusedContextFile(user.id, project, "workspace")
-        : await writeFocusedContextFile(user.id, project, focusType, focusId);
+        ? await writeFocusedContextFile(user.id, project, "workspace", undefined, tier)
+        : await writeFocusedContextFile(user.id, project, focusType, focusId, tier);
 
     return NextResponse.json({ success: true, pack });
   } catch (error) {

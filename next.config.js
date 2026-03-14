@@ -4,6 +4,7 @@ const nextConfig = {
   // Port: 3100 (OpenClaw Gateway Integration)
   output: "standalone",
   poweredByHeader: false,
+  devIndicators: false,
 
 
   // Disable features not needed for OpenClaw
@@ -33,7 +34,7 @@ const nextConfig = {
       },
       {
         source: "/dashboard/chat",
-        destination: "/dashboard/prompt-pack",
+        destination: "/dashboard/automations",
         permanent: true,
       },
       {

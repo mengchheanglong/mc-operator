@@ -4,6 +4,8 @@ export type ContextFocusType =
   | "doc_focus"
   | "graph_focus";
 
+export type ContextTier = "summary" | "overview" | "full";
+
 export interface ContextSource {
   id: string;
   type: "doc" | "quest" | "graph_cluster" | "dashboard" | "report" | "note";
@@ -19,6 +21,7 @@ export interface ContextSource {
     relation?: "focus" | "incoming_link" | "outgoing_link" | "related";
     status?: string;
     source?: string;
+    provenance?: string[];
   };
 }
 
@@ -75,6 +78,37 @@ export interface RepoHotspotView {
   reason: string;
 }
 
+export interface AutomationWorkflowView {
+  id: string;
+  name: string;
+  active: boolean;
+  updatedAt?: string;
+  tags: string[];
+}
+
+export interface AutomationSnapshotView {
+  provider: "n8n";
+  status: "missing" | "configured" | "connected" | "error";
+  summary: string;
+  baseUrl: string | null;
+  webhookBaseUrl: string | null;
+  hasApiKey: boolean;
+  healthcheckOk: boolean;
+  workflowApiOk: boolean;
+  activeWorkflowCount: number | null;
+  workflows: AutomationWorkflowView[];
+  suggestions: string[];
+  error: string | null;
+  missionControl: {
+    baseUrl: string | null;
+    sessionBriefUrl: string;
+    reportUrl: string;
+    statusUrl: string;
+    tokenHeader: string;
+    projectId: string;
+  };
+}
+
 export interface RepoCodeIntelToolView {
   language: string;
   server: string;
@@ -83,6 +117,28 @@ export interface RepoCodeIntelToolView {
   configSignals: string[];
   runtimeSignals: string[];
   detail: string;
+}
+
+export interface RepoCodeGraphContextCommandView {
+  label: string;
+  command: string;
+}
+
+export interface RepoCodeGraphContextSnapshotView {
+  status: "missing" | "available" | "configured";
+  source: "cli" | "local_repo" | "none";
+  summary: string;
+  localRepoPath: string | null;
+  projectConfigPath: string | null;
+  installHint: string | null;
+  notes: string[];
+  suggestedCommands: RepoCodeGraphContextCommandView[];
+  queryPresets: RepoCodeGraphContextCommandView[];
+  supportedCapabilities: string[];
+  indexed: boolean;
+  indexedRepositoryCount: number | null;
+  statsPreview: string[];
+  lastError: string | null;
 }
 
 export interface RepoCodeIntelSnapshotView {
@@ -94,14 +150,15 @@ export interface RepoCodeIntelSnapshotView {
   overrideFilePath: string;
   hasOverrides: boolean;
   overrideError: string | null;
+  codeGraphContext: RepoCodeGraphContextSnapshotView;
 }
 
 export interface WorkspaceProjectView {
   id: string;
-  name: string;
-  relativePath: string;
-  category: "root" | "projects" | "archive";
-}
+    name: string;
+    relativePath: string;
+    category: "root" | "studyspace" | "projects" | "archive" | "tools";
+  }
 
 export interface RepoSnapshotView {
   project: WorkspaceProjectView;
@@ -143,8 +200,53 @@ export interface GraphNeighbor {
   relation: "incoming" | "outgoing";
 }
 
+export interface ContextMemorySource {
+  label: string;
+  type: "doc" | "daily_report";
+  reason: string;
+  href?: string;
+  path?: string;
+}
+
+export interface ContextMemoryBrief {
+  summary: string;
+  durableNotes: string[];
+  recentHighlights: string[];
+  sources: ContextMemorySource[];
+}
+
+export interface ContextDocGraphHealth {
+  summary: string;
+  hubDocs: string[];
+  bridgeDocs: string[];
+  orphanDocs: string[];
+}
+
+export interface ContextPromotionCandidate {
+  id: string;
+  kind: "topic" | "area" | "hub_doc";
+  label: string;
+  reason: string;
+  suggestedDocTitle: string;
+  sourceDays: string[];
+}
+
+export interface ContextPromotionSnapshot {
+  summary: string;
+  candidates: ContextPromotionCandidate[];
+}
+
+export interface ContextProvenanceItem {
+  section: "docs" | "memory" | "activity" | "quests" | "context_files";
+  label: string;
+  reason: string;
+  href?: string;
+  path?: string;
+}
+
 export interface ContextPack {
   timestamp: string;
+  tier: ContextTier;
   project: WorkspaceProjectView;
   scope: {
     type: ContextFocusType;
@@ -154,11 +256,21 @@ export interface ContextPack {
   objective: string;
   suggestedAction: string;
   successCriteria: string[];
-  recentActivity: Array<{ action: string; title: string; date: string }>;
+  recentActivity: Array<{
+    action: string;
+    title: string;
+    date: string;
+    reason?: string;
+  }>;
   activeQuests: ContextSource[];
   relevantDocs: ContextSource[];
   relatedNotes: ContextSource[];
+  memoryBrief: ContextMemoryBrief;
+  docGraphHealth: ContextDocGraphHealth;
+  promotionCandidates: ContextPromotionSnapshot;
+  provenance: ContextProvenanceItem[];
   repoSnapshot: RepoSnapshotView;
+  automation: AutomationSnapshotView;
   collaborationGuide: CollaborationGuideView;
   readiness: WorkspaceReadinessView;
   handoff: {
