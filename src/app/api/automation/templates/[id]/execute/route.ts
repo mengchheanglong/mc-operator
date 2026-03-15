@@ -16,6 +16,11 @@ import { dispatchToN8n } from "@/server/services/automation-executor-service";
 import {
   dispatchToOpenClawAgent,
 } from "@/server/services/openclaw-delivery-service";
+import { buildExecutionPacket } from "@/lib/workflow/mission-control-workflow";
+import { appendLessonEvent, loadLessonHint } from "@/server/services/workflow-lessons-service";
+import { getWorkspaceRootPath } from "@/server/projects/workspace-projects";
+import { recordWorkflowRunOutcome, upsertWorkflowRunSignature } from "@/server/repositories/workflow-run-guards-repo";
+import { getAgentEvalGuardSnapshot, type AgentEvalGuardSnapshot } from "@/server/services/agent-eval-guard-service";
 
 export const dynamic = "force-dynamic";
 
@@ -52,50 +57,31 @@ function buildExecutionBrief(input: {
     topics: string[];
     webhookPath: string | null;
   };
+  deepMode?: boolean;
+  lessonSnippets?: string[];
 }) {
-  const area = input.template.area || "none";
-  const topics = input.template.topics.length > 0 ? input.template.topics.join(", ") : "none";
-  const webhookPath = input.template.webhookPath || "none";
+  const packet = buildExecutionPacket({
+    objective: input.template.prompt.trim(),
+    constraints: [
+      `Executor: ${input.template.executor}`,
+      `Environment: ${input.template.executionEnv}`,
+      "Follow workflow objective -> constraints -> execution -> verification -> report.",
+    ],
+    executionNotes: [
+      "Immediately send: 'Received from Mission Control — starting now.'",
+      "Keep scope bounded to one automation task.",
+    ],
+    verification: ["Verification is required before completion."],
+    reportFormat: ["Changed files", "Verification output", "Follow-up action"],
+    contextBlocks: [
+      { label: "project", content: `Project: ${input.project.name} (${input.project.relativePath})` },
+      { label: "template", content: `Template: ${input.template.name}\nArea: ${input.template.area || "none"}\nTopics: ${input.template.topics.join(", ") || "none"}` },
+      { label: "lessons", content: input.lessonSnippets?.join("\n") || "none" },
+    ],
+    deepMode: input.deepMode,
+  });
 
-  const lines = [
-    `Use this automation task for ${input.project.name}.`,
-    "",
-    "Task",
-    input.template.prompt.trim(),
-    "",
-    "Context",
-    `Project: ${input.project.name} (${input.project.relativePath})`,
-    `Template: ${input.template.name}`,
-    `Area: ${area}`,
-    `Topics: ${topics}`,
-    `Environment: ${input.template.executionEnv}`,
-    "",
-    "Interaction rule",
-    "Immediately send this exact acknowledgment before doing the main work: 'Received from Mission Control — starting now.'",
-    "Then continue with the task and send progress updates for longer work.",
-    "",
-    "Output",
-    "Do the work or prepare the best next action, then summarize changed files, verification, and follow-up.",
-    "",
-    `Automation template: ${input.template.name}`,
-    `Project: ${input.project.name}`,
-    `Project path: ${input.project.relativePath}`,
-    `Executor: ${input.template.executor}`,
-    `Environment: ${input.template.executionEnv}`,
-    `Area: ${area}`,
-    `Topics: ${topics}`,
-    `Webhook path: ${webhookPath}`,
-    "",
-    "Generated task brief",
-    input.template.prompt.trim(),
-    "",
-    "Intended model",
-    "- Mission Control = generate the task cleanly",
-    "- OpenClaw = do the task",
-    "- n8n = optional delivery/orchestration layer",
-  ];
-
-  return lines.join("\n");
+  return packet;
 }
 
 function buildExecutorPayload(input: {
@@ -111,6 +97,8 @@ function buildExecutorPayload(input: {
     webhookPath?: string | null;
   };
   idempotencyKey: string;
+  workflow?: string[];
+  costRisk?: { tier: string; label: string; score: number };
 }) {
   return {
     projectId: input.project.id,
@@ -126,6 +114,8 @@ function buildExecutorPayload(input: {
     prompt: input.template.prompt.trim(),
     generatedTaskBrief: input.template.prompt.trim(),
     idempotencyKey: input.idempotencyKey,
+    workflow: input.workflow || ["objective", "constraints", "execution", "verification", "report"],
+    costRisk: input.costRisk || null,
     dispatchedAt: new Date().toISOString(),
   };
 }
@@ -172,6 +162,30 @@ function extractOpenClawSummary(parsed: Record<string, unknown> | null, fallback
   return typeof text === "string" && text.trim() ? text.trim() : fallback;
 }
 
+function createEvalGuardReport(input: {
+  userId: string;
+  projectId: string;
+  template: { id: string; name: string; area: string | null; topics: string[] };
+  guard: AgentEvalGuardSnapshot;
+  decision: "blocked" | "degraded" | "unavailable";
+}) {
+  return createReport(input.userId, input.projectId, {
+    title: `Eval guard ${input.decision}: ${input.template.name}`,
+    content: `Status: ${input.guard.status}\nScore: ${input.guard.metrics.score}\nFailure rate: ${input.guard.metrics.failureRate}\nCost USD: ${input.guard.metrics.costUsd}\nArtifact: ${input.guard.artifactPath}\nTimestamp: ${input.guard.timestamp || "none"}\nReasons: ${input.guard.reasons.join(", ") || "none"}`,
+    category: input.decision === "blocked" ? "error" : "maintenance",
+    status: input.decision === "blocked" ? "error" : "warning",
+    area: "automation",
+    source: "Mission Control",
+    topics: [...input.template.topics, "automation", "eval-guard"],
+    metadata: {
+      templateId: input.template.id,
+      evalGuard: input.guard,
+      decision: input.decision,
+      topic: "eval-guard",
+    },
+  });
+}
+
 export async function POST(req: Request, { params }: RouteParams) {
   try {
     const user = await resolveUserContext();
@@ -188,6 +202,45 @@ export async function POST(req: Request, { params }: RouteParams) {
 
     const template = findAutomationTemplateById(user.id, project.id, id);
     if (!template) return notFound("Automation template not found.");
+    const body = await req.json().catch(() => ({}));
+    const deepMode = Boolean((body as { deepMode?: unknown }).deepMode);
+
+    const evalGuard = await getAgentEvalGuardSnapshot();
+    if (evalGuard.status === "blocked") {
+      createEvalGuardReport({
+        userId: user.id,
+        projectId: project.id,
+        template: { id: template.id, name: template.name, area: template.area || null, topics: template.topics },
+        guard: evalGuard,
+        decision: "blocked",
+      });
+      return NextResponse.json(
+        {
+          msg: "Execution blocked by eval guardrail.",
+          code: "blocked_by_eval_guardrail",
+          evalGuard,
+          reasons: evalGuard.reasons,
+        },
+        { status: 409 },
+      );
+    }
+
+    const evalGuardWarning =
+      evalGuard.status === "degraded"
+        ? "eval_guard_degraded"
+        : evalGuard.status === "unavailable"
+          ? "eval_guard_unavailable"
+          : null;
+
+    if (evalGuardWarning) {
+      createEvalGuardReport({
+        userId: user.id,
+        projectId: project.id,
+        template: { id: template.id, name: template.name, area: template.area || null, topics: template.topics },
+        guard: evalGuard,
+        decision: evalGuard.status === "degraded" ? "degraded" : "unavailable",
+      });
+    }
 
     const webhookPath = String(template.webhookPath || "").trim();
     const n8nBaseUrl = normalizeUrl(process.env.N8N_BASE_URL);
@@ -204,15 +257,47 @@ export async function POST(req: Request, { params }: RouteParams) {
       topics: template.topics,
     });
 
-    const brief = buildExecutionBrief({
+    const projectPath = `${getWorkspaceRootPath().replace(/\\/g, "/")}/${project.relativePath.replace(/\\/g, "/")}`;
+    const issueKey = `${template.id}:${template.prompt.trim().toLowerCase().slice(0, 120)}`;
+    const lessonHint = await loadLessonHint(projectPath, issueKey);
+
+    const packet = buildExecutionBrief({
       project: { name: project.name, relativePath: project.relativePath },
       template,
+      deepMode,
+      lessonSnippets: lessonHint.snippets,
     });
+
+    const guard = upsertWorkflowRunSignature({
+      userId: user.id,
+      projectId: project.id,
+      scopeType: "automation",
+      scopeId: template.id,
+      runSignature: packet.runSignature,
+      costRiskTier: packet.costRisk.tier,
+      costRiskLabel: packet.costRisk.label,
+    });
+
+    if (guard.duplicateBlocked) {
+      return NextResponse.json(
+        {
+          msg: "Duplicate run guard blocked repeated automation execute.",
+          code: "duplicate_run_guard",
+          costRisk: packet.costRisk,
+          reanalysisRequired: guard.state?.reanalysisRequired || false,
+        },
+        { status: 409 },
+      );
+    }
+
+    const brief = `${packet.brief}\n\nCost risk: ${packet.costRisk.label}`;
 
     const executorPayload = buildExecutorPayload({
       project: { id: project.id, name: project.name, relativePath: project.relativePath },
       template,
       idempotencyKey,
+      workflow: packet.workflow,
+      costRisk: packet.costRisk,
     });
 
     const targetUrl =
@@ -284,6 +369,13 @@ export async function POST(req: Request, { params }: RouteParams) {
         errorMessage: dispatchBody || `Dispatch failed (${dispatch.status})`,
       });
 
+      recordWorkflowRunOutcome({
+        userId: user.id,
+        projectId: project.id,
+        scopeType: "automation",
+        scopeId: id,
+        outcome: "failure",
+      });
       const failedTemplate = recordAutomationTemplateRun(
         user.id,
         project.id,
@@ -313,6 +405,14 @@ export async function POST(req: Request, { params }: RouteParams) {
         },
       });
 
+      await appendLessonEvent({
+        projectPath,
+        runType: "automation",
+        issueKey,
+        summary: `Dispatch failed (${dispatch.status}) for ${template.name}`,
+        outcome: "failure",
+      });
+
       return NextResponse.json(
         {
           msg: "Automation dispatch failed.",
@@ -323,6 +423,10 @@ export async function POST(req: Request, { params }: RouteParams) {
             executorPayload,
             reportHref: buildReportHref(report.date),
             reportId: report.id,
+            workflow: packet.workflow,
+            costRisk: packet.costRisk,
+            evalGuard,
+            evalGuardWarning,
           },
         },
         { status: 502 },
@@ -389,6 +493,21 @@ export async function POST(req: Request, { params }: RouteParams) {
       },
     });
 
+    await appendLessonEvent({
+      projectPath,
+      runType: "automation",
+      issueKey,
+      summary: `Dispatched ${template.name} (${packet.costRisk.label})`,
+      outcome: "success",
+    });
+    recordWorkflowRunOutcome({
+      userId: user.id,
+      projectId: project.id,
+      scopeType: "automation",
+      scopeId: id,
+      outcome: "success",
+    });
+
     return NextResponse.json({
       msg: template.executor === "openclaw" ? "Automation sent to OpenClaw." : "Automation dispatched.",
       template: updatedTemplate,
@@ -401,6 +520,10 @@ export async function POST(req: Request, { params }: RouteParams) {
         executorPayload,
         reportHref: buildReportHref(report.date),
         reportId: report.id,
+        workflow: packet.workflow,
+        costRisk: packet.costRisk,
+        evalGuard,
+        evalGuardWarning,
       },
     });
   } catch (error) {

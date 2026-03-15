@@ -89,6 +89,24 @@ interface OpenClawHealth {
   agentId: string;
 }
 
+interface WorkflowGuardBadgeState {
+  scopeId: string;
+  reanalysisRequired: boolean;
+  lastCostRiskLabel: string;
+}
+
+interface EvalGuardSnapshot {
+  status: "healthy" | "degraded" | "blocked" | "unavailable";
+  metrics: {
+    score: number;
+    failureRate: number;
+    costUsd: number;
+    total: number;
+  };
+  reasons: string[];
+  timestamp: string | null;
+}
+
 interface AutomationsPageClientProps {
   initialProject: {
     id: string;
@@ -96,6 +114,7 @@ interface AutomationsPageClientProps {
     relativePath: string;
   };
   initialTemplates: AutomationTemplate[];
+  evalGuard: EvalGuardSnapshot;
 }
 
 interface AutomationDraft {
@@ -282,6 +301,19 @@ function runTone(status: AutomationRunStatus | null) {
   }
 }
 
+function evalGuardTone(status: EvalGuardSnapshot["status"]) {
+  switch (status) {
+    case "healthy":
+      return "border-status-success/25 bg-status-success/10 text-status-success";
+    case "degraded":
+      return "border-status-warning/25 bg-status-warning/10 text-status-warning";
+    case "blocked":
+      return "border-status-error/25 bg-status-error/10 text-status-error";
+    default:
+      return "border-border bg-bg-panel text-text-muted";
+  }
+}
+
 function shouldShowAdvanced(
   template: Pick<AutomationTemplate, "area" | "webhookPath" | "topics"> | null,
 ) {
@@ -292,6 +324,7 @@ function shouldShowAdvanced(
 export default function AutomationsPageClient({
   initialProject,
   initialTemplates,
+  evalGuard,
 }: AutomationsPageClientProps) {
   const [templates, setTemplates] = useState(initialTemplates);
   const [selectedId, setSelectedId] = useState<string | "new">(
@@ -312,6 +345,7 @@ export default function AutomationsPageClient({
   const [libraryQuery, setLibraryQuery] = useState("");
   const [openClawHealth, setOpenClawHealth] = useState<OpenClawHealth | null>(null);
   const [openClawHealthLoading, setOpenClawHealthLoading] = useState(false);
+  const [workflowGuards, setWorkflowGuards] = useState<Record<string, WorkflowGuardBadgeState>>({});
 
   const sortedTemplates = useMemo(
     () =>
@@ -724,6 +758,62 @@ export default function AutomationsPageClient({
     void refreshOpenClawHealth();
   }, [draft.executor]);
 
+  useEffect(() => {
+    let cancelled = false;
+    axios
+      .get("/api/workflow/guards", { params: { scope: "automation" } })
+      .then((response) => {
+        if (cancelled) return;
+        const rows = Array.isArray(response.data?.guards) ? response.data.guards : [];
+        const next: Record<string, WorkflowGuardBadgeState> = {};
+        for (const row of rows) {
+          const scopeId = String(row?.scopeId || "").trim();
+          if (!scopeId) continue;
+          next[scopeId] = {
+            scopeId,
+            reanalysisRequired: Boolean(row?.reanalysisRequired),
+            lastCostRiskLabel: String(row?.lastCostRiskLabel || "cost-risk/low"),
+          };
+        }
+        setWorkflowGuards(next);
+      })
+      .catch(() => {
+        if (!cancelled) setWorkflowGuards({});
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [templates.length]);
+
+  useEffect(() => {
+    let cancelled = false;
+    axios
+      .get("/api/workflow/guards", { params: { scope: "automation" } })
+      .then((response) => {
+        if (cancelled) return;
+        const rows = Array.isArray(response.data?.guards) ? response.data.guards : [];
+        const next: Record<string, WorkflowGuardBadgeState> = {};
+        for (const row of rows) {
+          const scopeId = String(row?.scopeId || "").trim();
+          if (!scopeId) continue;
+          next[scopeId] = {
+            scopeId,
+            reanalysisRequired: Boolean(row?.reanalysisRequired),
+            lastCostRiskLabel: String(row?.lastCostRiskLabel || "cost-risk/low"),
+          };
+        }
+        setWorkflowGuards(next);
+      })
+      .catch(() => {
+        if (!cancelled) setWorkflowGuards({});
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [templates.length]);
+
   return (
     <div className="matte-page mx-auto flex h-full w-full max-w-6xl overflow-y-auto px-6 py-8 sm:px-10">
       <div className="flex w-full flex-col gap-4">
@@ -746,6 +836,12 @@ export default function AutomationsPageClient({
               <span className="matte-chip">{summary.readyToExecute} executable</span>
               <span className="matte-chip">{summary.recentlyRun} ran this week</span>
             </div>
+          </div>
+          <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${evalGuardTone(evalGuard.status)}`}>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.14em]">Eval guard</div>
+            <div className="mt-1 font-semibold">{evalGuard.status}</div>
+            <div className="mt-1 text-xs">score {evalGuard.metrics.score} · failure {evalGuard.metrics.failureRate}</div>
+            <div className="mt-1 text-xs">latest {evalGuard.timestamp ? relativeTime(evalGuard.timestamp) : "unavailable"}</div>
           </div>
         </section>
 
@@ -810,6 +906,8 @@ export default function AutomationsPageClient({
                           <div className="flex flex-wrap items-center gap-2">
                             <div className="text-sm font-semibold text-white">{template.name}</div>
                             <span className="matte-chip">{template.executor}</span>
+                            {workflowGuards[template.id]?.lastCostRiskLabel ? <span className="matte-chip">{workflowGuards[template.id].lastCostRiskLabel}</span> : null}
+                            {workflowGuards[template.id]?.reanalysisRequired ? <span className="matte-chip">re-analysis</span> : null}
                             {template.area ? <span className="matte-chip">{template.area}</span> : null}
                           </div>
                           <p className="mt-2 line-clamp-2 text-sm leading-6 text-text-secondary">
@@ -889,6 +987,12 @@ export default function AutomationsPageClient({
             <span className="matte-chip">{draft.executionEnv}</span>
             {selectedTemplate ? (
               <span className="matte-chip">last run {relativeTime(selectedTemplate.lastRunAt)}</span>
+            ) : null}
+            {selectedTemplate && workflowGuards[selectedTemplate.id]?.lastCostRiskLabel ? (
+              <span className="matte-chip">{workflowGuards[selectedTemplate.id].lastCostRiskLabel}</span>
+            ) : null}
+            {selectedTemplate && workflowGuards[selectedTemplate.id]?.reanalysisRequired ? (
+              <span className="matte-chip">re-analysis required</span>
             ) : null}
             {draft.executor === "n8n" ? (
               <span className="matte-chip">

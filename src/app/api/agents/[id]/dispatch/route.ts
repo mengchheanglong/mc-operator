@@ -10,6 +10,11 @@ import { createReport } from "@/server/repositories/reports-repo";
 import { dispatchToOpenClawAgent } from "@/server/services/openclaw-delivery-service";
 import { spawnAgentOrchestratorRun } from "@/server/services/agent-orchestrator-service";
 import type { AgentChainPolicy } from "@/types/agents";
+import { buildAgentDispatchMetadata } from "@/lib/agents/dispatch-metadata";
+import { buildExecutionPacket, type ContextBlock } from "@/lib/workflow/mission-control-workflow";
+import { appendLessonEvent, loadLessonHint } from "@/server/services/workflow-lessons-service";
+import { recordWorkflowRunOutcome, upsertWorkflowRunSignature } from "@/server/repositories/workflow-run-guards-repo";
+import { getAgentEvalGuardSnapshot, type AgentEvalGuardSnapshot } from "@/server/services/agent-eval-guard-service";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +23,7 @@ interface RouteParams {
 }
 
 const MAX_STORED_DISPATCH_BODY = 12000;
+const inFlightAgentRuns = new Set<string>();
 
 type HandoffResult = {
   agentId: string;
@@ -95,57 +101,42 @@ async function buildAgentBrief(input: {
     sourceRef: string | null;
   };
   task: string;
+  deepMode?: boolean;
+  lessonHint?: { snippets: string[]; reanalysisRequired: boolean };
 }) {
-  const topics = input.agent.topics.length > 0 ? input.agent.topics.join(", ") : "none";
-
   const workflow = input.agent.workflowProfile;
-  const objectives = workflow.objectives.length ? workflow.objectives.join("; ") : "none";
-  const constraints = workflow.constraints.length ? workflow.constraints.join("; ") : "none";
-  const deliverables = workflow.deliverables.length ? workflow.deliverables.join("; ") : "none";
-  const packAssets = input.agent.packAssets.length
-    ? input.agent.packAssets.map((asset) => `${asset.kind}: ${asset.label} -> ${asset.path}`).join("\n")
-    : "none";
   const packSnippets = await buildPackSnippets(input.agent.packAssets);
-  const handoffChain = input.agent.handoffAgentIds.length ? input.agent.handoffAgentIds.join(", ") : "none";
+  const contextBlocks: ContextBlock[] = [
+    { label: "project", content: `Project: ${input.project.name} (${input.project.relativePath})` },
+    { label: "agent", content: `Agent: ${input.agent.name}\nRole: ${input.agent.role}\nArea: ${input.agent.area || "none"}\nTopics: ${input.agent.topics.join(", ") || "none"}` },
+    { label: "workflow", content: `Mode: ${workflow.mode}\nObjectives: ${workflow.objectives.join("; ") || "none"}\nConstraints: ${workflow.constraints.join("; ") || "none"}\nDeliverables: ${workflow.deliverables.join("; ") || "none"}` },
+    { label: "system-prompt", content: input.agent.systemPrompt.trim() || "No explicit system prompt provided." },
+    { label: "pack-snippets", content: packSnippets || "none" },
+    { label: "lessons", content: input.lessonHint?.snippets.join("\n") || "none" },
+  ];
 
-  return [
-    `Project: ${input.project.name} (${input.project.relativePath})`,
-    `Agent: ${input.agent.name}`,
-    `Role: ${input.agent.role}`,
-    `Area: ${input.agent.area || "none"}`,
-    `Topics: ${topics}`,
-    `Source pack: ${input.agent.sourcePack}`,
-    `Source ref: ${input.agent.sourceRef || "none"}`,
-    `Workflow mode: ${workflow.mode}`,
-    `Workflow objectives: ${objectives}`,
-    `Workflow constraints: ${constraints}`,
-    `Workflow deliverables: ${deliverables}`,
-    `Pack assets:\n${packAssets}`,
-    packSnippets ? `Pack snippets:\n${packSnippets}` : null,
-    `Handoff chain: ${handoffChain}`,
-    input.agent.description ? `Description: ${input.agent.description}` : null,
-    "",
-    "System prompt",
-    input.agent.systemPrompt.trim() || "No explicit system prompt provided.",
-    "",
-    "Task",
-    input.task.trim(),
-    "",
-    "Interaction rule",
-    "Immediately send this exact acknowledgment before doing the main work: 'Received from Mission Control — starting now.'",
-    "Then continue with the task and send progress updates for longer work.",
-    "",
-    "Runtime guardrails",
-    "Do not leave background processes, dev servers, watchers, or indexing jobs running after the task completes unless the user explicitly asked for a long-running process.",
-    "Prefer bounded checks and short-lived commands.",
-    "Do not start repo-wide indexing or heavy background analysis unless explicitly requested.",
-    "If a background process is truly required, report the exact command, PID, and cleanup step before finishing.",
-    "",
-    "Output",
-    "Return the work result, changed files if any, verification performed, and any follow-up needed.",
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const packet = buildExecutionPacket({
+    objective: input.task,
+    constraints: [
+      "Follow mission-control workflow: objective -> constraints -> execution -> verification -> report.",
+      "Do not complete without verification evidence.",
+      ...(workflow.constraints || []),
+      input.lessonHint?.reanalysisRequired
+        ? "Same failure happened twice. Switch to re-analysis mode and produce revised approach before next edit."
+        : "",
+    ].filter(Boolean),
+    executionNotes: [
+      "Immediately send: 'Received from Mission Control — starting now.'",
+      "Prefer short bounded checks and avoid long-running background jobs.",
+      ...(workflow.objectives || []),
+    ],
+    verification: ["Run touched checks before completion and cite exact command output."],
+    reportFormat: ["Changed files", "Verification outputs", "Risks", "Next step"],
+    contextBlocks,
+    deepMode: input.deepMode,
+  });
+
+  return packet;
 }
 
 async function runAgentDispatch(input: {
@@ -153,13 +144,18 @@ async function runAgentDispatch(input: {
   project: { id: string; name: string; relativePath: string };
   agent: AgentDefinition;
   task: string;
+  deepMode?: boolean;
+  lessonHint?: { snippets: string[]; reanalysisRequired: boolean };
 }) {
-  const brief = await buildAgentBrief({
+  const packet = await buildAgentBrief({
     project: { name: input.project.name, relativePath: input.project.relativePath },
     agent: input.agent,
     task: input.task,
+    deepMode: input.deepMode,
+    lessonHint: input.lessonHint,
   });
 
+  const brief = `${packet.brief}\n\nCost risk: ${packet.costRisk.label}`;
   const projectPath = `${getWorkspaceRootPath().replace(/\\/g, "/")}/${input.project.relativePath.replace(/\\/g, "/")}`;
   const dispatch = input.agent.backend === "agent-orchestrator"
     ? await spawnAgentOrchestratorRun(projectPath, brief)
@@ -175,7 +171,31 @@ async function runAgentDispatch(input: {
     ? `AO session started${aoSessionId ? ` (${aoSessionId})` : ""}.`
     : extractOpenClawSummary((dispatch as { parsed?: Record<string, unknown> | null }).parsed || null, "Task sent to OpenClaw.");
 
-  return { brief, dispatch, aoSessionId, dispatchBody, summary };
+  return { brief, packet, dispatch, aoSessionId, dispatchBody, summary };
+}
+
+function createEvalGuardReport(input: {
+  userId: string;
+  projectId: string;
+  agent: { id: string; name: string; area: string | null; topics: string[] };
+  guard: AgentEvalGuardSnapshot;
+  decision: "blocked" | "degraded" | "unavailable";
+}) {
+  return createReport(input.userId, input.projectId, {
+    title: `Eval guard ${input.decision}: ${input.agent.name}`,
+    content: `Status: ${input.guard.status}\nScore: ${input.guard.metrics.score}\nFailure rate: ${input.guard.metrics.failureRate}\nCost USD: ${input.guard.metrics.costUsd}\nArtifact: ${input.guard.artifactPath}\nTimestamp: ${input.guard.timestamp || "none"}\nReasons: ${input.guard.reasons.join(", ") || "none"}`,
+    category: input.decision === "blocked" ? "error" : "maintenance",
+    status: input.decision === "blocked" ? "error" : "warning",
+    area: "agents",
+    source: "Mission Control",
+    topics: [...input.agent.topics, "agents", "eval-guard"],
+    metadata: {
+      agentId: input.agent.id,
+      evalGuard: input.guard,
+      decision: input.decision,
+      topic: "eval-guard",
+    },
+  });
 }
 
 function shouldAutoRunHandoffs(policy: AgentChainPolicy, primaryOk: boolean) {
@@ -255,6 +275,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     const { id } = await params;
     const body = await req.json();
     const task = String(body.task || "").trim();
+    const deepMode = Boolean(body.deepMode);
 
     if (!id) {
       return badRequest("Agent ID is required.");
@@ -274,11 +295,98 @@ export async function POST(req: Request, { params }: RouteParams) {
       return badRequest("This agent is not configured for direct OpenClaw dispatch.");
     }
 
-    const { brief, dispatch, aoSessionId, dispatchBody, summary: openClawSummary } = await runAgentDispatch({
+    const evalGuard = await getAgentEvalGuardSnapshot();
+    if (evalGuard.status === "blocked") {
+      createEvalGuardReport({
+        userId: user.id,
+        projectId: project.id,
+        agent: { id: agent.id, name: agent.name, area: agent.area || null, topics: agent.topics },
+        guard: evalGuard,
+        decision: "blocked",
+      });
+      return NextResponse.json(
+        {
+          msg: "Dispatch blocked by eval guardrail.",
+          code: "blocked_by_eval_guardrail",
+          evalGuard,
+          reasons: evalGuard.reasons,
+        },
+        { status: 409 },
+      );
+    }
+
+    const evalGuardWarning =
+      evalGuard.status === "degraded"
+        ? "eval_guard_degraded"
+        : evalGuard.status === "unavailable"
+          ? "eval_guard_unavailable"
+          : null;
+
+    if (evalGuardWarning) {
+      createEvalGuardReport({
+        userId: user.id,
+        projectId: project.id,
+        agent: { id: agent.id, name: agent.name, area: agent.area || null, topics: agent.topics },
+        guard: evalGuard,
+        decision: evalGuard.status === "degraded" ? "degraded" : "unavailable",
+      });
+    }
+
+    const projectPath = `${getWorkspaceRootPath().replace(/\\/g, "/")}/${project.relativePath.replace(/\\/g, "/")}`;
+    const issueKey = `${agent.id}:${task.slice(0, 120).toLowerCase()}`;
+    const lessonHint = await loadLessonHint(projectPath, issueKey);
+
+    const preflightPacket = await buildAgentBrief({
+      project: { name: project.name, relativePath: project.relativePath },
+      agent,
+      task,
+      deepMode,
+      lessonHint,
+    });
+
+    const lockKey = `${project.id}:${agent.id}`;
+    if (inFlightAgentRuns.has(lockKey)) {
+      return NextResponse.json(
+        { msg: "Duplicate run guard blocked repeated dispatch.", code: "duplicate_run_guard", costRisk: preflightPacket.costRisk },
+        { status: 409 },
+      );
+    }
+
+    const guard = upsertWorkflowRunSignature({
+      userId: user.id,
+      projectId: project.id,
+      scopeType: "agent",
+      scopeId: agent.id,
+      runSignature: preflightPacket.runSignature,
+      costRiskTier: preflightPacket.costRisk.tier,
+      costRiskLabel: preflightPacket.costRisk.label,
+    });
+
+    if (guard.duplicateBlocked) {
+      return NextResponse.json(
+        {
+          msg: "Duplicate run guard blocked repeated dispatch.",
+          code: "duplicate_run_guard",
+          costRisk: preflightPacket.costRisk,
+          reanalysisRequired: guard.state?.reanalysisRequired || false,
+        },
+        { status: 409 },
+      );
+    }
+
+    const effectiveLessonHint = {
+      snippets: lessonHint.snippets,
+      reanalysisRequired: lessonHint.reanalysisRequired || Boolean(guard.state?.reanalysisRequired),
+    };
+
+    inFlightAgentRuns.add(lockKey);
+    const { brief, packet, dispatch, aoSessionId, dispatchBody, summary: openClawSummary } = await runAgentDispatch({
       userId: user.id,
       project: { id: project.id, name: project.name, relativePath: project.relativePath },
       agent,
       task,
+      deepMode,
+      lessonHint: effectiveLessonHint,
     });
     const handoffResults = shouldAutoRunHandoffs(agent.chainPolicy, dispatch.ok)
       ? await executeHandoffs({
@@ -291,6 +399,21 @@ export async function POST(req: Request, { params }: RouteParams) {
       : [];
 
     if (!dispatch.ok) {
+      inFlightAgentRuns.delete(lockKey);
+      await appendLessonEvent({
+        projectPath,
+        runType: "agent",
+        issueKey,
+        summary: `Dispatch failed (${dispatch.status}) for ${agent.name}`,
+        outcome: "failure",
+      });
+      recordWorkflowRunOutcome({
+        userId: user.id,
+        projectId: project.id,
+        scopeType: "agent",
+        scopeId: id,
+        outcome: "failure",
+      });
       const updatedAgent = recordAgentRun(
         user.id,
         project.id,
@@ -307,7 +430,7 @@ export async function POST(req: Request, { params }: RouteParams) {
         area: agent.area || "agents",
         source: "Mission Control",
         topics: [...agent.topics, "agents", "openclaw", agent.role],
-        metadata: {
+        metadata: buildAgentDispatchMetadata({
           agentId: agent.id,
           openclawAgentId: (dispatch as { agentId?: string }).agentId || null,
           backend: agent.backend,
@@ -316,7 +439,7 @@ export async function POST(req: Request, { params }: RouteParams) {
           args: dispatch.args,
           parsed: (dispatch as { parsed?: Record<string, unknown> | null }).parsed || null,
           handoffs: handoffResults,
-        },
+        }),
       });
 
       return NextResponse.json(
@@ -329,6 +452,11 @@ export async function POST(req: Request, { params }: RouteParams) {
             reportHref: buildReportHref(report.date),
             reportId: report.id,
             handoffs: handoffResults,
+            workflow: packet.workflow,
+            costRisk: packet.costRisk,
+            deepMode: packet.deepMode,
+            evalGuard,
+            evalGuardWarning,
           },
         },
         { status: 502 },
@@ -358,7 +486,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       area: agent.area || "agents",
       source: "Mission Control",
       topics: [...agent.topics, "agents", "openclaw", agent.role],
-      metadata: {
+      metadata: buildAgentDispatchMetadata({
         agentId: agent.id,
         openclawAgentId: (dispatch as { agentId?: string }).agentId || null,
         backend: agent.backend,
@@ -367,7 +495,23 @@ export async function POST(req: Request, { params }: RouteParams) {
         args: dispatch.args,
         parsed: (dispatch as { parsed?: Record<string, unknown> | null }).parsed || null,
         handoffs: handoffResults,
-      },
+      }),
+    });
+
+    inFlightAgentRuns.delete(lockKey);
+    await appendLessonEvent({
+      projectPath,
+      runType: "agent",
+      issueKey,
+      summary: `Dispatched ${agent.name} (${packet.costRisk.label})`,
+      outcome: "success",
+    });
+    recordWorkflowRunOutcome({
+      userId: user.id,
+      projectId: project.id,
+      scopeType: "agent",
+      scopeId: id,
+      outcome: "success",
     });
 
     return NextResponse.json({
@@ -379,6 +523,11 @@ export async function POST(req: Request, { params }: RouteParams) {
         reportHref: buildReportHref(report.date),
         reportId: report.id,
         handoffs: handoffResults,
+        workflow: packet.workflow,
+        costRisk: packet.costRisk,
+        deepMode: packet.deepMode,
+        evalGuard,
+        evalGuardWarning,
       },
     });
   } catch (error) {

@@ -9,17 +9,46 @@ import {
   Copy,
   Loader2,
   RefreshCw,
+  RotateCcw,
   Search,
   Send,
   Sparkles,
   Trash2,
 } from "lucide-react";
 import { normalizeTopics } from "@/lib/topics";
+import { normalizeDispatchHandoffs, readAgentDispatchMetadata, type DispatchHandoffMetadata } from "@/lib/agents/dispatch-metadata";
 import type { AgentBackend, AgentChainPolicy, AgentDefinition, AgentExecutor, AgentRole, AgentStatus } from "@/types/agents";
 
 type BusyMode = "save" | "dispatch" | null;
 type LibraryFilter = "all" | "active" | "openclaw";
 type ContextTab = "overview" | "workflow" | "playbook" | "references";
+
+interface ToolingCatalogEntry {
+  key: string;
+  label: string;
+  path: string;
+  exists: boolean;
+  status: "ok" | "missing";
+  note: string;
+}
+
+interface ToolingCatalogSnapshot {
+  toolingRoot: string;
+  discoveredRoots: string[];
+  entries: ToolingCatalogEntry[];
+}
+
+interface EvalGuardSnapshot {
+  status: "healthy" | "degraded" | "blocked" | "unavailable";
+  metrics: {
+    score: number;
+    failureRate: number;
+    costUsd: number;
+    total: number;
+  };
+  reasons: string[];
+  timestamp: string | null;
+}
 
 interface AgentsPageClientProps {
   initialProject: {
@@ -28,6 +57,8 @@ interface AgentsPageClientProps {
     relativePath: string;
   };
   initialAgents: AgentDefinition[];
+  toolingCatalog: ToolingCatalogSnapshot;
+  evalGuard: EvalGuardSnapshot;
 }
 
 interface AgentDraft {
@@ -51,7 +82,7 @@ interface DispatchResult {
   brief: string;
   reportHref: string;
   reportId: string;
-  handoffs?: Array<{ agentId: string; name: string; ok: boolean; summary: string; sessionId: string | null }>;
+  handoffs?: DispatchHandoff[];
 }
 
 interface AgentBackendStatus {
@@ -61,11 +92,44 @@ interface AgentBackendStatus {
   sessionId: string | null;
 }
 
+interface AgentSessionList {
+  ok: boolean;
+  status: number;
+  body: string;
+}
+
+type DispatchHandoff = DispatchHandoffMetadata;
+
+interface LatestRunTimeline {
+  source: "dispatch" | "report" | "agent";
+  summary: string;
+  backend: AgentBackend;
+  sessionId: string | null;
+  runStatus: AgentDefinition["lastRunStatus"];
+  chainPolicy: AgentChainPolicy;
+  handoffs: DispatchHandoff[];
+  reportHref: string | null;
+  brief: string;
+}
+
+interface ReportListItem {
+  id: string;
+  category?: string;
+  date: string;
+  metadata?: Record<string, unknown>;
+}
+
 interface AgentPackAssetPreview {
   label: string;
   path: string;
   kind: "file" | "directory";
   preview: string;
+}
+
+interface WorkflowGuardBadgeState {
+  scopeId: string;
+  reanalysisRequired: boolean;
+  lastCostRiskLabel: string;
 }
 
 function classifyAsset(asset: AgentPackAssetPreview) {
@@ -89,6 +153,11 @@ function draftFromAgent(agent: AgentDefinition): AgentDraft {
     systemPrompt: agent.systemPrompt,
     model: agent.model || "",
   };
+}
+
+function buildReportHref(date: string) {
+  const day = String(date || "").slice(0, 10);
+  return day ? `/dashboard/report?day=${encodeURIComponent(day)}` : "/dashboard/report";
 }
 
 function buildPayload(draft: AgentDraft) {
@@ -143,6 +212,19 @@ function runTone(status: AgentDefinition["lastRunStatus"]) {
   }
 }
 
+function evalGuardTone(status: EvalGuardSnapshot["status"]) {
+  switch (status) {
+    case "healthy":
+      return "border-status-success/25 bg-status-success/10 text-status-success";
+    case "degraded":
+      return "border-status-warning/25 bg-status-warning/10 text-status-warning";
+    case "blocked":
+      return "border-status-error/25 bg-status-error/10 text-status-error";
+    default:
+      return "border-border bg-bg-panel text-text-muted";
+  }
+}
+
 function roleLabel(role: AgentRole) {
   switch (role) {
     case "planner":
@@ -168,6 +250,8 @@ const TASK_SPARKS = [
 export default function AgentsPageClient({
   initialProject,
   initialAgents,
+  toolingCatalog,
+  evalGuard,
 }: AgentsPageClientProps) {
   const [agents, setAgents] = useState(initialAgents);
   const [selectedId, setSelectedId] = useState(initialAgents[0]?.id || "");
@@ -200,7 +284,11 @@ export default function AgentsPageClient({
   const [assetPreviewsLoading, setAssetPreviewsLoading] = useState(false);
   const [contextTab, setContextTab] = useState<ContextTab>("overview");
   const [backendStatus, setBackendStatus] = useState<AgentBackendStatus | null>(null);
+  const [backendSessions, setBackendSessions] = useState<AgentSessionList | null>(null);
   const [backendStatusLoading, setBackendStatusLoading] = useState(false);
+  const [persistedTimeline, setPersistedTimeline] = useState<LatestRunTimeline | null>(null);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [workflowGuards, setWorkflowGuards] = useState<Record<string, WorkflowGuardBadgeState>>({});
 
   const sortedAgents = useMemo(
     () => [...agents].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
@@ -238,6 +326,22 @@ export default function AgentsPageClient({
   }, [libraryFilter, libraryQuery, sortedAgents]);
 
   const visibleDispatch = dispatchResult?.agentId === selectedAgent?.id ? dispatchResult : null;
+  const latestRunTimeline = useMemo<LatestRunTimeline | null>(() => {
+    if (visibleDispatch && selectedAgent) {
+      return {
+        source: "dispatch",
+        summary: visibleDispatch.summary,
+        backend: selectedAgent.backend,
+        sessionId: selectedAgent.sessionId,
+        runStatus: selectedAgent.lastRunStatus,
+        chainPolicy: selectedAgent.chainPolicy,
+        handoffs: visibleDispatch.handoffs || [],
+        reportHref: visibleDispatch.reportHref || null,
+        brief: visibleDispatch.brief,
+      };
+    }
+    return persistedTimeline;
+  }, [persistedTimeline, selectedAgent, visibleDispatch]);
   const currentPayload = buildPayload(draft);
   const playbookAssets = assetPreviews.filter((asset) => classifyAsset(asset) === "playbook");
   const referenceAssets = assetPreviews.filter((asset) => classifyAsset(asset) === "references");
@@ -291,6 +395,102 @@ export default function AgentsPageClient({
       cancelled = true;
     };
   }, [selectedAgent?.id, selectedAgent?.packAssets.length]);
+
+  useEffect(() => {
+    if (!selectedAgent?.id) {
+      setPersistedTimeline(null);
+      setTimelineLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setTimelineLoading(true);
+
+    axios
+      .get("/api/reports", { params: { limit: 80 } })
+      .then((response) => {
+        if (cancelled) return;
+        const rows = Array.isArray(response.data) ? (response.data as ReportListItem[]) : [];
+        const report = rows.find((row) => {
+          if (!row || typeof row !== "object") return false;
+          if (row.category !== "task" && row.category !== "error") return false;
+          const metadata = readAgentDispatchMetadata(row.metadata);
+          if (!metadata) return false;
+          return metadata.agentId === selectedAgent.id;
+        });
+
+        if (report) {
+          const metadata = readAgentDispatchMetadata(report.metadata);
+          if (metadata) {
+            setPersistedTimeline({
+              source: "report",
+              summary: selectedAgent.lastRunSummary || "Latest agent run loaded from report metadata.",
+              backend: metadata.backend,
+              sessionId: metadata.sessionId || selectedAgent.sessionId || null,
+              runStatus: selectedAgent.lastRunStatus,
+              chainPolicy: selectedAgent.chainPolicy,
+              handoffs: normalizeDispatchHandoffs(metadata.handoffs),
+              reportHref: buildReportHref(report.date),
+              brief: "",
+            });
+            return;
+          }
+        }
+
+        if (selectedAgent.lastRunAt || selectedAgent.lastRunSummary || selectedAgent.lastRunStatus) {
+          setPersistedTimeline({
+            source: "agent",
+            summary: selectedAgent.lastRunSummary || "Latest run metadata is available.",
+            backend: selectedAgent.backend,
+            sessionId: selectedAgent.sessionId,
+            runStatus: selectedAgent.lastRunStatus,
+            chainPolicy: selectedAgent.chainPolicy,
+            handoffs: [],
+            reportHref: null,
+            brief: "",
+          });
+          return;
+        }
+
+        setPersistedTimeline(null);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          if (selectedAgent.lastRunAt || selectedAgent.lastRunSummary || selectedAgent.lastRunStatus) {
+            setPersistedTimeline({
+              source: "agent",
+              summary: selectedAgent.lastRunSummary || "Latest run metadata is available.",
+              backend: selectedAgent.backend,
+              sessionId: selectedAgent.sessionId,
+              runStatus: selectedAgent.lastRunStatus,
+              chainPolicy: selectedAgent.chainPolicy,
+              handoffs: [],
+              reportHref: null,
+              brief: "",
+            });
+          } else {
+            setPersistedTimeline(null);
+          }
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setTimelineLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    selectedAgent?.id,
+    selectedAgent?.backend,
+    selectedAgent?.chainPolicy,
+    selectedAgent?.lastRunAt,
+    selectedAgent?.lastRunStatus,
+    selectedAgent?.lastRunSummary,
+    selectedAgent?.sessionId,
+  ]);
 
   function beginBusy(mode: BusyMode, agentId: string | null = null) {
     setBusyMode(mode);
@@ -374,7 +574,7 @@ export default function AgentsPageClient({
         brief: String(response.data?.run?.brief || ""),
         reportHref: String(response.data?.run?.reportHref || "/dashboard/report"),
         reportId: String(response.data?.run?.reportId || ""),
-        handoffs: Array.isArray(response.data?.run?.handoffs) ? response.data.run.handoffs : [],
+        handoffs: normalizeDispatchHandoffs(response.data?.run?.handoffs),
       });
       setError("");
     } catch (error) {
@@ -390,7 +590,7 @@ export default function AgentsPageClient({
             brief: String(error.response.data.run.brief || ""),
             reportHref: String(error.response.data.run.reportHref || "/dashboard/report"),
             reportId: String(error.response.data.run.reportId || ""),
-            handoffs: Array.isArray(error.response.data.run.handoffs) ? error.response.data.run.handoffs : [],
+            handoffs: normalizeDispatchHandoffs(error.response.data.run.handoffs),
           });
         }
         setError(String(error.response.data?.msg || "Unable to dispatch agent."));
@@ -406,8 +606,9 @@ export default function AgentsPageClient({
     if (!selectedAgent || selectedAgent.backend !== "agent-orchestrator") return;
     try {
       setBackendStatusLoading(true);
-      const response = await axios.get(`/api/agents/${selectedAgent.id}/status`);
+      const response = await axios.get(`/api/agents/${selectedAgent.id}/status`, { params: { includeSessions: 1 } });
       setBackendStatus(response.data?.status as AgentBackendStatus);
+      setBackendSessions((response.data?.sessions as AgentSessionList | null) || null);
       setError("");
     } catch {
       setError("Unable to load agent-orchestrator session status.");
@@ -419,10 +620,39 @@ export default function AgentsPageClient({
   useEffect(() => {
     if (!selectedAgent?.id || selectedAgent.backend !== "agent-orchestrator" || !selectedAgent.sessionId) {
       setBackendStatus(null);
+      setBackendSessions(null);
       return;
     }
     void refreshBackendStatus();
   }, [refreshBackendStatus, selectedAgent?.id, selectedAgent?.backend, selectedAgent?.sessionId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    axios
+      .get("/api/workflow/guards", { params: { scope: "agent" } })
+      .then((response) => {
+        if (cancelled) return;
+        const rows = Array.isArray(response.data?.guards) ? response.data.guards : [];
+        const next: Record<string, WorkflowGuardBadgeState> = {};
+        for (const row of rows) {
+          const scopeId = String(row?.scopeId || "").trim();
+          if (!scopeId) continue;
+          next[scopeId] = {
+            scopeId,
+            reanalysisRequired: Boolean(row?.reanalysisRequired),
+            lastCostRiskLabel: String(row?.lastCostRiskLabel || "cost-risk/low"),
+          };
+        }
+        setWorkflowGuards(next);
+      })
+      .catch(() => {
+        if (!cancelled) setWorkflowGuards({});
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [agents.length]);
 
   async function sendFollowUpToSession() {
     if (!selectedAgent || selectedAgent.backend !== "agent-orchestrator" || !taskInput.trim()) return;
@@ -438,6 +668,24 @@ export default function AgentsPageClient({
     }
   }
 
+  async function restoreBackendSession() {
+    if (!selectedAgent || selectedAgent.backend !== "agent-orchestrator" || !selectedAgent.sessionId) return;
+    try {
+      beginBusy("dispatch", selectedAgent.id);
+      const response = await axios.post(`/api/agents/${selectedAgent.id}/restore`);
+      const updated = response.data?.agent as AgentDefinition | undefined;
+      if (updated) {
+        syncAgent(updated);
+      }
+      await refreshBackendStatus();
+      setError("");
+    } catch {
+      setError("Unable to restore agent-orchestrator session.");
+    } finally {
+      clearBusy();
+    }
+  }
+
   async function clearBackendSession() {
     if (!selectedAgent || selectedAgent.backend !== "agent-orchestrator") return;
     try {
@@ -448,6 +696,7 @@ export default function AgentsPageClient({
         syncAgent(updated);
       }
       setBackendStatus(null);
+      setBackendSessions(null);
       setError("");
     } catch {
       setError("Unable to clear agent session.");
@@ -458,7 +707,7 @@ export default function AgentsPageClient({
 
   return (
     <div className="flex min-h-[calc(100vh-2rem)] flex-col gap-4 overflow-hidden px-4 py-4 sm:px-6">
-      <section className="matte-panel overflow-hidden">
+      <section className="matte-panel flex-none overflow-hidden">
         <div className="border-b border-border/80 px-5 py-4">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -468,7 +717,7 @@ export default function AgentsPageClient({
               <div className="min-w-0">
                 <h1 className="text-lg font-semibold tracking-[-0.04em] text-white">Agents</h1>
                 <p className="mt-1 text-sm text-text-secondary">
-                  Dispatch-focused operators for {initialProject.name}.
+                  Dispatch-focused operators for {initialProject.name}. Select, tune, and run existing agents.
                 </p>
               </div>
             </div>
@@ -477,6 +726,35 @@ export default function AgentsPageClient({
               <span className="matte-chip">{aoAgentCount} AO-backed</span>
               <span className="matte-chip">{packBackedCount} pack-backed</span>
               <span className="matte-chip">{chainedAgentCount} chained</span>
+            </div>
+          </div>
+
+          <div className={`mt-3 rounded-2xl border p-3 text-xs ${evalGuardTone(evalGuard.status)}`}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="font-semibold uppercase tracking-[0.14em]">Eval guard</div>
+              <div className="text-[11px]">{evalGuard.status}</div>
+            </div>
+            <div className="mt-2 text-[11px]">score {evalGuard.metrics.score} · failure {evalGuard.metrics.failureRate} · latest {evalGuard.timestamp ? relativeTime(evalGuard.timestamp) : "unavailable"}</div>
+          </div>
+
+          <div className="mt-3 rounded-2xl border border-border bg-bg-card/35 p-3 text-xs text-text-secondary">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="font-semibold uppercase tracking-[0.14em] text-text-muted">Tooling catalog</div>
+              <div className="text-[11px] text-text-muted">{toolingCatalog.discoveredRoots.length} discovered roots</div>
+            </div>
+            <div className="mt-2 grid gap-2 lg:grid-cols-2">
+              {toolingCatalog.entries.map((entry) => (
+                <div key={entry.key} className="rounded-xl border border-border/70 bg-bg-panel/40 px-2.5 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium text-white">{entry.label}</span>
+                    <span className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] ${entry.status === "ok" ? "border-status-success/25 bg-status-success/10 text-status-success" : "border-status-danger/25 bg-status-danger/10 text-status-danger"}`}>
+                      {entry.status}
+                    </span>
+                  </div>
+                  <div className="mt-1 truncate text-[11px] text-text-muted" title={entry.path}>{entry.path}</div>
+                  <div className="mt-1 text-[10px] uppercase tracking-[0.1em] text-text-muted">{entry.note}</div>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -514,7 +792,7 @@ export default function AgentsPageClient({
           </div>
         </div>
 
-        <div className="max-h-[16rem] overflow-y-auto p-3">
+        <div className="min-h-[12rem] max-h-[18rem] overflow-y-auto p-3">
           <div className="grid gap-2 lg:grid-cols-2 xl:grid-cols-3">
             {filteredAgents.map((agent) => {
               const isSelected = selectedId === agent.id;
@@ -551,6 +829,8 @@ export default function AgentsPageClient({
                       <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-text-muted">
                         <span className="matte-chip">{roleLabel(agent.role)}</span>
                         <span className="matte-chip">{agent.backend}</span>
+                        {workflowGuards[agent.id]?.lastCostRiskLabel ? <span className="matte-chip">{workflowGuards[agent.id].lastCostRiskLabel}</span> : null}
+                        {workflowGuards[agent.id]?.reanalysisRequired ? <span className="matte-chip">re-analysis</span> : null}
                         {agent.sessionId ? <span className="matte-chip">live session</span> : null}
                         {agent.handoffAgentIds.length > 0 ? <span className="matte-chip">{agent.handoffAgentIds.length} chained</span> : null}
                         {agent.area ? <span className="matte-chip">{agent.area}</span> : null}
@@ -578,11 +858,16 @@ export default function AgentsPageClient({
                 </button>
               );
             })}
+            {filteredAgents.length === 0 ? (
+              <div className="col-span-full rounded-2xl border border-dashed border-border bg-bg-panel/40 px-4 py-5 text-sm text-text-muted">
+                No agents match this filter. Adjust search or select a different status filter.
+              </div>
+            ) : null}
           </div>
         </div>
       </section>
 
-      <div className="space-y-4">
+      <div className="flex min-h-[24rem] flex-1 flex-col gap-4 overflow-y-auto">
         <section className="matte-panel p-5 sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
@@ -621,6 +906,12 @@ export default function AgentsPageClient({
             ) : null}
             {selectedAgent ? (
               <span className="matte-chip">Last run {relativeTime(selectedAgent.lastRunAt)}</span>
+            ) : null}
+            {selectedAgent && workflowGuards[selectedAgent.id]?.lastCostRiskLabel ? (
+              <span className="matte-chip">{workflowGuards[selectedAgent.id].lastCostRiskLabel}</span>
+            ) : null}
+            {selectedAgent && workflowGuards[selectedAgent.id]?.reanalysisRequired ? (
+              <span className="matte-chip">re-analysis required</span>
             ) : null}
               {draft.area.trim() ? <span className="matte-chip">{draft.area.trim()}</span> : null}
               {draft.handoffAgentIds.length > 0 ? (
@@ -1038,6 +1329,10 @@ export default function AgentsPageClient({
                   <Send className="h-4 w-4" />
                   Send Follow-up
                 </button>
+                <button type="button" onClick={() => void restoreBackendSession()} className="matte-action-secondary" disabled={busyMode !== null || !selectedAgent?.sessionId}>
+                  <RotateCcw className="h-4 w-4" />
+                  Restore Session
+                </button>
                 <button type="button" onClick={() => void clearBackendSession()} className="matte-action-secondary" disabled={busyMode !== null || !selectedAgent?.sessionId}>
                   <Trash2 className="h-4 w-4" />
                   Clear Session
@@ -1055,8 +1350,8 @@ export default function AgentsPageClient({
                 Review backend status, the latest result, and any downstream handoff timeline from this agent.
               </p>
             </div>
-            {visibleDispatch ? (
-              <Link href={visibleDispatch.reportHref} className="matte-action-secondary">
+            {latestRunTimeline?.reportHref ? (
+              <Link href={latestRunTimeline.reportHref} className="matte-action-secondary">
                 <CheckCircle2 className="h-4 w-4" />
                 Open Report
               </Link>
@@ -1068,30 +1363,47 @@ export default function AgentsPageClient({
               <div className="font-semibold text-white">AO Session Status</div>
               <div className="mt-1">Session: {backendStatus.sessionId || selectedAgent.sessionId || "none"}</div>
               <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-xs leading-6 text-text-muted">{backendStatus.body || "(no status output)"}</pre>
+              {backendSessions?.body ? (
+                <details className="mt-3 rounded-xl border border-border/70 bg-bg-panel/50 p-2">
+                  <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Session List</summary>
+                  <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-xs leading-6 text-text-muted">{backendSessions.body}</pre>
+                </details>
+              ) : null}
             </div>
           ) : null}
 
-          {visibleDispatch ? (
+          {latestRunTimeline ? (
             <div className="mt-4 space-y-4">
               <div className="rounded-2xl border border-border bg-bg-card/60 p-4">
                 <div className="text-sm font-semibold text-white">Latest Result</div>
-                <div className="mt-2 text-sm text-text-secondary">{visibleDispatch.summary}</div>
-                <pre className="mt-4 overflow-x-auto rounded-2xl border border-border bg-bg-panel/70 p-4 text-xs leading-6 text-text-secondary">
-                  {visibleDispatch.brief}
-                </pre>
+                <div className="mt-2 text-sm text-text-secondary">{latestRunTimeline.summary}</div>
+                {latestRunTimeline.brief ? (
+                  <pre className="mt-4 overflow-x-auto rounded-2xl border border-border bg-bg-panel/70 p-4 text-xs leading-6 text-text-secondary">
+                    {latestRunTimeline.brief}
+                  </pre>
+                ) : null}
               </div>
               <div className="grid gap-3 lg:grid-cols-[14rem_minmax(0,1fr)]">
                 <div className="rounded-2xl border border-border bg-bg-panel/40 p-3">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-text-muted">Chain</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-text-muted">Latest Run</div>
                   <div className="mt-2 text-sm text-text-secondary">
-                    Policy: <span className="text-white">{draft.chainPolicy.replaceAll("_", " ")}</span>
+                    Backend: <span className="text-white">{latestRunTimeline.backend}</span>
                   </div>
                   <div className="mt-1 text-sm text-text-secondary">
-                    Steps: <span className="text-white">{1 + (visibleDispatch.handoffs?.length || 0)}</span>
+                    Session ID: <span className="text-white">{latestRunTimeline.sessionId || "none"}</span>
+                  </div>
+                  <div className="mt-1 text-sm text-text-secondary">
+                    Run status: <span className="text-white">{latestRunTimeline.runStatus || "none"}</span>
+                  </div>
+                  <div className="mt-1 text-sm text-text-secondary">
+                    Policy: <span className="text-white">{latestRunTimeline.chainPolicy.replaceAll("_", " ")}</span>
+                  </div>
+                  <div className="mt-1 text-sm text-text-secondary">
+                    Steps: <span className="text-white">{1 + latestRunTimeline.handoffs.length}</span>
                   </div>
                 </div>
                 <div className="rounded-2xl border border-border bg-bg-panel/40 p-3">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-text-muted">Chain Timeline</div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-text-muted">Latest Run Timeline</div>
                   <div className="mt-3 space-y-3">
                     <div className="rounded-xl border border-border/70 bg-bg-card/60 px-3 py-2">
                       <div className="flex items-center justify-between gap-3">
@@ -1100,10 +1412,12 @@ export default function AgentsPageClient({
                           primary
                         </span>
                       </div>
-                      <div className="mt-1 text-xs text-text-secondary">{visibleDispatch.summary}</div>
-                      {selectedAgent?.sessionId ? <div className="mt-1 text-[11px] text-text-muted">session: {selectedAgent.sessionId}</div> : null}
+                      <div className="mt-1 text-xs text-text-secondary">{latestRunTimeline.summary}</div>
+                      <div className="mt-1 text-[11px] text-text-muted">backend: {latestRunTimeline.backend}</div>
+                      <div className="mt-1 text-[11px] text-text-muted">session: {latestRunTimeline.sessionId || "none"}</div>
+                      <div className="mt-1 text-[11px] text-text-muted">status: {latestRunTimeline.runStatus || "none"}</div>
                     </div>
-                    {visibleDispatch.handoffs && visibleDispatch.handoffs.length > 0 ? visibleDispatch.handoffs.map((handoff, index) => (
+                    {latestRunTimeline.handoffs.length > 0 ? latestRunTimeline.handoffs.map((handoff, index) => (
                       <div key={`${handoff.agentId}-${index}`} className="rounded-xl border border-border/70 bg-bg-card/60 px-3 py-2">
                         <div className="flex items-center justify-between gap-3">
                           <div className="text-sm font-semibold text-white">{handoff.name}</div>
@@ -1115,11 +1429,15 @@ export default function AgentsPageClient({
                         {handoff.sessionId ? <div className="mt-1 text-[11px] text-text-muted">session: {handoff.sessionId}</div> : null}
                       </div>
                     )) : (
-                      <div className="text-xs text-text-muted">No automatic downstream handoffs were executed.</div>
+                      <div className="text-xs text-text-muted">Chain/handoff results: no automatic downstream handoffs were executed.</div>
                     )}
                   </div>
                 </div>
               </div>
+            </div>
+          ) : timelineLoading ? (
+            <div className="mt-4 rounded-2xl border border-border bg-bg-card/30 p-5 text-sm text-text-muted">
+              Loading latest run timeline...
             </div>
           ) : (
             <div className="mt-4 rounded-2xl border border-dashed border-border bg-bg-card/30 p-5 text-sm text-text-muted">

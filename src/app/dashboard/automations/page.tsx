@@ -2,6 +2,7 @@ import AutomationsPageClient from "./AutomationsPageClient";
 import { resolveProjectContext } from "@/server/context/project-context";
 import { resolveUserContext } from "@/server/context/user-context";
 import { listAutomationTemplates } from "@/server/repositories/automation-templates-repo";
+import { getAgentEvalGuardSnapshot } from "@/server/services/agent-eval-guard-service";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,7 @@ export default async function AutomationsPage() {
   const user = await resolveUserContext();
   const project = await resolveProjectContext();
   const templates = listAutomationTemplates(user.id, project.id);
+  const evalGuard = await getAgentEvalGuardSnapshot();
 
   return (
     <AutomationsPageClient
@@ -18,6 +20,7 @@ export default async function AutomationsPage() {
         relativePath: project.relativePath,
       }}
       initialTemplates={templates}
+      evalGuard={evalGuard}
     />
   );
 }
