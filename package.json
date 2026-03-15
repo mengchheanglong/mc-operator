@@ -34,6 +34,7 @@
     "check:tool-admission": "node --experimental-strip-types ./scripts/check-tool-admission.ts",
     "ui:smoke": "node --experimental-strip-types ./scripts/run-ui-smoke.ts",
     "check:ui-smoke": "node --experimental-strip-types ./scripts/check-ui-smoke.ts",
+    "check:ui-profile": "node --experimental-strip-types ./scripts/check-ui-profile.ts",
     "test": "node --experimental-strip-types --test ./tests/runtime/*.test.ts",
     "spike:codegraph": "node --experimental-strip-types ./scripts/run-codegraph-spike.ts mission-control",
     "spike:codegraph:summary": "node --experimental-strip-types ./scripts/summarize-codegraph-telemetry.ts 20",

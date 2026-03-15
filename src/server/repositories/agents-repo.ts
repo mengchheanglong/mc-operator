@@ -17,6 +17,7 @@ import type {
   AgentPackAsset,
 } from "@/types/agents";
 import { AGENT_PRESETS } from "@/lib/agent-presets";
+import { normalizeAgentProfileId } from "@/lib/agents/agent-profiles";
 
 function normalizeRole(value: string | undefined | null): AgentRole {
   if (value === "planner" || value === "builder" || value === "reviewer" || value === "researcher") {
@@ -75,6 +76,11 @@ function normalizeWorkflowProfile(value: unknown): AgentWorkflowProfile {
   };
 }
 
+function extractProfileIdFromWorkflow(value: unknown) {
+  if (!value || typeof value !== "object") return "default" as const;
+  return normalizeAgentProfileId((value as { profileId?: unknown }).profileId);
+}
+
 function normalizeHandoffAgentIds(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value
@@ -102,6 +108,7 @@ function normalizeArea(value: string | undefined | null) {
 }
 
 function toRow(raw: typeof agents.$inferSelect): AgentDefinition {
+  const workflowData = parseJsonField(raw.workflowJson);
   return {
     id: raw.id,
     userId: raw.userId,
@@ -117,9 +124,10 @@ function toRow(raw: typeof agents.$inferSelect): AgentDefinition {
     topics: normalizeTopics(parseJsonField(raw.topicsJson)),
     systemPrompt: raw.systemPrompt,
     model: raw.model || null,
+    profileId: extractProfileIdFromWorkflow(workflowData),
     sourcePack: normalizeSourcePack(raw.sourcePack),
     sourceRef: raw.sourceRef || null,
-    workflowProfile: normalizeWorkflowProfile(parseJsonField(raw.workflowJson)),
+    workflowProfile: normalizeWorkflowProfile(workflowData),
     packAssets: normalizePackAssets(parseJsonField(raw.packAssetsJson)),
     handoffAgentIds: normalizeHandoffAgentIds(parseJsonField(raw.handoffAgentIdsJson)),
     chainPolicy: normalizeChainPolicy(raw.chainPolicy),
@@ -187,6 +195,7 @@ export function createAgent(
     topics?: string[];
     systemPrompt?: string;
     model?: string | null;
+    profileId?: string;
     sourcePack?: string;
     sourceRef?: string | null;
     workflowProfile?: unknown;
@@ -196,6 +205,8 @@ export function createAgent(
   },
 ) {
   const now = new Date().toISOString();
+  const profileId = normalizeAgentProfileId(data.profileId);
+  const workflowProfile = normalizeWorkflowProfile(data.workflowProfile);
   const row = {
     id: randomUUID(),
     userId,
@@ -213,7 +224,7 @@ export function createAgent(
     model: String(data.model || "").trim() || null,
     sourcePack: normalizeSourcePack(data.sourcePack),
     sourceRef: String(data.sourceRef || "").trim() || null,
-    workflowJson: stringifyJsonField(normalizeWorkflowProfile(data.workflowProfile)),
+    workflowJson: stringifyJsonField({ ...workflowProfile, profileId }),
     packAssetsJson: stringifyJsonField(normalizePackAssets(data.packAssets)),
     handoffAgentIdsJson: stringifyJsonField(normalizeHandoffAgentIds(data.handoffAgentIds)),
     chainPolicy: normalizeChainPolicy(data.chainPolicy),
@@ -244,6 +255,7 @@ export function updateAgent(
     topics?: string[];
     systemPrompt?: string;
     model?: string | null;
+    profileId?: string;
     sourcePack?: string;
     sourceRef?: string | null;
     workflowProfile?: unknown;
@@ -272,7 +284,11 @@ export function updateAgent(
   if (data.model !== undefined) updated.model = String(data.model || "").trim() || null;
   if (data.sourcePack !== undefined) updated.sourcePack = normalizeSourcePack(data.sourcePack);
   if (data.sourceRef !== undefined) updated.sourceRef = String(data.sourceRef || "").trim() || null;
-  if (data.workflowProfile !== undefined) updated.workflowJson = stringifyJsonField(normalizeWorkflowProfile(data.workflowProfile));
+  if (data.workflowProfile !== undefined || data.profileId !== undefined) {
+    const workflowProfile = normalizeWorkflowProfile(data.workflowProfile ?? existing.workflowProfile);
+    const profileId = data.profileId !== undefined ? normalizeAgentProfileId(data.profileId) : existing.profileId;
+    updated.workflowJson = stringifyJsonField({ ...workflowProfile, profileId });
+  }
   if (data.packAssets !== undefined) updated.packAssetsJson = stringifyJsonField(normalizePackAssets(data.packAssets));
   if (data.handoffAgentIds !== undefined) updated.handoffAgentIdsJson = stringifyJsonField(normalizeHandoffAgentIds(data.handoffAgentIds));
   if (data.chainPolicy !== undefined) updated.chainPolicy = normalizeChainPolicy(data.chainPolicy);

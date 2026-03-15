@@ -1,3 +1,5 @@
+import type { AgentProfileId } from "@/lib/agents/agent-profiles";
+
 export type AgentRole = "planner" | "builder" | "reviewer" | "researcher" | "custom";
 export type AgentExecutor = "openclaw" | "codex" | "manual";
 export type AgentBackend = "openclaw" | "agent-orchestrator";
@@ -32,6 +34,7 @@ export interface AgentDefinition {
   topics: string[];
   systemPrompt: string;
   model: string | null;
+  profileId: AgentProfileId;
   backend: AgentBackend;
   sessionId: string | null;
   sourcePack: AgentSourcePack;

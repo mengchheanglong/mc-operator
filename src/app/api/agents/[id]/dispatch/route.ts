@@ -12,6 +12,7 @@ import { spawnAgentOrchestratorRun } from "@/server/services/agent-orchestrator-
 import type { AgentChainPolicy } from "@/types/agents";
 import { buildAgentDispatchMetadata } from "@/lib/agents/dispatch-metadata";
 import { buildExecutionPacket, type ContextBlock } from "@/lib/workflow/mission-control-workflow";
+import { buildAgentProfileDispatchDirectives } from "@/lib/agents/agent-profiles";
 import { appendLessonEvent, loadLessonHint } from "@/server/services/workflow-lessons-service";
 import { recordWorkflowRunOutcome, upsertWorkflowRunSignature } from "@/server/repositories/workflow-run-guards-repo";
 import { getAgentEvalGuardSnapshot, type AgentEvalGuardSnapshot } from "@/server/services/agent-eval-guard-service";
@@ -123,6 +124,7 @@ async function buildAgentBrief(input: {
       constraints: string[];
       deliverables: string[];
     };
+    profileId: AgentDefinition["profileId"];
     packAssets: Array<{ label: string; path: string; kind: string }>;
     handoffAgentIds: string[];
     sourcePack: string;
@@ -133,12 +135,14 @@ async function buildAgentBrief(input: {
   lessonHint?: { snippets: string[]; reanalysisRequired: boolean };
 }) {
   const workflow = input.agent.workflowProfile;
+  const profileDirectives = buildAgentProfileDispatchDirectives(input.agent.profileId);
   const packSnippets = await buildPackSnippets(input.agent.packAssets);
   const contextBlocks: ContextBlock[] = [
     { label: "project", content: `Project: ${input.project.name} (${input.project.relativePath})` },
     { label: "agent", content: `Agent: ${input.agent.name}\nRole: ${input.agent.role}\nArea: ${input.agent.area || "none"}\nTopics: ${input.agent.topics.join(", ") || "none"}` },
     { label: "workflow", content: `Mode: ${workflow.mode}\nObjectives: ${workflow.objectives.join("; ") || "none"}\nConstraints: ${workflow.constraints.join("; ") || "none"}\nDeliverables: ${workflow.deliverables.join("; ") || "none"}` },
     { label: "system-prompt", content: input.agent.systemPrompt.trim() || "No explicit system prompt provided." },
+    ...profileDirectives.contextBlocks,
     { label: "pack-snippets", content: packSnippets || "none" },
     { label: "lessons", content: input.lessonHint?.snippets.join("\n") || "none" },
   ];
@@ -149,6 +153,7 @@ async function buildAgentBrief(input: {
       "Follow mission-control workflow: objective -> constraints -> execution -> verification -> report.",
       "Do not complete without verification evidence.",
       ...(workflow.constraints || []),
+      ...profileDirectives.constraints,
       input.lessonHint?.reanalysisRequired
         ? "Same failure happened twice. Switch to re-analysis mode and produce revised approach before next edit."
         : "",
@@ -157,9 +162,19 @@ async function buildAgentBrief(input: {
       "Immediately send: 'Received from Mission Control — starting now.'",
       "Prefer short bounded checks and avoid long-running background jobs.",
       ...(workflow.objectives || []),
+      ...profileDirectives.executionNotes,
     ],
-    verification: ["Run touched checks before completion and cite exact command output."],
-    reportFormat: ["Changed files", "Verification outputs", "Risks", "Next step"],
+    verification: [
+      "Run touched checks before completion and cite exact command output.",
+      ...profileDirectives.verification,
+    ],
+    reportFormat: [
+      ...profileDirectives.reportFormat,
+      "Changed files",
+      "Verification outputs",
+      "Risks",
+      "Next step",
+    ],
     contextBlocks,
     deepMode: input.deepMode,
   });

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { normalizeTopics } from "@/lib/topics";
 import { normalizeDispatchHandoffs, readAgentDispatchMetadata, type DispatchHandoffMetadata } from "@/lib/agents/dispatch-metadata";
+import { AGENT_PROFILE_DEFINITIONS, type AgentProfileId } from "@/lib/agents/agent-profiles";
 import type { AgentBackend, AgentChainPolicy, AgentDefinition, AgentExecutor, AgentRole, AgentStatus } from "@/types/agents";
 
 type BusyMode = "save" | "dispatch" | null;
@@ -73,6 +74,7 @@ interface AgentDraft {
   topicsInput: string;
   handoffAgentIds: string[];
   chainPolicy: AgentChainPolicy;
+  profileId: AgentProfileId;
   systemPrompt: string;
   model: string;
 }
@@ -151,6 +153,7 @@ function draftFromAgent(agent: AgentDefinition): AgentDraft {
     topicsInput: agent.topics.join(", "),
     handoffAgentIds: agent.handoffAgentIds,
     chainPolicy: agent.chainPolicy,
+    profileId: agent.profileId,
     systemPrompt: agent.systemPrompt,
     model: agent.model || "",
   };
@@ -176,6 +179,7 @@ function buildPayload(draft: AgentDraft) {
     topics: normalizeTopics(draft.topicsInput),
     handoffAgentIds: draft.handoffAgentIds,
     chainPolicy: draft.chainPolicy,
+    profileId: draft.profileId,
     systemPrompt: draft.systemPrompt.trim(),
     model: draft.model.trim() || null,
   };
@@ -270,6 +274,7 @@ export default function AgentsPageClient({
           topicsInput: "",
           handoffAgentIds: [],
           chainPolicy: "manual",
+          profileId: "default",
           systemPrompt: "",
           model: "",
         },
@@ -938,6 +943,7 @@ export default function AgentsPageClient({
               <div className="mt-3 space-y-1 text-sm text-text-secondary">
                 <div>Executor: <span className="text-white">{draft.executor}</span></div>
                 <div>Backend: <span className="text-white">{draft.backend}</span></div>
+                <div>Profile: <span className="text-white">{draft.profileId}</span></div>
                 <div>Session: <span className="text-white">{selectedAgent?.sessionId || "none"}</span></div>
               </div>
             </div>
@@ -1022,7 +1028,7 @@ export default function AgentsPageClient({
 
             <div className="rounded-2xl border border-border bg-bg-card/40 p-4">
               <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-text-muted">Runtime Configuration</div>
-              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_12rem_12rem_12rem]">
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_12rem_12rem_12rem_12rem]">
               <div>
                 <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.16em] text-text-muted">
                   Description
@@ -1077,6 +1083,24 @@ export default function AgentsPageClient({
                   className="input-discord"
                   placeholder="implementation"
                 />
+              </div>
+              <div>
+                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.16em] text-text-muted">
+                  Profile
+                </label>
+                <select
+                  value={draft.profileId}
+                  onChange={(event) =>
+                    setDraft((current) => ({ ...current, profileId: event.target.value as AgentProfileId }))
+                  }
+                  className="input-discord"
+                >
+                  {AGENT_PROFILE_DEFINITIONS.map((profile) => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.id}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -1203,6 +1227,7 @@ export default function AgentsPageClient({
 
                 {contextTab === "overview" ? (
                   <div className="space-y-1">
+                    <div>Profile: <span className="text-white">{selectedAgent.profileId}</span></div>
                     <div>Source pack: <span className="text-white">{selectedAgent.sourcePack}</span></div>
                     <div>Source ref: <span className="text-white">{selectedAgent.sourceRef || "none"}</span></div>
                     <div>Backend: <span className="text-white">{selectedAgent.backend}</span></div>
