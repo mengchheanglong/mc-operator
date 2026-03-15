@@ -31,6 +31,8 @@
     "check:reliability": "tsx ./scripts/check-reliability-thresholds.ts",
     "reliability:canary": "tsx ./scripts/run-reliability-nightly-canary.ts",
     "check:tool-admission": "node --experimental-strip-types ./scripts/check-tool-admission.ts",
+    "ui:smoke": "node --experimental-strip-types ./scripts/run-ui-smoke.ts",
+    "check:ui-smoke": "node --experimental-strip-types ./scripts/check-ui-smoke.ts",
     "test": "node --experimental-strip-types --test ./tests/runtime/*.test.ts",
     "spike:codegraph": "node --experimental-strip-types ./scripts/run-codegraph-spike.ts mission-control",
     "spike:codegraph:summary": "node --experimental-strip-types ./scripts/summarize-codegraph-telemetry.ts 20",
@@ -72,6 +74,7 @@
     "eslint-config-next": "^16.1.6",
     "postcss": "^8.5.8",
     "promptfoo": "^0.121.2",
+    "puppeteer": "^24.39.1",
     "tailwindcss": "^4.2.1",
     "typescript": "^5.9.3"
   }

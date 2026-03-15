@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import axios from "axios";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight, FileText, Loader2, RefreshCw, Search } from "lucide-react";
 
 interface DailyReportLogItem {
@@ -67,15 +66,11 @@ function relativeTime(dateStr: string) {
 }
 
 export default function ReportPageClient() {
-  const searchParams = useSearchParams();
-  const selectedDayFromQuery = searchParams.get("day");
-
   const [logs, setLogs] = useState<DailyReportLogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
-  const [switchingDay, setSwitchingDay] = useState<string | null>(null);
   const storedSidebarCollapsed = useSyncExternalStore(
     subscribePanePreference,
     () => getPaneCollapsedSnapshot(REPORTS_SIDEBAR_STORAGE_KEY),
@@ -84,18 +79,28 @@ export default function ReportPageClient() {
   const [sidebarCompact, setSidebarCompact] = useState(false);
   const sidebarCollapsed = sidebarCompact || storedSidebarCollapsed;
   const contentScrollRef = useRef<HTMLDivElement | null>(null);
+  const requestSeqRef = useRef(0);
+  const lastSyncedDayRef = useRef<string | null>(null);
+  const initializedFromQueryRef = useRef(false);
 
   const fetchLogs = useCallback(async () => {
+    const requestSeq = requestSeqRef.current + 1;
+    requestSeqRef.current = requestSeq;
+
     try {
       setLoading(true);
       const response = await axios.get("/api/reports?view=daily");
       const payload = response.data as DailyReportResponse;
+      if (requestSeqRef.current !== requestSeq) return;
       setLogs(Array.isArray(payload.days) ? payload.days : []);
       setError("");
     } catch {
+      if (requestSeqRef.current !== requestSeq) return;
       setError("Unable to load daily reports.");
     } finally {
-      setLoading(false);
+      if (requestSeqRef.current === requestSeq) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -111,10 +116,29 @@ export default function ReportPageClient() {
     return () => mediaQuery.removeEventListener("change", syncViewport);
   }, []);
 
+  useEffect(() => {
+    if (initializedFromQueryRef.current || typeof window === "undefined") return;
+    initializedFromQueryRef.current = true;
+    const dayFromQuery = new URL(window.location.href).searchParams.get("day");
+    if (dayFromQuery) {
+      setSelectedDay(dayFromQuery);
+    }
+  }, []);
+
+  const sortedLogs = useMemo(
+    () =>
+      [...logs].sort((left, right) => {
+        const byDay = right.dayKey.localeCompare(left.dayKey);
+        if (byDay !== 0) return byDay;
+        return right.latestDate.localeCompare(left.latestDate);
+      }),
+    [logs],
+  );
+
   const filteredLogs = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return logs;
-    return logs.filter((log) => {
+    if (!query) return sortedLogs;
+    return sortedLogs.filter((log) => {
       const haystack = [
         log.dayKey,
         log.title,
@@ -127,39 +151,36 @@ export default function ReportPageClient() {
         .toLowerCase();
       return haystack.includes(query);
     });
-  }, [logs, searchQuery]);
+  }, [searchQuery, sortedLogs]);
 
-  const setSelectedDayKey = useCallback(
-    (nextDay: string | null) => {
-      if (nextDay && nextDay !== selectedDay) {
-        setSwitchingDay(nextDay);
-      }
-      setSelectedDay(nextDay);
-      if (typeof window !== "undefined") {
-        const url = new URL(window.location.href);
-        if (nextDay) url.searchParams.set("day", nextDay);
-        else url.searchParams.delete("day");
-        window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
-      }
-    },
-    [selectedDay],
-  );
+  const setSelectedDayKey = useCallback((nextDay: string | null) => {
+    setSelectedDay(nextDay);
+  }, []);
 
   useEffect(() => {
-    if (!selectedDayFromQuery) {
-      if (!selectedDay && filteredLogs.length > 0) setSelectedDay(filteredLogs[0].dayKey);
-      return;
+    if (!selectedDay && filteredLogs.length > 0) {
+      setSelectedDay(filteredLogs[0].dayKey);
     }
-    if (filteredLogs.some((log) => log.dayKey === selectedDayFromQuery) && selectedDay !== selectedDayFromQuery) {
-      setSelectedDay(selectedDayFromQuery);
-    }
-  }, [filteredLogs, selectedDay, selectedDayFromQuery]);
+  }, [filteredLogs, selectedDay]);
 
   useEffect(() => {
     if (selectedDay && !filteredLogs.some((log) => log.dayKey === selectedDay)) {
       setSelectedDay(filteredLogs[0]?.dayKey ?? null);
     }
   }, [filteredLogs, selectedDay]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (lastSyncedDayRef.current === selectedDay) return;
+    const url = new URL(window.location.href);
+    if (selectedDay) {
+      url.searchParams.set("day", selectedDay);
+    } else {
+      url.searchParams.delete("day");
+    }
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    lastSyncedDayRef.current = selectedDay;
+  }, [selectedDay]);
 
   const selectedLog = useMemo(
     () => filteredLogs.find((log) => log.dayKey === selectedDay) ?? filteredLogs[0] ?? null,
@@ -171,17 +192,6 @@ export default function ReportPageClient() {
       contentScrollRef.current.scrollTop = 0;
     }
   }, [selectedLog?.dayKey]);
-
-  useEffect(() => {
-    if (!switchingDay) return;
-    if (selectedLog?.dayKey !== switchingDay) return;
-    const frame = window.requestAnimationFrame(() => {
-      setSwitchingDay(null);
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [selectedLog?.dayKey, switchingDay]);
-
-  const isSwitching = Boolean(switchingDay && switchingDay !== selectedLog?.dayKey) || (Boolean(switchingDay) && loading);
 
   return (
     <div className="flex h-full min-h-0 w-full overflow-hidden bg-bg-base">
@@ -276,6 +286,7 @@ export default function ReportPageClient() {
             filteredLogs.map((log) => (
               <button
                 key={log.dayKey}
+                data-testid={`report-day-${log.dayKey}`}
                 type="button"
                 onClick={() => setSelectedDayKey(log.dayKey)}
                 title={sidebarCollapsed ? formatDayLabel(log.dayKey) : undefined}
@@ -296,7 +307,7 @@ export default function ReportPageClient() {
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-medium text-text-primary">{formatDayLabel(log.dayKey)}</div>
                         <div className="mt-0.5 text-[11px] text-text-muted">
-                          {log.entryCount} update{log.entryCount === 1 ? "" : "s"} · {relativeTime(log.latestDate)}
+                          {log.entryCount} update{log.entryCount === 1 ? "" : "s"} | {relativeTime(log.latestDate)}
                         </div>
                       </div>
                     </div>
@@ -343,25 +354,12 @@ export default function ReportPageClient() {
           </div>
         ) : null}
 
-        {isSwitching ? (
-          <div className="flex flex-1 flex-col overflow-hidden">
-            <div className="border-b border-border px-6 py-4">
-              <div className="h-6 w-48 animate-pulse rounded-md bg-bg-card" />
-              <div className="mt-3 h-4 w-72 animate-pulse rounded-md bg-bg-card" />
-            </div>
-            <div className="flex-1 space-y-3 px-6 py-6">
-              <div className="h-4 w-full animate-pulse rounded bg-bg-card" />
-              <div className="h-4 w-[92%] animate-pulse rounded bg-bg-card" />
-              <div className="h-4 w-[88%] animate-pulse rounded bg-bg-card" />
-              <div className="h-4 w-[76%] animate-pulse rounded bg-bg-card" />
-            </div>
-          </div>
-        ) : selectedLog ? (
+        {selectedLog ? (
           <div key={selectedLog.dayKey} className="flex flex-1 flex-col overflow-hidden">
             <div className="border-b border-border px-6 py-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
-                  <h1 className="truncate text-[1.04rem] font-semibold text-white">{formatDayLabel(selectedLog.dayKey)}</h1>
+                  <h1 data-testid="report-selected-day-title" className="truncate text-[1.04rem] font-semibold text-white">{formatDayLabel(selectedLog.dayKey)}</h1>
                   <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-text-muted">
                     <span>{selectedLog.entryCount} update{selectedLog.entryCount === 1 ? "" : "s"}</span>
                     <span>|</span>

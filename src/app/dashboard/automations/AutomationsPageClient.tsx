@@ -825,7 +825,7 @@ export default function AutomationsPageClient({
                 <Bot className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <h1 className="matte-page-title text-[1.5rem]">Automations</h1>
+                <h1 data-testid="automations-page-title" className="matte-page-title text-[1.5rem]">Automations</h1>
                 <p className="mt-1 max-w-3xl text-sm leading-6 text-text-secondary">
                   Reusable task recipes for {initialProject.name}. Keep them small, scoped, and ready
                   to hand off to OpenClaw when needed.

@@ -716,7 +716,7 @@ export default function AgentsPageClient({
                 <Bot className="h-4.5 w-4.5" />
               </div>
               <div className="min-w-0">
-                <h1 className="text-lg font-semibold tracking-[-0.04em] text-white">Agents</h1>
+                <h1 data-testid="agents-page-title" className="text-lg font-semibold tracking-[-0.04em] text-white">Agents</h1>
                 <p className="mt-1 text-sm text-text-secondary">
                   Dispatch-focused operators for {initialProject.name}. Select, tune, and run existing agents.
                 </p>
