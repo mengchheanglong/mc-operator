@@ -15,6 +15,7 @@ import { createReport } from "@/server/repositories/reports-repo";
 import { dispatchToN8n } from "@/server/services/automation-executor-service";
 import {
   dispatchToOpenClawAgent,
+  validateOpenClawPreflightPaths,
 } from "@/server/services/openclaw-delivery-service";
 import { buildExecutionPacket } from "@/lib/workflow/mission-control-workflow";
 import { appendLessonEvent, loadLessonHint } from "@/server/services/workflow-lessons-service";
@@ -205,6 +206,18 @@ export async function POST(req: Request, { params }: RouteParams) {
     const body = await req.json().catch(() => ({}));
     const deepMode = Boolean((body as { deepMode?: unknown }).deepMode);
 
+    const preflight = await validateOpenClawPreflightPaths();
+    if (!preflight.ok) {
+      return NextResponse.json(
+        {
+          msg: "Execution blocked by runtime preflight.",
+          code: "missing_path",
+          issues: preflight.issues,
+        },
+        { status: 503 },
+      );
+    }
+
     const evalGuard = await getAgentEvalGuardSnapshot();
     if (evalGuard.status === "blocked") {
       createEvalGuardReport({
@@ -214,10 +227,18 @@ export async function POST(req: Request, { params }: RouteParams) {
         guard: evalGuard,
         decision: "blocked",
       });
+      console.info("[eval-guard][automation][execute] blocked", {
+        templateId: template.id,
+        projectId: project.id,
+        status: evalGuard.status,
+        reasons: evalGuard.reasons,
+      });
       return NextResponse.json(
         {
           msg: "Execution blocked by eval guardrail.",
           code: "blocked_by_eval_guardrail",
+          reason: evalGuard.reasons[0] || "eval_guard_blocked",
+          nextStep: "Run npm run eval:agents && npm run check:agent-evals && npm run check:agent-eval-regression, then retry execution.",
           evalGuard,
           reasons: evalGuard.reasons,
         },
@@ -241,6 +262,14 @@ export async function POST(req: Request, { params }: RouteParams) {
         decision: evalGuard.status === "degraded" ? "degraded" : "unavailable",
       });
     }
+
+    console.info("[eval-guard][automation][execute] allow", {
+      templateId: template.id,
+      projectId: project.id,
+      status: evalGuard.status,
+      warning: evalGuardWarning,
+      reasons: evalGuard.reasons,
+    });
 
     const webhookPath = String(template.webhookPath || "").trim();
     const n8nBaseUrl = normalizeUrl(process.env.N8N_BASE_URL);
@@ -327,6 +356,11 @@ export async function POST(req: Request, { params }: RouteParams) {
           args?: string[];
           parsed?: Record<string, unknown> | null;
           agentId?: string;
+          failureClass?: string | null;
+          attempts?: number;
+          totalDurationMs?: number;
+          modelUsed?: string | null;
+          fallbackUsed?: boolean;
         } & { queuePath?: string; packetId?: string });
     try {
       if (template.executor === "n8n") {
@@ -365,6 +399,11 @@ export async function POST(req: Request, { params }: RouteParams) {
           command: dispatch.command || null,
           args: dispatch.args || null,
           parsed: dispatch.parsed || null,
+          failureClass: dispatch.failureClass || null,
+          attempts: dispatch.attempts || 1,
+          totalDurationMs: dispatch.totalDurationMs || 0,
+          modelUsed: dispatch.modelUsed || null,
+          fallbackUsed: Boolean(dispatch.fallbackUsed),
         },
         errorMessage: dispatchBody || `Dispatch failed (${dispatch.status})`,
       });
@@ -402,6 +441,11 @@ export async function POST(req: Request, { params }: RouteParams) {
           agentId: dispatch.agentId || null,
           idempotencyKey,
           dispatchStatus: dispatch.status,
+          failureClass: dispatch.failureClass || null,
+          attempts: dispatch.attempts || 1,
+          totalDurationMs: dispatch.totalDurationMs || 0,
+          modelUsed: dispatch.modelUsed || null,
+          fallbackUsed: Boolean(dispatch.fallbackUsed),
         },
       });
 
@@ -427,6 +471,11 @@ export async function POST(req: Request, { params }: RouteParams) {
             costRisk: packet.costRisk,
             evalGuard,
             evalGuardWarning,
+            failureClass: dispatch.failureClass || null,
+            attempts: dispatch.attempts || 1,
+            totalDurationMs: dispatch.totalDurationMs || 0,
+            modelUsed: dispatch.modelUsed || null,
+            fallbackUsed: Boolean(dispatch.fallbackUsed),
           },
         },
         { status: 502 },
@@ -450,6 +499,11 @@ export async function POST(req: Request, { params }: RouteParams) {
         command: dispatch.command || null,
         args: dispatch.args || null,
         parsed: dispatch.parsed || null,
+        failureClass: dispatch.failureClass || null,
+        attempts: dispatch.attempts || 1,
+        totalDurationMs: dispatch.totalDurationMs || 0,
+        modelUsed: dispatch.modelUsed || null,
+        fallbackUsed: Boolean(dispatch.fallbackUsed),
       },
     });
 
@@ -490,6 +544,11 @@ export async function POST(req: Request, { params }: RouteParams) {
         openclawSummary: openClawSummary || null,
         idempotencyKey,
         dispatchStatus: dispatch.status,
+        failureClass: dispatch.failureClass || null,
+        attempts: dispatch.attempts || 1,
+        totalDurationMs: dispatch.totalDurationMs || 0,
+        modelUsed: dispatch.modelUsed || null,
+        fallbackUsed: Boolean(dispatch.fallbackUsed),
       },
     });
 
@@ -524,6 +583,11 @@ export async function POST(req: Request, { params }: RouteParams) {
         costRisk: packet.costRisk,
         evalGuard,
         evalGuardWarning,
+        failureClass: dispatch.failureClass || null,
+        attempts: dispatch.attempts || 1,
+        totalDurationMs: dispatch.totalDurationMs || 0,
+        modelUsed: dispatch.modelUsed || null,
+        fallbackUsed: Boolean(dispatch.fallbackUsed),
       },
     });
   } catch (error) {
