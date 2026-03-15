@@ -23,6 +23,8 @@
     "check:workflow-guardrails": "node --experimental-strip-types ./scripts/check-workflow-guardrails.ts",
     "check:adapters": "node --experimental-strip-types ./scripts/check-adapters.ts",
     "check:task-quality": "node --experimental-strip-types ./scripts/check-task-quality.ts",
+    "lessons:update": "node --experimental-strip-types --experimental-specifier-resolution=node ./scripts/lessons-update.ts",
+    "check:lessons": "node --experimental-strip-types ./scripts/check-lessons.ts",
     "check:codegraph-spike": "node --experimental-strip-types ./scripts/check-codegraph-spike.ts",
     "check:codegraph-rollback": "node --experimental-strip-types ./scripts/check-codegraph-rollback-threshold.ts",
     "eval:agents": "node --experimental-strip-types ./scripts/run-agent-evals.ts",

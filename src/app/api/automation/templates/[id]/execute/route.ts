@@ -88,6 +88,7 @@ function buildExecutionBrief(input: {
   };
   deepMode?: boolean;
   lessonSnippets?: string[];
+  lessonRuleSnippets?: string[];
 }) {
   const packet = buildExecutionPacket({
     objective: input.template.prompt.trim(),
@@ -106,6 +107,7 @@ function buildExecutionBrief(input: {
       { label: "project", content: `Project: ${input.project.name} (${input.project.relativePath})` },
       { label: "template", content: `Template: ${input.template.name}\nArea: ${input.template.area || "none"}\nTopics: ${input.template.topics.join(", ") || "none"}` },
       { label: "lessons", content: input.lessonSnippets?.join("\n") || "none" },
+      { label: "lesson-rules", content: input.lessonRuleSnippets?.join("\n") || "none" },
     ],
     deepMode: input.deepMode,
   });
@@ -345,13 +347,17 @@ export async function POST(req: Request, { params }: RouteParams) {
 
     const projectPath = `${getWorkspaceRootPath().replace(/\\/g, "/")}/${project.relativePath.replace(/\\/g, "/")}`;
     const issueKey = `${template.id}:${template.prompt.trim().toLowerCase().slice(0, 120)}`;
-    const lessonHint = await loadLessonHint(projectPath, issueKey);
+    const lessonHint = await loadLessonHint(projectPath, issueKey, {
+      source: "automation.templates.execute",
+      injectTelemetry: true,
+    });
 
     const packet = buildExecutionBrief({
       project: { name: project.name, relativePath: project.relativePath },
       template,
       deepMode,
       lessonSnippets: lessonHint.snippets,
+      lessonRuleSnippets: lessonHint.ruleSnippets,
     });
 
     const guard = upsertWorkflowRunSignature({
@@ -502,6 +508,7 @@ export async function POST(req: Request, { params }: RouteParams) {
           totalDurationMs: dispatch.totalDurationMs || 0,
           modelUsed: dispatch.modelUsed || null,
           fallbackUsed: Boolean(dispatch.fallbackUsed),
+          lessonTelemetry: lessonHint.telemetry,
           ...buildReliabilityTelemetry({
             endpoint: "/api/automation/templates/[id]/execute",
             source: "automation.templates.execute",
@@ -615,6 +622,7 @@ export async function POST(req: Request, { params }: RouteParams) {
         totalDurationMs: dispatch.totalDurationMs || 0,
         modelUsed: dispatch.modelUsed || null,
         fallbackUsed: Boolean(dispatch.fallbackUsed),
+        lessonTelemetry: lessonHint.telemetry,
         ...buildReliabilityTelemetry({
           endpoint: "/api/automation/templates/[id]/execute",
           source: "automation.templates.execute",
@@ -665,6 +673,7 @@ export async function POST(req: Request, { params }: RouteParams) {
         totalDurationMs: dispatch.totalDurationMs || 0,
         modelUsed: dispatch.modelUsed || null,
         fallbackUsed: Boolean(dispatch.fallbackUsed),
+        lessonTelemetry: lessonHint.telemetry,
       },
     });
   } catch (error) {

@@ -132,7 +132,7 @@ async function buildAgentBrief(input: {
   };
   task: string;
   deepMode?: boolean;
-  lessonHint?: { snippets: string[]; reanalysisRequired: boolean };
+  lessonHint?: { snippets: string[]; ruleSnippets?: string[]; reanalysisRequired: boolean };
 }) {
   const workflow = input.agent.workflowProfile;
   const profileDirectives = buildAgentProfileDispatchDirectives(input.agent.profileId);
@@ -145,6 +145,7 @@ async function buildAgentBrief(input: {
     ...profileDirectives.contextBlocks,
     { label: "pack-snippets", content: packSnippets || "none" },
     { label: "lessons", content: input.lessonHint?.snippets.join("\n") || "none" },
+    { label: "lesson-rules", content: input.lessonHint?.ruleSnippets?.join("\n") || "none" },
   ];
 
   const packet = buildExecutionPacket({
@@ -188,7 +189,7 @@ async function runAgentDispatch(input: {
   agent: AgentDefinition;
   task: string;
   deepMode?: boolean;
-  lessonHint?: { snippets: string[]; reanalysisRequired: boolean };
+  lessonHint?: { snippets: string[]; ruleSnippets?: string[]; reanalysisRequired: boolean };
 }) {
   const packet = await buildAgentBrief({
     project: { name: input.project.name, relativePath: input.project.relativePath },
@@ -434,7 +435,10 @@ export async function POST(req: Request, { params }: RouteParams) {
 
     const projectPath = `${getWorkspaceRootPath().replace(/\\/g, "/")}/${project.relativePath.replace(/\\/g, "/")}`;
     const issueKey = `${agent.id}:${task.slice(0, 120).toLowerCase()}`;
-    const lessonHint = await loadLessonHint(projectPath, issueKey);
+    const lessonHint = await loadLessonHint(projectPath, issueKey, {
+      source: "agents.dispatch",
+      injectTelemetry: true,
+    });
 
     const preflightPacket = await buildAgentBrief({
       project: { name: project.name, relativePath: project.relativePath },
@@ -476,6 +480,7 @@ export async function POST(req: Request, { params }: RouteParams) {
 
     const effectiveLessonHint = {
       snippets: lessonHint.snippets,
+      ruleSnippets: lessonHint.ruleSnippets,
       reanalysisRequired: lessonHint.reanalysisRequired || Boolean(guard.state?.reanalysisRequired),
     };
 
@@ -556,6 +561,7 @@ export async function POST(req: Request, { params }: RouteParams) {
             modelUsed: (dispatch as { modelUsed?: string }).modelUsed || null,
             fallbackUsed: Boolean((dispatch as { fallbackUsed?: boolean }).fallbackUsed),
           }),
+          lessonTelemetry: lessonHint.telemetry,
         },
       });
 
@@ -634,9 +640,10 @@ export async function POST(req: Request, { params }: RouteParams) {
           totalDurationMs: (dispatch as { totalDurationMs?: number }).totalDurationMs || 0,
           modelUsed: (dispatch as { modelUsed?: string }).modelUsed || null,
           fallbackUsed: Boolean((dispatch as { fallbackUsed?: boolean }).fallbackUsed),
-        }),
-      },
-    });
+          }),
+          lessonTelemetry: lessonHint.telemetry,
+        },
+      });
 
     inFlightAgentRuns.delete(lockKey);
     await appendLessonEvent({
@@ -674,6 +681,7 @@ export async function POST(req: Request, { params }: RouteParams) {
         totalDurationMs: (dispatch as { totalDurationMs?: number }).totalDurationMs || 0,
         modelUsed: (dispatch as { modelUsed?: string }).modelUsed || null,
         fallbackUsed: Boolean((dispatch as { fallbackUsed?: boolean }).fallbackUsed),
+        lessonTelemetry: lessonHint.telemetry,
       },
     });
   } catch (error) {
