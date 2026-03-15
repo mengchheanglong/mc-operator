@@ -11,6 +11,10 @@ import {
   buildRepoSnapshot,
   buildWorkspaceReadiness,
 } from "@/server/services/workspace-intel-service";
+import {
+  collectBoundedCodegraphSummaryWithGate,
+  isCodegraphSpikeBoundedModeEnabled,
+} from "@/server/services/codegraph-summary-service";
 import { buildN8nAutomationSnapshot } from "@/server/services/n8n-service";
 import type { WorkspaceProject } from "@/server/projects/workspace-projects";
 import type {
@@ -585,6 +589,14 @@ function buildPrompt({
     ...pack.repoSnapshot.codeIntel.codeGraphContext.suggestedCommands.map(
       (item) => `- CodeGraphContext ${item.label}: ${item.command}`,
     ),
+    ...(pack.codegraph_summary
+      ? [
+          "",
+          "codegraph_summary (bounded):",
+          ...pack.codegraph_summary.markdown.split("\n").map((line) => `- ${line}`),
+          `- Budget: ${pack.codegraph_summary.budget.chars}/${pack.codegraph_summary.budget.maxChars} chars, ~${pack.codegraph_summary.budget.tokensEstimated}/${pack.codegraph_summary.budget.maxTokens} tokens`,
+        ]
+      : []),
     ...(pack.repoSnapshot.git.available
       ? [
           `- Git: ${pack.repoSnapshot.git.summary}`,
@@ -676,6 +688,9 @@ export async function buildContextPack(
   const docsById = new Map(docs.map((doc) => [doc.id, doc]));
   const { incomingMap, outgoingMap, unresolvedMap } = buildGraphData(docs);
   const repoSnapshot = buildRepoSnapshot(project);
+  const codegraphSummaryResult = isCodegraphSpikeBoundedModeEnabled()
+    ? await collectBoundedCodegraphSummaryWithGate(project)
+    : { block: undefined, reason: "bounded mode disabled", reasonCode: "bounded_disabled" };
   const automation = await buildN8nAutomationSnapshot(project);
   const readiness = buildWorkspaceReadiness(userId, project, {
     assumeContextFiles: true,
@@ -882,6 +897,12 @@ export async function buildContextPack(
     promotionCandidates,
     provenance: [],
     repoSnapshot,
+    codegraph_summary: codegraphSummaryResult.block,
+    codegraph_summary_diagnostics: {
+      injected: Boolean(codegraphSummaryResult.block),
+      reason: codegraphSummaryResult.reason,
+      reasonCode: codegraphSummaryResult.reasonCode,
+    },
     automation,
     collaborationGuide,
     readiness,
