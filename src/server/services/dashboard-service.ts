@@ -13,6 +13,7 @@ import {
   type WorkspaceReadiness,
 } from "@/server/services/workspace-intel-service";
 import { buildN8nAutomationSnapshot } from "@/server/services/n8n-service";
+import { evaluateReliability, type ReliabilitySample } from "@/server/services/reliability-ops-service";
 import type { AutomationSnapshotView } from "@/types/context-pack";
 
 type DashboardDoc = {
@@ -127,6 +128,15 @@ export interface DashboardSnapshot {
       source: string;
       date: string;
     }>;
+  };
+  reliabilityOps: {
+    timeout_rate: number;
+    failover_rate: number;
+    tool_error_rate: number;
+    avg_duration_ms: number;
+    sample_size: number;
+    status: "healthy" | "degraded" | "insufficient_data";
+    trend24h: Array<{ at: string; timeout_rate: number; failover_rate: number; tool_error_rate: number }>;
   };
   resumeWork: DashboardActionItem[];
   activeQuests: DashboardQuest[];
@@ -606,6 +616,35 @@ export async function buildDashboardSnapshot(
     todayReports.map((report) => report.area).filter(Boolean) as string[],
   );
 
+  const nowMs = Date.now();
+  const reliabilitySamples: ReliabilitySample[] = reportRowsForToday
+    .map((row) => ({ row, metadata: (row as { metadata?: Record<string, unknown> }).metadata || {} }))
+    .filter(({ row }) => nowMs - new Date(String(row.date)).getTime() <= 24 * 60 * 60 * 1000)
+    .map(({ row, metadata }) => ({
+      id: String(row.id),
+      timestamp: toIsoString(row.date),
+      totalDurationMs: Number(metadata.totalDurationMs ?? metadata.total_duration_ms ?? 0),
+      failureClass: String(metadata.failureClass ?? metadata.failure_class ?? "") || null,
+      fallbackUsed: Boolean(metadata.fallbackUsed ?? metadata.fallback_used),
+    }))
+    .filter((sample) => sample.totalDurationMs || sample.failureClass || sample.fallbackUsed)
+    .slice(0, 24);
+
+  const reliabilitySummary = evaluateReliability(reliabilitySamples, {
+    minSamples: 5,
+    maxTimeoutRate: 0.2,
+    maxFailoverRate: 0.5,
+    maxToolErrorRate: 0.1,
+    maxAvgDurationMs: 120000,
+  });
+
+  const trend24h = reliabilitySamples.slice(0, 8).map((sample) => ({
+    at: sample.timestamp || new Date().toISOString(),
+    timeout_rate: sample.failureClass === "timeout" ? 1 : 0,
+    failover_rate: sample.fallbackUsed ? 1 : 0,
+    tool_error_rate: sample.failureClass === "tool_error" ? 1 : 0,
+  }));
+
   return {
     project: {
       id: project.id,
@@ -641,6 +680,15 @@ export async function buildDashboardSnapshot(
       entryCount: todayReports.length,
       areas: Array.from(todayAreaSet),
       entries: todayReports.slice(0, 4),
+    },
+    reliabilityOps: {
+      timeout_rate: reliabilitySummary.timeout_rate,
+      failover_rate: reliabilitySummary.failover_rate,
+      tool_error_rate: reliabilitySummary.tool_error_rate,
+      avg_duration_ms: reliabilitySummary.avg_duration_ms,
+      sample_size: reliabilitySummary.total,
+      status: reliabilitySummary.status,
+      trend24h,
     },
     resumeWork,
     activeQuests,

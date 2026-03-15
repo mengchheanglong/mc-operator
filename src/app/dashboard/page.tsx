@@ -85,6 +85,12 @@ function activityTone(tone: "default" | "success" | "warning" | undefined) {
   return "border-border bg-bg-panel/55 text-text-secondary";
 }
 
+function reliabilityStatusTone(status: "healthy" | "degraded" | "insufficient_data") {
+  if (status === "healthy") return "bg-status-success/15 text-status-success";
+  if (status === "degraded") return "bg-status-error/15 text-status-error";
+  return "bg-status-warning/15 text-status-warning";
+}
+
 function Section({
   title,
   subtitle,
@@ -297,6 +303,32 @@ export default async function DashboardPage() {
                     </>
                   )}
                 </div>
+              </div>
+            </div>
+          </Section>
+
+          <Section
+            title="Reliability Ops"
+            subtitle="24h runtime reliability pulse for dispatch health and fallback pressure."
+            actionHref="/dashboard/report"
+            actionLabel="Open reports"
+          >
+            <div className="space-y-3 rounded-xl border border-border bg-bg-panel/55 p-4">
+              <div className="flex items-center justify-between">
+                <div className="matte-section-title">Status</div>
+                <span className={cn("rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]", reliabilityStatusTone(dashboard.reliabilityOps.status))}>
+                  {dashboard.reliabilityOps.status.replace("_", " ")}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs text-text-secondary">
+                <div>timeout_rate: <span className="text-text-primary">{dashboard.reliabilityOps.timeout_rate}</span></div>
+                <div>failover_rate: <span className="text-text-primary">{dashboard.reliabilityOps.failover_rate}</span></div>
+                <div>tool_error_rate: <span className="text-text-primary">{dashboard.reliabilityOps.tool_error_rate}</span></div>
+                <div>avg_duration_ms: <span className="text-text-primary">{dashboard.reliabilityOps.avg_duration_ms}</span></div>
+                <div>sample_size: <span className="text-text-primary">{dashboard.reliabilityOps.sample_size}</span></div>
+              </div>
+              <div className="rounded-lg border border-border bg-bg-panel px-3 py-2 text-[11px] text-text-muted">
+                24h mini trend: {dashboard.reliabilityOps.trend24h.map((point) => `${point.timeout_rate}/${point.failover_rate}/${point.tool_error_rate}`).join("  •  ") || "no telemetry"}
               </div>
             </div>
           </Section>

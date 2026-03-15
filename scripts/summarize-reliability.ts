@@ -1,5 +1,7 @@
 import Database from "better-sqlite3";
 import path from "path";
+import { mkdirSync, writeFileSync } from "fs";
+import { evaluateReliability, type ReliabilitySample } from "../src/server/services/reliability-ops-core.ts";
 
 function envNum(name: string, fallback: number) {
   const raw = process.env[name];
@@ -18,43 +20,56 @@ function parseMetadata(raw: unknown): Record<string, unknown> {
   }
 }
 
+function toSample(id: string, timestamp: string, metadata: Record<string, unknown>): ReliabilitySample {
+  return {
+    id,
+    timestamp,
+    totalDurationMs: Number(metadata.totalDurationMs ?? metadata.total_duration_ms ?? 0),
+    failureClass: String(metadata.failureClass ?? metadata.failure_class ?? "") || null,
+    fallbackUsed: Boolean(metadata.fallbackUsed ?? metadata.fallback_used),
+  };
+}
+
 async function main() {
   const limit = Math.max(1, Math.floor(envNum("MISSION_CONTROL_RELIABILITY_RUN_LIMIT", 20)));
   const dbPath = path.resolve(process.env.SQLITE_PATH || path.join(process.cwd(), "data", "openclaw.db"));
   const sqlite = new Database(dbPath, { readonly: true });
 
   const rows = sqlite
-    .prepare("SELECT id, metadata_json FROM reports ORDER BY date DESC, id DESC LIMIT ?")
-    .all(limit * 5) as Array<{ id: string; metadata_json: string | null }>;
-
-  const samples = rows
-    .map((row) => ({ id: row.id, metadata: parseMetadata(row.metadata_json) }))
-    .filter(({ metadata }) =>
-      typeof metadata.totalDurationMs === "number"
-      || typeof metadata.failureClass === "string"
-      || typeof metadata.fallbackUsed === "boolean",
-    )
-    .slice(0, limit);
+    .prepare("SELECT id, date, metadata_json FROM reports ORDER BY date DESC, id DESC LIMIT ?")
+    .all(limit * 8) as Array<{ id: string; date: string; metadata_json: string | null }>;
 
   sqlite.close();
 
-  const total = samples.length;
-  const timeoutCount = samples.filter(({ metadata }) => metadata.failureClass === "timeout").length;
-  const fallbackCount = samples.filter(({ metadata }) => Boolean(metadata.fallbackUsed)).length;
-  const toolErrorCount = samples.filter(({ metadata }) => metadata.failureClass === "tool_error").length;
-  const avgDurationMs = total > 0
-    ? Math.round(samples.reduce((sum, { metadata }) => sum + Number(metadata.totalDurationMs || 0), 0) / total)
-    : 0;
+  const samples = rows
+    .map((row) => toSample(row.id, row.date, parseMetadata(row.metadata_json)))
+    .filter((sample) => sample.totalDurationMs || sample.failureClass || sample.fallbackUsed)
+    .slice(0, limit);
+
+  const summary = evaluateReliability(samples, {
+    minSamples: Math.max(1, Math.floor(envNum("MISSION_CONTROL_RELIABILITY_MIN_SAMPLES", 20))),
+    maxTimeoutRate: envNum("MISSION_CONTROL_RELIABILITY_MAX_TIMEOUT_RATE", 0.2),
+    maxFailoverRate: envNum("MISSION_CONTROL_RELIABILITY_MAX_FAILOVER_RATE", 0.5),
+    maxToolErrorRate: envNum("MISSION_CONTROL_RELIABILITY_MAX_TOOL_ERROR_RATE", 0.1),
+    maxAvgDurationMs: Math.max(1, Math.floor(envNum("MISSION_CONTROL_RELIABILITY_MAX_AVG_DURATION_MS", 120000))),
+  });
 
   const result = {
-    ok: true,
-    total,
+    ...summary,
     limit,
-    timeout_rate: total > 0 ? Number((timeoutCount / total).toFixed(3)) : 0,
-    failover_rate: total > 0 ? Number((fallbackCount / total).toFixed(3)) : 0,
-    tool_error_rate: total > 0 ? Number((toolErrorCount / total).toFixed(3)) : 0,
-    avg_duration_ms: avgDurationMs,
   };
+
+  const summaryPath = process.env.MISSION_CONTROL_RELIABILITY_SUMMARY_PATH;
+  const telemetryPath = process.env.MISSION_CONTROL_RELIABILITY_TELEMETRY_PATH;
+
+  if (summaryPath) {
+    mkdirSync(path.dirname(summaryPath), { recursive: true });
+    writeFileSync(summaryPath, JSON.stringify(result, null, 2));
+  }
+  if (telemetryPath) {
+    mkdirSync(path.dirname(telemetryPath), { recursive: true });
+    writeFileSync(telemetryPath, JSON.stringify(samples, null, 2));
+  }
 
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 }
