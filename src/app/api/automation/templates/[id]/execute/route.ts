@@ -32,6 +32,29 @@ interface RouteParams {
 const inFlightTemplateRuns = new Set<string>();
 const MAX_STORED_DISPATCH_BODY = 12000;
 
+function buildReliabilityTelemetry(input: {
+  endpoint: string;
+  source: string;
+  success: boolean;
+  failureClass?: string | null;
+  attempts?: number;
+  totalDurationMs?: number;
+  modelUsed?: string | null;
+  fallbackUsed?: boolean;
+}) {
+  return {
+    timestamp: new Date().toISOString(),
+    endpoint: input.endpoint,
+    source: input.source,
+    failure_class: input.failureClass || null,
+    attempts: Number.isFinite(input.attempts) ? Number(input.attempts) : 1,
+    total_duration_ms: Number.isFinite(input.totalDurationMs) ? Number(input.totalDurationMs) : 0,
+    model_used: input.modelUsed || null,
+    fallback_used: Boolean(input.fallbackUsed),
+    success: input.success,
+  };
+}
+
 function buildReportHref(date: string) {
   const day = date.slice(0, 10);
   return day ? `/dashboard/report?day=${encodeURIComponent(day)}` : "/dashboard/report";
@@ -442,10 +465,19 @@ export async function POST(req: Request, { params }: RouteParams) {
           idempotencyKey,
           dispatchStatus: dispatch.status,
           failureClass: dispatch.failureClass || null,
-          attempts: dispatch.attempts || 1,
           totalDurationMs: dispatch.totalDurationMs || 0,
           modelUsed: dispatch.modelUsed || null,
           fallbackUsed: Boolean(dispatch.fallbackUsed),
+          ...buildReliabilityTelemetry({
+            endpoint: "/api/automation/templates/[id]/execute",
+            source: "automation.templates.execute",
+            success: false,
+            failureClass: dispatch.failureClass || null,
+            attempts: dispatch.attempts || 1,
+            totalDurationMs: dispatch.totalDurationMs || 0,
+            modelUsed: dispatch.modelUsed || null,
+            fallbackUsed: Boolean(dispatch.fallbackUsed),
+          }),
         },
       });
 
@@ -545,10 +577,19 @@ export async function POST(req: Request, { params }: RouteParams) {
         idempotencyKey,
         dispatchStatus: dispatch.status,
         failureClass: dispatch.failureClass || null,
-        attempts: dispatch.attempts || 1,
         totalDurationMs: dispatch.totalDurationMs || 0,
         modelUsed: dispatch.modelUsed || null,
         fallbackUsed: Boolean(dispatch.fallbackUsed),
+        ...buildReliabilityTelemetry({
+          endpoint: "/api/automation/templates/[id]/execute",
+          source: "automation.templates.execute",
+          success: true,
+          failureClass: dispatch.failureClass || null,
+          attempts: dispatch.attempts || 1,
+          totalDurationMs: dispatch.totalDurationMs || 0,
+          modelUsed: dispatch.modelUsed || null,
+          fallbackUsed: Boolean(dispatch.fallbackUsed),
+        }),
       },
     });
 

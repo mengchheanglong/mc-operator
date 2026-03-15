@@ -7,7 +7,7 @@ import { getWorkspaceRootPath } from "@/server/projects/workspace-projects";
 import { findAgentById, recordAgentRun, updateAgent } from "@/server/repositories/agents-repo";
 import type { AgentDefinition } from "@/types/agents";
 import { createReport } from "@/server/repositories/reports-repo";
-import { dispatchToOpenClawAgent } from "@/server/services/openclaw-delivery-service";
+import { dispatchToOpenClawAgent, validateOpenClawPreflightPaths } from "@/server/services/openclaw-delivery-service";
 import { spawnAgentOrchestratorRun } from "@/server/services/agent-orchestrator-service";
 import type { AgentChainPolicy } from "@/types/agents";
 import { buildAgentDispatchMetadata } from "@/lib/agents/dispatch-metadata";
@@ -32,6 +32,29 @@ type HandoffResult = {
   summary: string;
   sessionId: string | null;
 };
+
+function buildReliabilityTelemetry(input: {
+  endpoint: string;
+  source: string;
+  success: boolean;
+  failureClass?: string | null;
+  attempts?: number;
+  totalDurationMs?: number;
+  modelUsed?: string | null;
+  fallbackUsed?: boolean;
+}) {
+  return {
+    timestamp: new Date().toISOString(),
+    endpoint: input.endpoint,
+    source: input.source,
+    failure_class: input.failureClass || null,
+    attempts: Number.isFinite(input.attempts) ? Number(input.attempts) : 1,
+    total_duration_ms: Number.isFinite(input.totalDurationMs) ? Number(input.totalDurationMs) : 0,
+    model_used: input.modelUsed || null,
+    fallback_used: Boolean(input.fallbackUsed),
+    success: input.success,
+  };
+}
 
 function buildReportHref(date: string) {
   const day = date.slice(0, 10);
@@ -295,6 +318,18 @@ export async function POST(req: Request, { params }: RouteParams) {
       return badRequest("This agent is not configured for direct OpenClaw dispatch.");
     }
 
+    const preflight = await validateOpenClawPreflightPaths();
+    if (!preflight.ok) {
+      return NextResponse.json(
+        {
+          msg: "Dispatch blocked by runtime preflight.",
+          code: "missing_path",
+          issues: preflight.issues,
+        },
+        { status: 503 },
+      );
+    }
+
     const evalGuard = await getAgentEvalGuardSnapshot();
     if (evalGuard.status === "blocked") {
       createEvalGuardReport({
@@ -304,10 +339,18 @@ export async function POST(req: Request, { params }: RouteParams) {
         guard: evalGuard,
         decision: "blocked",
       });
+      console.info("[eval-guard][agents][dispatch] blocked", {
+        agentId: agent.id,
+        projectId: project.id,
+        status: evalGuard.status,
+        reasons: evalGuard.reasons,
+      });
       return NextResponse.json(
         {
           msg: "Dispatch blocked by eval guardrail.",
           code: "blocked_by_eval_guardrail",
+          reason: evalGuard.reasons[0] || "eval_guard_blocked",
+          nextStep: "Run npm run eval:agents && npm run check:agent-evals && npm run check:agent-eval-regression, then retry dispatch.",
           evalGuard,
           reasons: evalGuard.reasons,
         },
@@ -331,6 +374,14 @@ export async function POST(req: Request, { params }: RouteParams) {
         decision: evalGuard.status === "degraded" ? "degraded" : "unavailable",
       });
     }
+
+    console.info("[eval-guard][agents][dispatch] allow", {
+      agentId: agent.id,
+      projectId: project.id,
+      status: evalGuard.status,
+      warning: evalGuardWarning,
+      reasons: evalGuard.reasons,
+    });
 
     const projectPath = `${getWorkspaceRootPath().replace(/\\/g, "/")}/${project.relativePath.replace(/\\/g, "/")}`;
     const issueKey = `${agent.id}:${task.slice(0, 120).toLowerCase()}`;
@@ -430,16 +481,33 @@ export async function POST(req: Request, { params }: RouteParams) {
         area: agent.area || "agents",
         source: "Mission Control",
         topics: [...agent.topics, "agents", "openclaw", agent.role],
-        metadata: buildAgentDispatchMetadata({
-          agentId: agent.id,
-          openclawAgentId: (dispatch as { agentId?: string }).agentId || null,
-          backend: agent.backend,
-          sessionId: aoSessionId || null,
-          command: dispatch.command,
-          args: dispatch.args,
-          parsed: (dispatch as { parsed?: Record<string, unknown> | null }).parsed || null,
-          handoffs: handoffResults,
-        }),
+        metadata: {
+          ...buildAgentDispatchMetadata({
+            agentId: agent.id,
+            openclawAgentId: (dispatch as { agentId?: string }).agentId || null,
+            backend: agent.backend,
+            sessionId: aoSessionId || null,
+            command: dispatch.command,
+            args: dispatch.args,
+            parsed: (dispatch as { parsed?: Record<string, unknown> | null }).parsed || null,
+            handoffs: handoffResults,
+            failureClass: (dispatch as { failureClass?: string | null }).failureClass || null,
+            attempts: (dispatch as { attempts?: number }).attempts || 1,
+            totalDurationMs: (dispatch as { totalDurationMs?: number }).totalDurationMs || 0,
+            modelUsed: (dispatch as { modelUsed?: string }).modelUsed || null,
+            fallbackUsed: Boolean((dispatch as { fallbackUsed?: boolean }).fallbackUsed),
+          }),
+          ...buildReliabilityTelemetry({
+            endpoint: "/api/agents/[id]/dispatch",
+            source: "agents.dispatch",
+            success: false,
+            failureClass: (dispatch as { failureClass?: string | null }).failureClass || null,
+            attempts: (dispatch as { attempts?: number }).attempts || 1,
+            totalDurationMs: (dispatch as { totalDurationMs?: number }).totalDurationMs || 0,
+            modelUsed: (dispatch as { modelUsed?: string }).modelUsed || null,
+            fallbackUsed: Boolean((dispatch as { fallbackUsed?: boolean }).fallbackUsed),
+          }),
+        },
       });
 
       return NextResponse.json(
@@ -457,6 +525,11 @@ export async function POST(req: Request, { params }: RouteParams) {
             deepMode: packet.deepMode,
             evalGuard,
             evalGuardWarning,
+            failureClass: (dispatch as { failureClass?: string | null }).failureClass || null,
+            attempts: (dispatch as { attempts?: number }).attempts || 1,
+            totalDurationMs: (dispatch as { totalDurationMs?: number }).totalDurationMs || 0,
+            modelUsed: (dispatch as { modelUsed?: string }).modelUsed || null,
+            fallbackUsed: Boolean((dispatch as { fallbackUsed?: boolean }).fallbackUsed),
           },
         },
         { status: 502 },
@@ -486,16 +559,33 @@ export async function POST(req: Request, { params }: RouteParams) {
       area: agent.area || "agents",
       source: "Mission Control",
       topics: [...agent.topics, "agents", "openclaw", agent.role],
-      metadata: buildAgentDispatchMetadata({
-        agentId: agent.id,
-        openclawAgentId: (dispatch as { agentId?: string }).agentId || null,
-        backend: agent.backend,
-        sessionId: aoSessionId || null,
-        command: dispatch.command,
-        args: dispatch.args,
-        parsed: (dispatch as { parsed?: Record<string, unknown> | null }).parsed || null,
-        handoffs: handoffResults,
-      }),
+      metadata: {
+        ...buildAgentDispatchMetadata({
+          agentId: agent.id,
+          openclawAgentId: (dispatch as { agentId?: string }).agentId || null,
+          backend: agent.backend,
+          sessionId: aoSessionId || null,
+          command: dispatch.command,
+          args: dispatch.args,
+          parsed: (dispatch as { parsed?: Record<string, unknown> | null }).parsed || null,
+          handoffs: handoffResults,
+          failureClass: (dispatch as { failureClass?: string | null }).failureClass || null,
+          attempts: (dispatch as { attempts?: number }).attempts || 1,
+          totalDurationMs: (dispatch as { totalDurationMs?: number }).totalDurationMs || 0,
+          modelUsed: (dispatch as { modelUsed?: string }).modelUsed || null,
+          fallbackUsed: Boolean((dispatch as { fallbackUsed?: boolean }).fallbackUsed),
+        }),
+        ...buildReliabilityTelemetry({
+          endpoint: "/api/agents/[id]/dispatch",
+          source: "agents.dispatch",
+          success: true,
+          failureClass: (dispatch as { failureClass?: string | null }).failureClass || null,
+          attempts: (dispatch as { attempts?: number }).attempts || 1,
+          totalDurationMs: (dispatch as { totalDurationMs?: number }).totalDurationMs || 0,
+          modelUsed: (dispatch as { modelUsed?: string }).modelUsed || null,
+          fallbackUsed: Boolean((dispatch as { fallbackUsed?: boolean }).fallbackUsed),
+        }),
+      },
     });
 
     inFlightAgentRuns.delete(lockKey);
@@ -528,6 +618,11 @@ export async function POST(req: Request, { params }: RouteParams) {
         deepMode: packet.deepMode,
         evalGuard,
         evalGuardWarning,
+        failureClass: (dispatch as { failureClass?: string | null }).failureClass || null,
+        attempts: (dispatch as { attempts?: number }).attempts || 1,
+        totalDurationMs: (dispatch as { totalDurationMs?: number }).totalDurationMs || 0,
+        modelUsed: (dispatch as { modelUsed?: string }).modelUsed || null,
+        fallbackUsed: Boolean((dispatch as { fallbackUsed?: boolean }).fallbackUsed),
       },
     });
   } catch (error) {
