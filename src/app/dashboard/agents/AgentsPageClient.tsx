@@ -40,6 +40,7 @@ interface ToolingCatalogSnapshot {
 
 interface EvalGuardSnapshot {
   status: "healthy" | "degraded" | "blocked" | "unavailable";
+  promotionStatus: "ready" | "blocked_eval" | "blocked_regression";
   metrics: {
     score: number;
     failureRate: number;
@@ -732,7 +733,7 @@ export default function AgentsPageClient({
           <div className={`mt-3 rounded-2xl border p-3 text-xs ${evalGuardTone(evalGuard.status)}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="font-semibold uppercase tracking-[0.14em]">Eval guard</div>
-              <div className="text-[11px]">{evalGuard.status}</div>
+              <div className="text-[11px]">{evalGuard.promotionStatus}</div>
             </div>
             <div className="mt-2 text-[11px]">score {evalGuard.metrics.score} · failure {evalGuard.metrics.failureRate} · latest {evalGuard.timestamp ? relativeTime(evalGuard.timestamp) : "unavailable"}</div>
           </div>

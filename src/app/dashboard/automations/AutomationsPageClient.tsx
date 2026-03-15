@@ -97,6 +97,7 @@ interface WorkflowGuardBadgeState {
 
 interface EvalGuardSnapshot {
   status: "healthy" | "degraded" | "blocked" | "unavailable";
+  promotionStatus: "ready" | "blocked_eval" | "blocked_regression";
   metrics: {
     score: number;
     failureRate: number;
@@ -839,7 +840,7 @@ export default function AutomationsPageClient({
           </div>
           <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${evalGuardTone(evalGuard.status)}`}>
             <div className="text-[11px] font-semibold uppercase tracking-[0.14em]">Eval guard</div>
-            <div className="mt-1 font-semibold">{evalGuard.status}</div>
+            <div className="mt-1 font-semibold">{evalGuard.promotionStatus}</div>
             <div className="mt-1 text-xs">score {evalGuard.metrics.score} · failure {evalGuard.metrics.failureRate}</div>
             <div className="mt-1 text-xs">latest {evalGuard.timestamp ? relativeTime(evalGuard.timestamp) : "unavailable"}</div>
           </div>

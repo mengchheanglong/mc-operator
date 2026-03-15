@@ -2,6 +2,7 @@ import { readFile, readdir } from "fs/promises";
 import path from "path";
 
 export type AgentEvalGuardStatus = "healthy" | "degraded" | "blocked" | "unavailable";
+export type AgentEvalPromotionStatus = "ready" | "blocked_eval" | "blocked_regression";
 
 export interface AgentEvalGuardMetrics {
   score: number;
@@ -10,17 +11,33 @@ export interface AgentEvalGuardMetrics {
   total: number;
 }
 
+export interface AgentEvalRegressionSnapshot {
+  ok: boolean;
+  reason: "insufficient_history" | "pass" | "score_regression" | "failure_rate_regression";
+  required: number;
+  available: number;
+  currentScore: number;
+  baselineScore: number;
+  delta: number;
+  threshold: number;
+  artifactPaths: string[];
+}
+
 export interface AgentEvalGuardSnapshot {
   status: AgentEvalGuardStatus;
+  promotionStatus: AgentEvalPromotionStatus;
   metrics: AgentEvalGuardMetrics;
   reasons: string[];
   timestamp: string | null;
   artifactPath: string;
+  artifactPaths: string[];
   thresholds: {
     minScore: number;
     maxCostUsd: number;
     maxFailureRate: number;
   };
+  regression?: AgentEvalRegressionSnapshot;
+  nextStepCommands: string[];
 }
 
 function envNum(name: string, fallback: number) {
@@ -35,8 +52,110 @@ function toNum(value: unknown, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function average(values: number[]) {
+  if (values.length === 0) return 0;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
 function readLatestArtifactPath() {
   return path.join(process.cwd(), "reports", "evals", "latest.json");
+}
+
+function readLatestSummaryArtifactPath() {
+  return path.join(process.cwd(), "reports", "evals", "latest-summary.md");
+}
+
+function promotionCommands() {
+  return [
+    "npm run eval:agents",
+    "npm run check:agent-evals",
+    "npm run check:agent-eval-regression",
+  ];
+}
+
+function resolvePromotionStatus(input: { status: AgentEvalGuardStatus; regression?: AgentEvalRegressionSnapshot }): AgentEvalPromotionStatus {
+  if (input.status === "blocked" && input.regression && !input.regression.ok) return "blocked_regression";
+  if (input.status === "blocked" || input.status === "unavailable") return "blocked_eval";
+  return "ready";
+}
+
+export async function evaluateAgentEvalRegression(): Promise<AgentEvalRegressionSnapshot> {
+  const historyLimit = Math.max(4, Math.floor(envNum("MISSION_CONTROL_EVAL_REGRESSION_HISTORY_LIMIT", 10)));
+  const windowSize = Math.max(2, Math.floor(envNum("MISSION_CONTROL_EVAL_REGRESSION_WINDOW_SIZE", 3)));
+  const scoreDropTolerance = envNum("MISSION_CONTROL_EVAL_REGRESSION_SCORE_DROP_TOLERANCE", 0.03);
+  const failureRiseTolerance = envNum("MISSION_CONTROL_EVAL_REGRESSION_FAILURE_RISE_TOLERANCE", 0.03);
+
+  const latestFirst = await listRecentAgentEvalSummaries(historyLimit);
+  const oldestFirst = [...latestFirst].reverse();
+  const required = windowSize * 2;
+  const available = oldestFirst.length;
+
+  const artifactPaths = oldestFirst.map((row) => row.path);
+
+  if (available < required) {
+    return {
+      ok: true,
+      reason: "insufficient_history",
+      required,
+      available,
+      currentScore: Number((oldestFirst.at(-1)?.score ?? 0).toFixed(3)),
+      baselineScore: 0,
+      delta: 0,
+      threshold: scoreDropTolerance,
+      artifactPaths,
+    };
+  }
+
+  const previousWindow = oldestFirst.slice(-required, -windowSize);
+  const latestWindow = oldestFirst.slice(-windowSize);
+
+  const baselineScore = average(previousWindow.map((row) => row.score));
+  const currentScore = average(latestWindow.map((row) => row.score));
+  const scoreDelta = currentScore - baselineScore;
+
+  const baselineFailureRate = average(previousWindow.map((row) => row.failureRate));
+  const currentFailureRate = average(latestWindow.map((row) => row.failureRate));
+  const failureRateDelta = currentFailureRate - baselineFailureRate;
+
+  if (scoreDelta < 0 && Math.abs(scoreDelta) > scoreDropTolerance) {
+    return {
+      ok: false,
+      reason: "score_regression",
+      required,
+      available,
+      currentScore: Number(currentScore.toFixed(3)),
+      baselineScore: Number(baselineScore.toFixed(3)),
+      delta: Number(scoreDelta.toFixed(3)),
+      threshold: scoreDropTolerance,
+      artifactPaths,
+    };
+  }
+
+  if (failureRateDelta > failureRiseTolerance) {
+    return {
+      ok: false,
+      reason: "failure_rate_regression",
+      required,
+      available,
+      currentScore: Number(currentFailureRate.toFixed(3)),
+      baselineScore: Number(baselineFailureRate.toFixed(3)),
+      delta: Number(failureRateDelta.toFixed(3)),
+      threshold: failureRiseTolerance,
+      artifactPaths,
+    };
+  }
+
+  return {
+    ok: true,
+    reason: "pass",
+    required,
+    available,
+    currentScore: Number(currentScore.toFixed(3)),
+    baselineScore: Number(baselineScore.toFixed(3)),
+    delta: Number(scoreDelta.toFixed(3)),
+    threshold: scoreDropTolerance,
+    artifactPaths,
+  };
 }
 
 export async function getAgentEvalGuardSnapshot(): Promise<AgentEvalGuardSnapshot> {
@@ -49,6 +168,9 @@ export async function getAgentEvalGuardSnapshot(): Promise<AgentEvalGuardSnapsho
   const failureMargin = envNum("MISSION_CONTROL_EVAL_DEGRADED_FAILURE_RATE_MARGIN", 0.05);
 
   const artifactPath = readLatestArtifactPath();
+  const summaryPath = readLatestSummaryArtifactPath();
+  const baseArtifactPaths = [artifactPath, summaryPath];
+  const nextStepCommands = promotionCommands();
 
   let raw: string;
   try {
@@ -56,11 +178,14 @@ export async function getAgentEvalGuardSnapshot(): Promise<AgentEvalGuardSnapsho
   } catch {
     return {
       status: "unavailable",
+      promotionStatus: "blocked_eval",
       metrics: { score: 0, failureRate: 1, costUsd: 0, total: 0 },
       reasons: ["eval_artifact_missing"],
       timestamp: null,
       artifactPath,
+      artifactPaths: baseArtifactPaths,
       thresholds: { minScore, maxCostUsd, maxFailureRate },
+      nextStepCommands,
     };
   }
 
@@ -70,11 +195,14 @@ export async function getAgentEvalGuardSnapshot(): Promise<AgentEvalGuardSnapsho
   } catch {
     return {
       status: "unavailable",
+      promotionStatus: "blocked_eval",
       metrics: { score: 0, failureRate: 1, costUsd: 0, total: 0 },
       reasons: ["eval_artifact_malformed_json"],
       timestamp: null,
       artifactPath,
+      artifactPaths: baseArtifactPaths,
       thresholds: { minScore, maxCostUsd, maxFailureRate },
+      nextStepCommands,
     };
   }
 
@@ -89,11 +217,14 @@ export async function getAgentEvalGuardSnapshot(): Promise<AgentEvalGuardSnapsho
   if (metrics.total <= 0) {
     return {
       status: "unavailable",
+      promotionStatus: "blocked_eval",
       metrics,
       reasons: ["eval_artifact_missing_totals"],
       timestamp,
       artifactPath,
+      artifactPaths: baseArtifactPaths,
       thresholds: { minScore, maxCostUsd, maxFailureRate },
+      nextStepCommands,
     };
   }
 
@@ -103,13 +234,34 @@ export async function getAgentEvalGuardSnapshot(): Promise<AgentEvalGuardSnapsho
   if (metrics.failureRate > maxFailureRate) reasons.push("failure_rate_above_threshold");
 
   if (reasons.length > 0) {
+    const status: AgentEvalGuardStatus = "blocked";
     return {
-      status: "blocked",
+      status,
+      promotionStatus: resolvePromotionStatus({ status }),
       metrics,
       reasons,
       timestamp,
       artifactPath,
+      artifactPaths: baseArtifactPaths,
       thresholds: { minScore, maxCostUsd, maxFailureRate },
+      nextStepCommands,
+    };
+  }
+
+  const regression = await evaluateAgentEvalRegression();
+  if (!regression.ok) {
+    const status: AgentEvalGuardStatus = "blocked";
+    return {
+      status,
+      promotionStatus: resolvePromotionStatus({ status, regression }),
+      metrics,
+      reasons: ["eval_regression_detected", regression.reason],
+      timestamp,
+      artifactPath,
+      artifactPaths: [...baseArtifactPaths, ...regression.artifactPaths],
+      thresholds: { minScore, maxCostUsd, maxFailureRate },
+      regression,
+      nextStepCommands,
     };
   }
 
@@ -118,13 +270,18 @@ export async function getAgentEvalGuardSnapshot(): Promise<AgentEvalGuardSnapsho
   if (metrics.costUsd > maxCostUsd - Math.max(0, costMargin)) degradedReasons.push("cost_near_threshold");
   if (metrics.failureRate > maxFailureRate - Math.max(0, failureMargin)) degradedReasons.push("failure_rate_near_threshold");
 
+  const status: AgentEvalGuardStatus = degradedReasons.length > 0 ? "degraded" : "healthy";
   return {
-    status: degradedReasons.length > 0 ? "degraded" : "healthy",
+    status,
+    promotionStatus: resolvePromotionStatus({ status, regression }),
     metrics,
     reasons: degradedReasons,
     timestamp,
     artifactPath,
+    artifactPaths: [...baseArtifactPaths, ...regression.artifactPaths],
     thresholds: { minScore, maxCostUsd, maxFailureRate },
+    regression,
+    nextStepCommands,
   };
 }
 

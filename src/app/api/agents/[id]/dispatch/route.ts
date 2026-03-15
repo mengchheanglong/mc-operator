@@ -331,7 +331,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     }
 
     const evalGuard = await getAgentEvalGuardSnapshot();
-    if (evalGuard.status === "blocked") {
+    if (evalGuard.promotionStatus !== "ready") {
       createEvalGuardReport({
         userId: user.id,
         projectId: project.id,
@@ -347,23 +347,21 @@ export async function POST(req: Request, { params }: RouteParams) {
       });
       return NextResponse.json(
         {
-          msg: "Dispatch blocked by eval guardrail.",
+          msg: "Dispatch blocked by eval promotion gate.",
           code: "blocked_by_eval_guardrail",
+          status: evalGuard.promotionStatus,
           reason: evalGuard.reasons[0] || "eval_guard_blocked",
-          nextStep: "Run npm run eval:agents && npm run check:agent-evals && npm run check:agent-eval-regression, then retry dispatch.",
+          nextStepCommands: evalGuard.nextStepCommands,
+          nextStep: `${evalGuard.nextStepCommands.join(" && ")}, then retry dispatch.`,
           evalGuard,
           reasons: evalGuard.reasons,
+          artifacts: evalGuard.artifactPaths,
         },
         { status: 409 },
       );
     }
 
-    const evalGuardWarning =
-      evalGuard.status === "degraded"
-        ? "eval_guard_degraded"
-        : evalGuard.status === "unavailable"
-          ? "eval_guard_unavailable"
-          : null;
+    const evalGuardWarning = evalGuard.status === "degraded" ? "eval_guard_degraded" : null;
 
     if (evalGuardWarning) {
       createEvalGuardReport({
@@ -524,6 +522,7 @@ export async function POST(req: Request, { params }: RouteParams) {
             costRisk: packet.costRisk,
             deepMode: packet.deepMode,
             evalGuard,
+            promotionStatus: evalGuard.promotionStatus,
             evalGuardWarning,
             failureClass: (dispatch as { failureClass?: string | null }).failureClass || null,
             attempts: (dispatch as { attempts?: number }).attempts || 1,
@@ -617,6 +616,7 @@ export async function POST(req: Request, { params }: RouteParams) {
         costRisk: packet.costRisk,
         deepMode: packet.deepMode,
         evalGuard,
+        promotionStatus: evalGuard.promotionStatus,
         evalGuardWarning,
         failureClass: (dispatch as { failureClass?: string | null }).failureClass || null,
         attempts: (dispatch as { attempts?: number }).attempts || 1,

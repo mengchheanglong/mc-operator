@@ -242,7 +242,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     }
 
     const evalGuard = await getAgentEvalGuardSnapshot();
-    if (evalGuard.status === "blocked") {
+    if (evalGuard.promotionStatus !== "ready") {
       createEvalGuardReport({
         userId: user.id,
         projectId: project.id,
@@ -258,23 +258,21 @@ export async function POST(req: Request, { params }: RouteParams) {
       });
       return NextResponse.json(
         {
-          msg: "Execution blocked by eval guardrail.",
+          msg: "Execution blocked by eval promotion gate.",
           code: "blocked_by_eval_guardrail",
+          status: evalGuard.promotionStatus,
           reason: evalGuard.reasons[0] || "eval_guard_blocked",
-          nextStep: "Run npm run eval:agents && npm run check:agent-evals && npm run check:agent-eval-regression, then retry execution.",
+          nextStepCommands: evalGuard.nextStepCommands,
+          nextStep: `${evalGuard.nextStepCommands.join(" && ")}, then retry execution.`,
           evalGuard,
           reasons: evalGuard.reasons,
+          artifacts: evalGuard.artifactPaths,
         },
         { status: 409 },
       );
     }
 
-    const evalGuardWarning =
-      evalGuard.status === "degraded"
-        ? "eval_guard_degraded"
-        : evalGuard.status === "unavailable"
-          ? "eval_guard_unavailable"
-          : null;
+    const evalGuardWarning = evalGuard.status === "degraded" ? "eval_guard_degraded" : null;
 
     if (evalGuardWarning) {
       createEvalGuardReport({
@@ -502,6 +500,7 @@ export async function POST(req: Request, { params }: RouteParams) {
             workflow: packet.workflow,
             costRisk: packet.costRisk,
             evalGuard,
+            promotionStatus: evalGuard.promotionStatus,
             evalGuardWarning,
             failureClass: dispatch.failureClass || null,
             attempts: dispatch.attempts || 1,
@@ -623,6 +622,7 @@ export async function POST(req: Request, { params }: RouteParams) {
         workflow: packet.workflow,
         costRisk: packet.costRisk,
         evalGuard,
+        promotionStatus: evalGuard.promotionStatus,
         evalGuardWarning,
         failureClass: dispatch.failureClass || null,
         attempts: dispatch.attempts || 1,
