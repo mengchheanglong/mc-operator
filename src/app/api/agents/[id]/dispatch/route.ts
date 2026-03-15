@@ -15,6 +15,11 @@ import { buildExecutionPacket, type ContextBlock } from "@/lib/workflow/mission-
 import { appendLessonEvent, loadLessonHint } from "@/server/services/workflow-lessons-service";
 import { recordWorkflowRunOutcome, upsertWorkflowRunSignature } from "@/server/repositories/workflow-run-guards-repo";
 import { getAgentEvalGuardSnapshot, type AgentEvalGuardSnapshot } from "@/server/services/agent-eval-guard-service";
+import {
+  buildTaskQualityPayload,
+  createTaskQualityNormalizedError,
+  validateTaskQualityPayload,
+} from "@/server/services/task-quality-guardrails";
 
 export const dynamic = "force-dynamic";
 
@@ -305,6 +310,37 @@ export async function POST(req: Request, { params }: RouteParams) {
     }
     if (!task) {
       return badRequest("Task is required.");
+    }
+
+    const taskQualityPayload = buildTaskQualityPayload({
+      objective: task,
+      scope: `Agent dispatch scoped to ${id}. Keep changes bounded to the stated task and current project.`,
+      verificationSteps: [
+        "Run validation commands tied to touched files and capture raw output.",
+      ],
+      rollbackPlan: [
+        "If checks fail or scope drifts, stop execution and fall back to reporting the blocker before retry.",
+      ],
+      outputExpectation: [
+        "Return only bounded outputs: changed files, verification output, and next step summary (max 3 bullets each).",
+      ],
+    });
+    const taskQuality = validateTaskQualityPayload(taskQualityPayload);
+    if (!taskQuality.ok) {
+      const normalizedError = createTaskQualityNormalizedError({
+        source: "agents.dispatch",
+        issues: taskQuality.issues,
+      });
+      return NextResponse.json(
+        {
+          msg: "Dispatch blocked by task-quality guardrails.",
+          code: normalizedError.code,
+          error: normalizedError,
+          issues: taskQuality.issues,
+          nextStep: "Revise the task payload objective/scope/verification/rollback/output bounds, then retry dispatch.",
+        },
+        { status: 422 },
+      );
     }
 
     const agent = findAgentById(user.id, project.id, id);

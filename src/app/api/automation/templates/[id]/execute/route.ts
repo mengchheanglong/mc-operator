@@ -22,6 +22,11 @@ import { appendLessonEvent, loadLessonHint } from "@/server/services/workflow-le
 import { getWorkspaceRootPath } from "@/server/projects/workspace-projects";
 import { recordWorkflowRunOutcome, upsertWorkflowRunSignature } from "@/server/repositories/workflow-run-guards-repo";
 import { getAgentEvalGuardSnapshot, type AgentEvalGuardSnapshot } from "@/server/services/agent-eval-guard-service";
+import {
+  buildTaskQualityPayload,
+  createTaskQualityNormalizedError,
+  validateTaskQualityPayload,
+} from "@/server/services/task-quality-guardrails";
 
 export const dynamic = "force-dynamic";
 
@@ -228,6 +233,37 @@ export async function POST(req: Request, { params }: RouteParams) {
     if (!template) return notFound("Automation template not found.");
     const body = await req.json().catch(() => ({}));
     const deepMode = Boolean((body as { deepMode?: unknown }).deepMode);
+
+    const taskQualityPayload = buildTaskQualityPayload({
+      objective: template.prompt,
+      scope: `Automation execute scoped to template ${template.id} (${template.executor}) in current project context only.`,
+      verificationSteps: [
+        "Run execution-relevant verification and include status/body evidence in the run report.",
+      ],
+      rollbackPlan: [
+        "If dispatch fails or risks regression, stop and fall back to reporting actionable failure context.",
+      ],
+      outputExpectation: [
+        "Return bounded execute output only: dispatch status, summary, and key metadata (no more than one response payload).",
+      ],
+    });
+    const taskQuality = validateTaskQualityPayload(taskQualityPayload);
+    if (!taskQuality.ok) {
+      const normalizedError = createTaskQualityNormalizedError({
+        source: "automation.templates.execute",
+        issues: taskQuality.issues,
+      });
+      return NextResponse.json(
+        {
+          msg: "Execution blocked by task-quality guardrails.",
+          code: normalizedError.code,
+          error: normalizedError,
+          issues: taskQuality.issues,
+          nextStep: "Revise the template task payload objective/scope/verification/rollback/output bounds, then retry execution.",
+        },
+        { status: 422 },
+      );
+    }
 
     const preflight = await validateOpenClawPreflightPaths();
     if (!preflight.ok) {
