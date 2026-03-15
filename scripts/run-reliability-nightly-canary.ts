@@ -1,15 +1,31 @@
-import Database from "better-sqlite3";
 import { mkdirSync, writeFileSync } from "fs";
 import path from "path";
-import crypto from "crypto";
+import { spawnSync } from "child_process";
+import { createQuest } from "@/server/repositories/quests-repo";
+import { findOrCreateUser } from "@/server/repositories/users-repo";
+import { getControlPlaneProjectId } from "@/server/projects/workspace-projects";
+import {
+  buildCanaryFailureIdentity,
+  logCanaryFollowUpReport,
+  resolveCanaryQuest,
+  shouldSuppressByCooldown,
+} from "@/server/services/nightly-canary-guardrails-service";
 
-type Sample = {
-  id: string;
-  timestamp: string;
-  totalDurationMs: number;
-  failureClass: string | null;
-  fallbackUsed: boolean;
-};
+interface CanaryCheck {
+  id: "eval-guard" | "adapters" | "ui-smoke" | "reliability-thresholds";
+  command: string;
+  critical: boolean;
+}
+
+interface CanaryCheckResult {
+  id: CanaryCheck["id"];
+  command: string;
+  critical: boolean;
+  ok: boolean;
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+}
 
 function envNum(name: string, fallback: number) {
   const raw = process.env[name];
@@ -18,136 +34,211 @@ function envNum(name: string, fallback: number) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function evaluate(samples: Sample[], minSamples: number) {
-  const total = samples.length;
-  const timeoutCount = samples.filter((sample) => sample.failureClass === "timeout").length;
-  const failoverCount = samples.filter((sample) => sample.fallbackUsed).length;
-  const toolErrorCount = samples.filter((sample) => sample.failureClass === "tool_error").length;
-  const avgDurationMs = total > 0
-    ? Math.round(samples.reduce((sum, sample) => sum + sample.totalDurationMs, 0) / total)
-    : 0;
+function toTimestampForFile(value: Date) {
+  return value.toISOString().replace(/[:.]/g, "-");
+}
 
-  const timeoutRate = total > 0 ? timeoutCount / total : 0;
-  const failoverRate = total > 0 ? failoverCount / total : 0;
-  const toolErrorRate = total > 0 ? toolErrorCount / total : 0;
+function compact(text: string, maxLen: number) {
+  const trimmed = text.trim();
+  if (!trimmed) return "";
+  if (trimmed.length <= maxLen) return trimmed;
+  return `${trimmed.slice(0, maxLen - 3)}...`;
+}
 
-  const status = total < minSamples
-    ? "insufficient_data"
-    : timeoutRate > 0.2 || failoverRate > 0.5 || toolErrorRate > 0.1 || avgDurationMs > 120000
-      ? "degraded"
-      : "healthy";
+function runCheck(check: CanaryCheck): CanaryCheckResult {
+  const proc = spawnSync("npm", ["run", "--silent", check.command], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+    shell: process.platform === "win32",
+    env: process.env,
+  });
 
   return {
-    ok: status === "healthy",
-    status,
-    total,
-    timeout_rate: Number(timeoutRate.toFixed(3)),
-    failover_rate: Number(failoverRate.toFixed(3)),
-    tool_error_rate: Number(toolErrorRate.toFixed(3)),
-    avg_duration_ms: avgDurationMs,
+    id: check.id,
+    command: `npm run ${check.command}`,
+    critical: check.critical,
+    ok: (proc.status ?? 1) === 0,
+    exitCode: proc.status ?? 1,
+    stdout: String(proc.stdout || ""),
+    stderr: String(proc.stderr || ""),
   };
 }
 
-function nowIso(offsetMs = 0) {
-  return new Date(Date.now() + offsetMs).toISOString();
+function buildFailureSummary(results: CanaryCheckResult[]) {
+  return results
+    .filter((item) => !item.ok)
+    .map((item) => {
+      const body = compact(item.stderr || item.stdout, 260);
+      return `- ${item.id} failed (${item.command})\n  ${body || "no output"}`;
+    })
+    .join("\n");
 }
 
-async function main() {
-  const minSamples = Math.max(1, Math.floor(envNum("MISSION_CONTROL_RELIABILITY_MIN_SAMPLES", 20)));
-  const dbPath = path.resolve(process.env.SQLITE_PATH || path.join(process.cwd(), "data", "openclaw.db"));
-  const db = new Database(dbPath);
-
-  const userId = (db.prepare("SELECT id FROM users ORDER BY created_at ASC LIMIT 1").get() as { id: string } | undefined)?.id || "default-user";
-  const projectId = "mission-control";
-
-  const canaryDispatches = [
-    { id: "canary-success", failureClass: null, fallbackUsed: false, totalDurationMs: 1200, status: "success" },
-    { id: "canary-fallback-success", failureClass: null, fallbackUsed: true, totalDurationMs: 1800, status: "warning" },
-    { id: "canary-timeout", failureClass: "timeout", fallbackUsed: false, totalDurationMs: 120000, status: "error" },
-    { id: "canary-tool-error", failureClass: "tool_error", fallbackUsed: false, totalDurationMs: 700, status: "error" },
-    { id: "canary-provider-error", failureClass: "provider_error", fallbackUsed: true, totalDurationMs: 2500, status: "error" },
-  ] as const;
-
-  const insert = db.prepare(`
-    INSERT INTO reports (id, user_id, project_id, title, content, category, status, area, linked_quest_id, source, metadata_json, date)
-    VALUES (@id, @user_id, @project_id, @title, @content, @category, @status, @area, @linked_quest_id, @source, @metadata_json, @date)
-  `);
-
-  const samples: Sample[] = [];
-  const tx = db.transaction(() => {
-    canaryDispatches.forEach((dispatch, index) => {
-      const timestamp = nowIso(index * 1000);
-      const reportId = `report-${crypto.randomUUID()}`;
-      const metadata = {
-        canary: true,
-        dispatch_id: dispatch.id,
-        timestamp,
-        endpoint: "/ops/nightly-canary",
-        source: "ops-canary",
-        success: dispatch.failureClass === null,
-        failure_class: dispatch.failureClass,
-        attempts: 1,
-        total_duration_ms: dispatch.totalDurationMs,
-        model_used: dispatch.fallbackUsed ? "fallback-model" : "primary-model",
-        fallback_used: dispatch.fallbackUsed,
-      };
-
-      insert.run({
-        id: reportId,
-        user_id: userId,
-        project_id: projectId,
-        title: `Nightly reliability canary: ${dispatch.id}`,
-        content: `Deterministic canary dispatch ${dispatch.id}`,
-        category: "maintenance",
-        status: dispatch.status,
-        area: "runtime-reliability",
-        linked_quest_id: null,
-        source: "ops-canary",
-        metadata_json: JSON.stringify(metadata),
-        date: timestamp,
-      });
-
-      samples.push({
-        id: reportId,
-        timestamp,
-        totalDurationMs: dispatch.totalDurationMs,
-        failureClass: dispatch.failureClass,
-        fallbackUsed: dispatch.fallbackUsed,
-      });
-    });
-  });
-
-  tx();
-  db.close();
-
-  const summary = evaluate(samples, minSamples);
+function writeReports(payload: Record<string, unknown>, now: Date) {
   const reportsDir = path.join(process.cwd(), "reports", "ops");
   mkdirSync(reportsDir, { recursive: true });
 
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const jsonPath = path.join(reportsDir, `nightly-canary-${stamp}.json`);
-  const mdPath = path.join(reportsDir, `nightly-canary-${stamp}.md`);
+  const stamp = toTimestampForFile(now);
+  const timestamped = path.join(reportsDir, `canary-${stamp}.json`);
+  const latest = path.join(reportsDir, "canary-latest.json");
+  const serialized = JSON.stringify(payload, null, 2);
 
-  writeFileSync(jsonPath, JSON.stringify({ generatedAt: new Date().toISOString(), summary, samples }, null, 2));
-  writeFileSync(
-    mdPath,
-    [
-      "# Reliability Nightly Canary",
-      "",
-      `Generated: ${new Date().toISOString()}`,
-      `Status: ${summary.status}`,
-      `Samples: ${summary.total}`,
-      `Timeout rate: ${summary.timeout_rate}`,
-      `Failover rate: ${summary.failover_rate}`,
-      `Tool error rate: ${summary.tool_error_rate}`,
-      `Avg duration ms: ${summary.avg_duration_ms}`,
-      "",
-      "## Deterministic dispatches",
-      ...samples.map((sample) => `- ${sample.id}: failure=${sample.failureClass || "none"}, fallback=${String(sample.fallbackUsed)}, duration=${sample.totalDurationMs}`),
-    ].join("\n"),
-  );
+  writeFileSync(timestamped, serialized, "utf8");
+  writeFileSync(latest, serialized, "utf8");
 
-  process.stdout.write(`${JSON.stringify({ ok: true, jsonPath, mdPath, summary }, null, 2)}\n`);
+  return { timestamped, latest };
+}
+
+async function main() {
+  const now = new Date();
+  const cooldownMinutes = Math.max(0, Math.floor(envNum("MISSION_CONTROL_CANARY_COOLDOWN_MINUTES", 180)));
+  const windowMinutes = Math.max(15, Math.floor(envNum("MISSION_CONTROL_CANARY_WINDOW_MINUTES", 360)));
+
+  const checks: CanaryCheck[] = [
+    { id: "eval-guard", command: "check:agent-evals", critical: true },
+    { id: "adapters", command: "check:adapters", critical: true },
+    { id: "ui-smoke", command: "check:ui-smoke", critical: true },
+    { id: "reliability-thresholds", command: "check:reliability", critical: true },
+  ];
+
+  const results = checks.map(runCheck);
+  const failedCritical = results.filter((item) => !item.ok && item.critical);
+  const overallOk = failedCritical.length === 0;
+
+  const user = findOrCreateUser();
+  const projectId = getControlPlaneProjectId();
+
+  let questAction: {
+    action: "none" | "created" | "updated" | "suppressed";
+    questId: string | null;
+    dedupeKey: string | null;
+    failureClass: string | null;
+    cooldown: { onCooldown: boolean; minutesRemaining: number; lastAlertAt: string | null };
+  } = {
+    action: "none",
+    questId: null,
+    dedupeKey: null,
+    failureClass: null,
+    cooldown: { onCooldown: false, minutesRemaining: 0, lastAlertAt: null },
+  };
+
+  if (!overallOk) {
+    const identity = buildCanaryFailureIdentity(
+      failedCritical.map((item) => item.id),
+      now,
+      { cooldownMinutes, windowMinutes },
+    );
+
+    const cooldown = shouldSuppressByCooldown(user.id, projectId, identity.failureClass, cooldownMinutes, now);
+    const existing = resolveCanaryQuest(user.id, projectId, identity.dedupeKey);
+
+    let questId = existing.quest?.id ?? null;
+    let action: "created" | "updated" | "suppressed" = existing.quest ? "updated" : "created";
+
+    if (!existing.quest) {
+      const goal = `Nightly canary follow-up [${identity.dedupeKey}]`;
+      const quest = createQuest(
+        user.id,
+        projectId,
+        goal,
+        "normal",
+        ["reliability", "nightly-canary", "ops"],
+        "open",
+        "runtime-reliability",
+      );
+      questId = quest.id;
+    }
+
+    const nextSteps = [
+      "npm run check:agent-evals",
+      "npm run check:adapters",
+      "npm run check:ui-smoke",
+      "npm run check:reliability",
+    ];
+
+    if (!cooldown.onCooldown) {
+      const content = [
+        `Canary dedupe key: ${identity.dedupeKey}`,
+        `Failure class: ${identity.failureClass}`,
+        "",
+        "Failure summary:",
+        buildFailureSummary(failedCritical),
+        "",
+        "Next-step commands:",
+        ...nextSteps.map((cmd) => `- ${cmd}`),
+      ].join("\n");
+
+      logCanaryFollowUpReport({
+        userId: user.id,
+        projectId,
+        title: "Nightly canary failure follow-up",
+        content,
+        status: "warning",
+        linkedQuestId: questId,
+        metadata: {
+          canary: {
+            alertType: "failure",
+            failureClass: identity.failureClass,
+            dedupeKey: identity.dedupeKey,
+            windowKey: identity.windowKey,
+            cooldownMinutes,
+            failingCommands: failedCritical.map((item) => item.command),
+          },
+        },
+      });
+    } else {
+      action = "suppressed";
+    }
+
+    questAction = {
+      action,
+      questId,
+      dedupeKey: identity.dedupeKey,
+      failureClass: identity.failureClass,
+      cooldown,
+    };
+  } else {
+    logCanaryFollowUpReport({
+      userId: user.id,
+      projectId,
+      title: "Nightly canary passed",
+      content: `Nightly canary passed (${results.length}/${results.length} checks).`,
+      status: "success",
+      metadata: {
+        canary: {
+          alertType: "success",
+          checks: results.map((item) => item.id),
+        },
+      },
+    });
+  }
+
+  const payload = {
+    generatedAt: now.toISOString(),
+    ok: overallOk,
+    checks: results.map((item) => ({
+      id: item.id,
+      command: item.command,
+      critical: item.critical,
+      ok: item.ok,
+      exitCode: item.exitCode,
+      stdout: compact(item.stdout, 4000),
+      stderr: compact(item.stderr, 2000),
+    })),
+    failedCriticalCount: failedCritical.length,
+    guardrails: {
+      cooldownMinutes,
+      windowMinutes,
+    },
+    questAction,
+  };
+
+  const reportPaths = writeReports(payload, now);
+  process.stdout.write(`${JSON.stringify({ ...payload, reports: reportPaths }, null, 2)}\n`);
+
+  if (!overallOk) {
+    process.exit(1);
+  }
 }
 
 void main();
