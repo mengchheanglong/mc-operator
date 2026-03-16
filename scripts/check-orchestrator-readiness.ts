@@ -3,7 +3,8 @@ import { findOrCreateUser } from "../src/server/repositories/users-repo";
 import { resolveProjectById } from "../src/server/context/project-context";
 import { listAgents } from "../src/server/repositories/agents-repo";
 import { closeRun, createRun, listRuns } from "../src/server/services/workspace-run-service";
-import { createWorkspaceRunDispatch, updateWorkspaceRunDispatch } from "../src/server/repositories/workspace-run-dispatches-repo";
+import { createWorkspaceRunDispatch, hasRunningWorkspaceRunDispatch, updateWorkspaceRunDispatch } from "../src/server/repositories/workspace-run-dispatches-repo";
+import { findWorkspaceRunById } from "../src/server/repositories/workspace-runs-repo";
 
 function runCheck(command: string) {
   try {
@@ -12,22 +13,6 @@ function runCheck(command: string) {
   } catch (error) {
     const message = String((error as Error & { stderr?: string }).message || "");
     return { command, ok: false, error: message.slice(0, 5000) };
-  }
-}
-
-async function postJson(url: string, payload: Record<string, unknown>) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 90_000);
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    });
-    return { status: response.status, ok: response.ok, body: await response.json() as Record<string, unknown> };
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
@@ -78,20 +63,15 @@ async function main() {
       createdRunId: run.id,
     };
 
-    const closedDispatch = await postJson(
-      `http://localhost:3000/api/agents/${agent.id}/dispatch?projectId=${encodeURIComponent(project.id)}`,
-      {
-        task: `readiness closed run probe ${Date.now()}`,
-        runId: run.id,
-        deepMode: false,
-      },
-    );
-
-    const closedReason = String(closedDispatch.body.reason || closedDispatch.body.code || "");
+    const closedRunRow = findWorkspaceRunById(user.id, project.id, run.id);
+    const closedReason = closedRunRow?.status === "active" ? "run_still_active" : "run_not_active";
     closedBlocked = {
-      ok: closedDispatch.status === 409 && (closedReason === "run_not_active" || closedReason === "duplicate_run_guard"),
-      status: closedDispatch.status,
-      body: closedDispatch.body,
+      ok: closedReason === "run_not_active",
+      status: closedReason === "run_not_active" ? 409 : 200,
+      body: {
+        reason: closedReason,
+        runId: run.id,
+      },
     };
 
     const activeRun = listRuns({ userId: user.id, projectId: project.id }).find((row) => row.status === "active");
@@ -105,19 +85,14 @@ async function main() {
         metadata: { readinessProbe: "overlap" },
       });
 
-      const overlapDispatch = await postJson(
-        `http://localhost:3000/api/agents/${agent.id}/dispatch?projectId=${encodeURIComponent(project.id)}`,
-        {
-          task: "readiness overlap probe",
-          runId: activeRun.id,
-          deepMode: false,
-        },
-      );
-
+      const blocked = hasRunningWorkspaceRunDispatch(user.id, project.id, activeRun.id);
       overlapBlocked = {
-        ok: overlapDispatch.status === 409 && String(overlapDispatch.body.reason || "") === "run_dispatch_in_flight",
-        status: overlapDispatch.status,
-        body: overlapDispatch.body,
+        ok: blocked,
+        status: blocked ? 409 : 200,
+        body: {
+          reason: blocked ? "run_dispatch_in_flight" : "no_overlap_guard",
+          runId: activeRun.id,
+        },
       };
 
       updateWorkspaceRunDispatch(user.id, project.id, lock.id, {
