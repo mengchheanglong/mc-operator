@@ -28,6 +28,10 @@ import {
   updateWorkspaceRunDispatch,
 } from "@/server/repositories/workspace-run-dispatches-repo";
 import { verifyRunWorktreePath } from "@/server/services/workspace-run-service";
+import {
+  recordDispatchOutcome,
+  recordOverlapBlock,
+} from "@/server/repositories/orchestrator-reliability-repo";
 
 export const dynamic = "force-dynamic";
 
@@ -579,6 +583,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       }
 
       if (hasRunningWorkspaceRunDispatch(user.id, project.id, run.id) || inFlightRunDispatches.has(run.id)) {
+        recordOverlapBlock(user.id, project.id);
         return NextResponse.json(
           {
             msg: "Dispatch already running for this run.",
@@ -708,6 +713,7 @@ export async function POST(req: Request, { params }: RouteParams) {
         });
       }
       if (runContext) {
+        recordDispatchOutcome(user.id, project.id, false);
         inFlightRunDispatches.delete(runContext.runId);
         const runRow = findWorkspaceRunById(user.id, project.id, runContext.runId);
         if (runRow) {
@@ -822,6 +828,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       });
     }
     if (runContext) {
+      recordDispatchOutcome(user.id, project.id, true);
       inFlightRunDispatches.delete(runContext.runId);
       const runRow = findWorkspaceRunById(user.id, project.id, runContext.runId);
       if (runRow) {

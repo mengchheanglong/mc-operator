@@ -11,6 +11,10 @@ import {
   listWorkspaceRuns,
   updateWorkspaceRun,
 } from "@/server/repositories/workspace-runs-repo";
+import {
+  recordCloseOutcome,
+  recordCreateOutcome,
+} from "@/server/repositories/orchestrator-reliability-repo";
 
 const execFileAsync = promisify(execFile);
 
@@ -87,6 +91,7 @@ export async function createRun(input: {
 }) {
   const branch = input.branch.trim();
   if (!branch) {
+    recordCreateOutcome(input.userId, input.project.id, false);
     throw new WorkspaceRunError({
       message: "Branch is required.",
       reason: "missing_branch",
@@ -98,6 +103,7 @@ export async function createRun(input: {
 
   const duplicate = findActiveWorkspaceRunByBranch(input.userId, input.project.id, branch);
   if (duplicate) {
+    recordCreateOutcome(input.userId, input.project.id, false);
     throw new WorkspaceRunError({
       message: "An active run already exists for this branch.",
       reason: "duplicate_active_branch_run",
@@ -119,6 +125,7 @@ export async function createRun(input: {
     try {
       await runGit(input.project.rootPath, ["worktree", "add", "--detach", worktreePath, branch]);
     } catch {
+      recordCreateOutcome(input.userId, input.project.id, false);
       throw new WorkspaceRunError({
         message: "Failed to create worktree.",
         reason: "git_worktree_add_failed",
@@ -129,13 +136,15 @@ export async function createRun(input: {
     }
   }
 
-  return createWorkspaceRun({
+  const created = createWorkspaceRun({
     userId: input.userId,
     projectId: input.project.id,
     branch,
     worktreePath,
     metadata: { ...(input.metadata || {}), runId },
   });
+  recordCreateOutcome(input.userId, input.project.id, true);
+  return created;
 }
 
 export type WorkspaceRunCloseReason = "manual" | "stale" | "error-recovery";
@@ -149,6 +158,7 @@ export async function closeRun(input: {
 }) {
   const run = findWorkspaceRunById(input.userId, input.project.id, input.runId);
   if (!run) {
+    recordCloseOutcome(input.userId, input.project.id, false, input.reason);
     throw new WorkspaceRunError({
       message: "Run not found.",
       reason: "run_not_found",
@@ -169,6 +179,7 @@ export async function closeRun(input: {
   try {
     await runGit(input.project.rootPath, ["worktree", "remove", run.worktreePath, "--force"]);
   } catch {
+    recordCloseOutcome(input.userId, input.project.id, false, input.reason);
     throw new WorkspaceRunError({
       message: "Failed to remove git worktree.",
       reason: "git_worktree_remove_failed",
@@ -195,7 +206,7 @@ export async function closeRun(input: {
     }
   }
 
-  return updateWorkspaceRun(input.userId, input.project.id, run.id, {
+  const updated = updateWorkspaceRun(input.userId, input.project.id, run.id, {
     status: finalStatus,
     closedAt: new Date().toISOString(),
     worktreePath: finalPath,
@@ -206,4 +217,6 @@ export async function closeRun(input: {
       closeReason: input.reason || "manual",
     },
   });
+  recordCloseOutcome(input.userId, input.project.id, true, input.reason);
+  return updated;
 }

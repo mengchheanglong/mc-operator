@@ -239,6 +239,31 @@ export const workspaceRunDispatches = sqliteTable(
   ],
 );
 
+export const orchestratorReliabilityStats = sqliteTable(
+  "orchestrator_reliability_stats",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => users.id),
+    projectId: text("project_id").notNull().default("mission-control"),
+    createTotal: integer("create_total").notNull().default(0),
+    createSuccess: integer("create_success").notNull().default(0),
+    dispatchTotal: integer("dispatch_total").notNull().default(0),
+    dispatchSuccess: integer("dispatch_success").notNull().default(0),
+    closeTotal: integer("close_total").notNull().default(0),
+    closeSuccess: integer("close_success").notNull().default(0),
+    overlapBlockCount: integer("overlap_block_count").notNull().default(0),
+    staleCleanupCount: integer("stale_cleanup_count").notNull().default(0),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    index("orchestrator_reliability_user_project").on(
+      table.userId,
+      table.projectId,
+    ),
+  ],
+);
+
 export const workflowRunGuards = sqliteTable(
   "workflow_run_guards",
   {

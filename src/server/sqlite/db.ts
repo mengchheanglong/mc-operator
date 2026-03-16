@@ -265,6 +265,29 @@ function ensureProjectScopedTables() {
   );
 
   ensureTable(
+    "orchestrator_reliability_stats",
+    `CREATE TABLE orchestrator_reliability_stats (
+      id text PRIMARY KEY NOT NULL,
+      user_id text NOT NULL REFERENCES users(id),
+      project_id text NOT NULL DEFAULT '${escapedDefaultProjectId}',
+      create_total integer NOT NULL DEFAULT 0,
+      create_success integer NOT NULL DEFAULT 0,
+      dispatch_total integer NOT NULL DEFAULT 0,
+      dispatch_success integer NOT NULL DEFAULT 0,
+      close_total integer NOT NULL DEFAULT 0,
+      close_success integer NOT NULL DEFAULT 0,
+      overlap_block_count integer NOT NULL DEFAULT 0,
+      stale_cleanup_count integer NOT NULL DEFAULT 0,
+      created_at text NOT NULL,
+      updated_at text NOT NULL
+    )`,
+  );
+  ensureIndex(
+    "orchestrator_reliability_user_project",
+    "CREATE INDEX orchestrator_reliability_user_project ON orchestrator_reliability_stats (user_id, project_id)",
+  );
+
+  ensureTable(
     "workflow_run_guards",
     `CREATE TABLE workflow_run_guards (
       id text PRIMARY KEY NOT NULL,
