@@ -489,6 +489,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     };
 
     let targetProjectPath: string | undefined;
+    let runContext: { runId: string; worktreePath: string; status: string } | null = null;
     if (runId) {
       if (agent.backend !== "agent-orchestrator") {
         return NextResponse.json(
@@ -531,6 +532,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       }
 
       targetProjectPath = run.worktreePath.replace(/\\/g, "/");
+      runContext = { runId: run.id, worktreePath: run.worktreePath, status: run.status };
     }
 
     inFlightAgentRuns.add(lockKey);
@@ -612,6 +614,7 @@ export async function POST(req: Request, { params }: RouteParams) {
             fallbackUsed: Boolean((dispatch as { fallbackUsed?: boolean }).fallbackUsed),
           }),
           lessonTelemetry: lessonHint.telemetry,
+          runContext,
         },
       });
 
@@ -636,6 +639,7 @@ export async function POST(req: Request, { params }: RouteParams) {
             totalDurationMs: (dispatch as { totalDurationMs?: number }).totalDurationMs || 0,
             modelUsed: (dispatch as { modelUsed?: string }).modelUsed || null,
             fallbackUsed: Boolean((dispatch as { fallbackUsed?: boolean }).fallbackUsed),
+            runContext,
           },
         },
         { status: 502 },
@@ -692,6 +696,7 @@ export async function POST(req: Request, { params }: RouteParams) {
           fallbackUsed: Boolean((dispatch as { fallbackUsed?: boolean }).fallbackUsed),
           }),
           lessonTelemetry: lessonHint.telemetry,
+          runContext,
         },
       });
 
@@ -732,6 +737,7 @@ export async function POST(req: Request, { params }: RouteParams) {
         modelUsed: (dispatch as { modelUsed?: string }).modelUsed || null,
         fallbackUsed: Boolean((dispatch as { fallbackUsed?: boolean }).fallbackUsed),
         lessonTelemetry: lessonHint.telemetry,
+        runContext,
       },
     });
   } catch (error) {
