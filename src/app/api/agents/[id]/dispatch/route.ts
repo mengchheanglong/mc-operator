@@ -21,6 +21,7 @@ import {
   createTaskQualityNormalizedError,
   validateTaskQualityPayload,
 } from "@/server/services/task-quality-guardrails";
+import { findWorkspaceRunById } from "@/server/repositories/workspace-runs-repo";
 
 export const dynamic = "force-dynamic";
 
@@ -190,6 +191,7 @@ async function runAgentDispatch(input: {
   task: string;
   deepMode?: boolean;
   lessonHint?: { snippets: string[]; ruleSnippets?: string[]; reanalysisRequired: boolean };
+  targetProjectPath?: string;
 }) {
   const packet = await buildAgentBrief({
     project: { name: input.project.name, relativePath: input.project.relativePath },
@@ -200,7 +202,8 @@ async function runAgentDispatch(input: {
   });
 
   const brief = `${packet.brief}\n\nCost risk: ${packet.costRisk.label}`;
-  const projectPath = `${getWorkspaceRootPath().replace(/\\/g, "/")}/${input.project.relativePath.replace(/\\/g, "/")}`;
+  const defaultProjectPath = `${getWorkspaceRootPath().replace(/\\/g, "/")}/${input.project.relativePath.replace(/\\/g, "/")}`;
+  const projectPath = input.targetProjectPath || defaultProjectPath;
   const dispatch = input.agent.backend === "agent-orchestrator"
     ? await spawnAgentOrchestratorRun(projectPath, brief)
     : await dispatchToOpenClawAgent({
@@ -320,6 +323,7 @@ export async function POST(req: Request, { params }: RouteParams) {
     const body = await req.json();
     const task = String(body.task || "").trim();
     const deepMode = Boolean(body.deepMode);
+    const runId = String(body.runId || "").trim() || null;
 
     if (!id) {
       return badRequest("Agent ID is required.");
@@ -484,6 +488,51 @@ export async function POST(req: Request, { params }: RouteParams) {
       reanalysisRequired: lessonHint.reanalysisRequired || Boolean(guard.state?.reanalysisRequired),
     };
 
+    let targetProjectPath: string | undefined;
+    if (runId) {
+      if (agent.backend !== "agent-orchestrator") {
+        return NextResponse.json(
+          {
+            msg: "runId dispatch targeting is currently available only for agent-orchestrator backend.",
+            code: "run_target_unsupported_backend",
+            reason: "unsupported_backend",
+            nextCommand: "Use an agent-orchestrator agent or omit runId.",
+            artifactPath: projectPath,
+          },
+          { status: 422 },
+        );
+      }
+
+      const run = findWorkspaceRunById(user.id, project.id, runId);
+      if (!run) {
+        return NextResponse.json(
+          {
+            msg: "Workspace run not found.",
+            code: "workspace_run_not_found",
+            reason: "run_not_found",
+            nextCommand: "Create/list runs and retry dispatch with a valid runId.",
+            artifactPath: projectPath,
+          },
+          { status: 404 },
+        );
+      }
+
+      if (run.status !== "active") {
+        return NextResponse.json(
+          {
+            msg: "Workspace run is not active.",
+            code: "workspace_run_inactive",
+            reason: "run_not_active",
+            nextCommand: "Create a new run or reopen a usable worktree, then retry dispatch.",
+            artifactPath: run.worktreePath,
+          },
+          { status: 409 },
+        );
+      }
+
+      targetProjectPath = run.worktreePath.replace(/\\/g, "/");
+    }
+
     inFlightAgentRuns.add(lockKey);
     const { brief, packet, dispatch, aoSessionId, dispatchBody, summary: openClawSummary } = await runAgentDispatch({
       userId: user.id,
@@ -492,6 +541,7 @@ export async function POST(req: Request, { params }: RouteParams) {
       task,
       deepMode,
       lessonHint: effectiveLessonHint,
+      targetProjectPath,
     });
     const handoffResults = shouldAutoRunHandoffs(agent.chainPolicy, dispatch.ok)
       ? await executeHandoffs({

@@ -176,6 +176,62 @@ export const automationTemplates = sqliteTable(
   ],
 );
 
+export const workspaceRuns = sqliteTable(
+  "workspace_runs",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => users.id),
+    projectId: text("project_id").notNull().default("mission-control"),
+    branch: text("branch").notNull(),
+    worktreePath: text("worktree_path").notNull(),
+    status: text("status").notNull().default("active"),
+    metadataJson: text("metadata_json").notNull().default("{}"),
+    createdAt: text("created_at").notNull(),
+    closedAt: text("closed_at"),
+  },
+  (table) => [
+    index("workspace_runs_user_project_created").on(
+      table.userId,
+      table.projectId,
+      table.createdAt,
+    ),
+    index("workspace_runs_user_project_branch_status").on(
+      table.userId,
+      table.projectId,
+      table.branch,
+      table.status,
+    ),
+  ],
+);
+
+export const workflowRunGuards = sqliteTable(
+  "workflow_run_guards",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => users.id),
+    projectId: text("project_id").notNull().default("mission-control"),
+    scopeType: text("scope_type").notNull(),
+    scopeId: text("scope_id").notNull(),
+    runSignature: text("run_signature").notNull(),
+    repeatFailureCount: integer("repeat_failure_count").notNull().default(0),
+    duplicateHitCount: integer("duplicate_hit_count").notNull().default(0),
+    reanalysisRequired: integer("reanalysis_required", { mode: "boolean" }).notNull().default(false),
+    lastCostRiskTier: text("last_cost_risk_tier").notNull().default("low"),
+    lastCostRiskLabel: text("last_cost_risk_label").notNull().default("cost-risk/low"),
+    lastSeenAt: text("last_seen_at").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    index("workflow_run_guards_user_project_scope").on(
+      table.userId,
+      table.projectId,
+      table.scopeType,
+      table.scopeId,
+    ),
+  ],
+);
+
 export const agents = sqliteTable(
   "agents",
   {

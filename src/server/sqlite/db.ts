@@ -213,6 +213,59 @@ function ensureProjectScopedTables() {
   );
 
   ensureTable(
+    "workspace_runs",
+    `CREATE TABLE workspace_runs (
+      id text PRIMARY KEY NOT NULL,
+      user_id text NOT NULL REFERENCES users(id),
+      project_id text NOT NULL DEFAULT '${escapedDefaultProjectId}',
+      branch text NOT NULL,
+      worktree_path text NOT NULL,
+      status text NOT NULL DEFAULT 'active',
+      metadata_json text NOT NULL DEFAULT '{}',
+      created_at text NOT NULL,
+      closed_at text
+    )`,
+  );
+  ensureIndex(
+    "workspace_runs_user_project_created",
+    "CREATE INDEX workspace_runs_user_project_created ON workspace_runs (user_id, project_id, created_at)",
+  );
+  ensureIndex(
+    "workspace_runs_user_project_branch_status",
+    "CREATE INDEX workspace_runs_user_project_branch_status ON workspace_runs (user_id, project_id, branch, status)",
+  );
+
+  ensureTable(
+    "workflow_run_guards",
+    `CREATE TABLE workflow_run_guards (
+      id text PRIMARY KEY NOT NULL,
+      user_id text NOT NULL REFERENCES users(id),
+      project_id text NOT NULL DEFAULT '${escapedDefaultProjectId}',
+      scope_type text NOT NULL,
+      scope_id text NOT NULL,
+      run_signature text NOT NULL,
+      repeat_failure_count integer NOT NULL DEFAULT 0,
+      duplicate_hit_count integer NOT NULL DEFAULT 0,
+      reanalysis_required integer NOT NULL DEFAULT 0,
+      last_cost_risk_tier text NOT NULL DEFAULT 'low',
+      last_cost_risk_label text NOT NULL DEFAULT 'cost-risk/low',
+      last_seen_at text NOT NULL,
+      created_at text NOT NULL,
+      updated_at text NOT NULL
+    )`,
+  );
+  ensureColumn("workflow_run_guards", "repeat_failure_count", "repeat_failure_count integer NOT NULL DEFAULT 0");
+  ensureColumn("workflow_run_guards", "duplicate_hit_count", "duplicate_hit_count integer NOT NULL DEFAULT 0");
+  ensureColumn("workflow_run_guards", "reanalysis_required", "reanalysis_required integer NOT NULL DEFAULT 0");
+  ensureColumn("workflow_run_guards", "last_cost_risk_tier", "last_cost_risk_tier text NOT NULL DEFAULT 'low'");
+  ensureColumn("workflow_run_guards", "last_cost_risk_label", "last_cost_risk_label text NOT NULL DEFAULT 'cost-risk/low'");
+  ensureColumn("workflow_run_guards", "last_seen_at", "last_seen_at text NOT NULL DEFAULT ''");
+  ensureIndex(
+    "workflow_run_guards_user_project_scope",
+    "CREATE INDEX workflow_run_guards_user_project_scope ON workflow_run_guards (user_id, project_id, scope_type, scope_id)",
+  );
+
+  ensureTable(
     "agents",
     `CREATE TABLE agents (
       id text PRIMARY KEY NOT NULL,
