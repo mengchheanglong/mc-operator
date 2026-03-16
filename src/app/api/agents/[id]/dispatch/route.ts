@@ -21,7 +21,13 @@ import {
   createTaskQualityNormalizedError,
   validateTaskQualityPayload,
 } from "@/server/services/task-quality-guardrails";
-import { findWorkspaceRunById } from "@/server/repositories/workspace-runs-repo";
+import { findWorkspaceRunById, updateWorkspaceRun } from "@/server/repositories/workspace-runs-repo";
+import {
+  createWorkspaceRunDispatch,
+  hasRunningWorkspaceRunDispatch,
+  updateWorkspaceRunDispatch,
+} from "@/server/repositories/workspace-run-dispatches-repo";
+import { verifyRunWorktreePath } from "@/server/services/workspace-run-service";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +37,7 @@ interface RouteParams {
 
 const MAX_STORED_DISPATCH_BODY = 12000;
 const inFlightAgentRuns = new Set<string>();
+const inFlightRunDispatches = new Set<string>();
 
 type HandoffResult = {
   agentId: string;
@@ -184,6 +191,15 @@ async function buildAgentBrief(input: {
   return packet;
 }
 
+function shouldFallbackFromAo(body: string) {
+  const normalized = String(body || "").toLowerCase();
+  return normalized.includes("no agent-orchestrator.yaml")
+    || normalized.includes("unknown project")
+    || normalized.includes("tmux is not installed")
+    || normalized.includes("must exist in tracker")
+    || normalized.includes("already used by worktree");
+}
+
 async function runAgentDispatch(input: {
   userId: string;
   project: { id: string; name: string; relativePath: string };
@@ -204,13 +220,30 @@ async function runAgentDispatch(input: {
   const brief = `${packet.brief}\n\nCost risk: ${packet.costRisk.label}`;
   const defaultProjectPath = `${getWorkspaceRootPath().replace(/\\/g, "/")}/${input.project.relativePath.replace(/\\/g, "/")}`;
   const projectPath = input.targetProjectPath || defaultProjectPath;
-  const dispatch = input.agent.backend === "agent-orchestrator"
-    ? await spawnAgentOrchestratorRun(projectPath, brief)
-    : await dispatchToOpenClawAgent({
+  let dispatch;
+  if (input.agent.backend === "agent-orchestrator") {
+    const aoDispatch = await spawnAgentOrchestratorRun(projectPath, brief);
+    if (aoDispatch.ok || !shouldFallbackFromAo(aoDispatch.body)) {
+      dispatch = aoDispatch;
+    } else {
+      const fallbackBrief = [
+        `Run workspace path: ${projectPath}`,
+        "Agent-Orchestrator unavailable in current runtime; executing via OpenClaw fallback for bounded continuity.",
         brief,
+      ].join("\n\n");
+      dispatch = await dispatchToOpenClawAgent({
+        brief: fallbackBrief,
         timeoutSeconds: 180,
         thinking: "medium",
       });
+    }
+  } else {
+    dispatch = await dispatchToOpenClawAgent({
+      brief,
+      timeoutSeconds: 180,
+      thinking: "medium",
+    });
+  }
 
   const aoSessionId = "sessionId" in dispatch ? dispatch.sessionId : null;
   const dispatchBody = truncateDispatchBody(dispatch.body || "");
@@ -531,11 +564,50 @@ export async function POST(req: Request, { params }: RouteParams) {
         );
       }
 
+      const worktreeExists = await verifyRunWorktreePath(run.worktreePath);
+      if (!worktreeExists) {
+        return NextResponse.json(
+          {
+            msg: "Workspace run worktree path is missing.",
+            code: "workspace_run_path_missing",
+            reason: "worktree_path_missing",
+            nextCommand: "Recreate run worktree or close this run and create a new one.",
+            artifactPath: run.worktreePath,
+          },
+          { status: 409 },
+        );
+      }
+
+      if (hasRunningWorkspaceRunDispatch(user.id, project.id, run.id) || inFlightRunDispatches.has(run.id)) {
+        return NextResponse.json(
+          {
+            msg: "Dispatch already running for this run.",
+            code: "run_dispatch_single_flight",
+            reason: "run_dispatch_in_flight",
+            nextCommand: "Wait for current run dispatch to finish and retry.",
+            artifactPath: run.worktreePath,
+          },
+          { status: 409 },
+        );
+      }
+
       targetProjectPath = run.worktreePath.replace(/\\/g, "/");
       runContext = { runId: run.id, worktreePath: run.worktreePath, status: run.status };
     }
 
+    let runDispatchRecord = runContext
+      ? createWorkspaceRunDispatch({
+          userId: user.id,
+          projectId: project.id,
+          runId: runContext.runId,
+          agentId: agent.id,
+          status: "running",
+          metadata: { startedBy: "agents.dispatch", startedAt: new Date().toISOString() },
+        })
+      : null;
+
     inFlightAgentRuns.add(lockKey);
+    if (runContext) inFlightRunDispatches.add(runContext.runId);
     const { brief, packet, dispatch, aoSessionId, dispatchBody, summary: openClawSummary } = await runAgentDispatch({
       userId: user.id,
       project: { id: project.id, name: project.name, relativePath: project.relativePath },
@@ -618,6 +690,38 @@ export async function POST(req: Request, { params }: RouteParams) {
         },
       });
 
+      if (runDispatchRecord) {
+        runDispatchRecord = updateWorkspaceRunDispatch(user.id, project.id, runDispatchRecord.id, {
+          sessionId: aoSessionId || null,
+          model: (dispatch as { modelUsed?: string }).modelUsed || null,
+          finishedAt: new Date().toISOString(),
+          status: "error",
+          failureClass: (dispatch as { failureClass?: string | null }).failureClass || "dispatch_error",
+          command: dispatch.command,
+          reportId: report.id,
+          artifactPath: runContext?.worktreePath || null,
+          metadata: {
+            ...(runDispatchRecord.metadata || {}),
+            dispatchStatus: dispatch.status,
+            runContext,
+          },
+        });
+      }
+      if (runContext) {
+        inFlightRunDispatches.delete(runContext.runId);
+        const runRow = findWorkspaceRunById(user.id, project.id, runContext.runId);
+        if (runRow) {
+          updateWorkspaceRun(user.id, project.id, runContext.runId, {
+            metadata: {
+              ...runRow.metadata,
+              lastDispatchAt: new Date().toISOString(),
+              lastDispatchStatus: "error",
+              lastDispatchReportId: report.id,
+            },
+          });
+        }
+      }
+
       return NextResponse.json(
         {
           msg: "Agent dispatch failed.",
@@ -699,6 +803,38 @@ export async function POST(req: Request, { params }: RouteParams) {
           runContext,
         },
       });
+
+    if (runDispatchRecord) {
+      runDispatchRecord = updateWorkspaceRunDispatch(user.id, project.id, runDispatchRecord.id, {
+        sessionId: aoSessionId || null,
+        model: (dispatch as { modelUsed?: string }).modelUsed || null,
+        finishedAt: new Date().toISOString(),
+        status: "success",
+        failureClass: null,
+        command: dispatch.command,
+        reportId: report.id,
+        artifactPath: runContext?.worktreePath || null,
+        metadata: {
+          ...(runDispatchRecord.metadata || {}),
+          dispatchStatus: dispatch.status,
+          runContext,
+        },
+      });
+    }
+    if (runContext) {
+      inFlightRunDispatches.delete(runContext.runId);
+      const runRow = findWorkspaceRunById(user.id, project.id, runContext.runId);
+      if (runRow) {
+        updateWorkspaceRun(user.id, project.id, runContext.runId, {
+          metadata: {
+            ...runRow.metadata,
+            lastDispatchAt: new Date().toISOString(),
+            lastDispatchStatus: "success",
+            lastDispatchReportId: report.id,
+          },
+        });
+      }
+    }
 
     inFlightAgentRuns.delete(lockKey);
     await appendLessonEvent({

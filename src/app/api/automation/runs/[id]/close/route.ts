@@ -34,11 +34,13 @@ export async function POST(req: Request, { params }: RouteParams) {
 
     inFlightCloseLocks.add(lockKey);
     try {
+      const reason = body.reason === "stale" || body.reason === "error-recovery" ? body.reason : "manual";
       const run = await closeRun({
         userId: user.id,
         project,
         runId: id,
         archive: body.archive !== false,
+        reason,
       });
       return NextResponse.json({ msg: "Workspace run closed.", run });
     } finally {

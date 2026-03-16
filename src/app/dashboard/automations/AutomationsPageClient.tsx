@@ -17,6 +17,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
+import WorkspaceRunsPanel from "./WorkspaceRunsPanel";
 import {
   AUTOMATION_TEMPLATE_PRESETS,
   DEFAULT_N8N_WEBHOOK_PATH,
@@ -845,6 +846,8 @@ export default function AutomationsPageClient({
             <div className="mt-1 text-xs">latest {evalGuard.timestamp ? relativeTime(evalGuard.timestamp) : "unavailable"}</div>
           </div>
         </section>
+
+        <WorkspaceRunsPanel projectId={initialProject.id} />
 
         <section className="matte-panel p-5 sm:p-6">
           <div className="flex flex-wrap items-end justify-between gap-4">

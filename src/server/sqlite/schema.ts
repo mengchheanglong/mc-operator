@@ -204,6 +204,41 @@ export const workspaceRuns = sqliteTable(
   ],
 );
 
+export const workspaceRunDispatches = sqliteTable(
+  "workspace_run_dispatches",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => users.id),
+    projectId: text("project_id").notNull().default("mission-control"),
+    runId: text("run_id").notNull().references(() => workspaceRuns.id),
+    agentId: text("agent_id").notNull(),
+    sessionId: text("session_id"),
+    model: text("model"),
+    startedAt: text("started_at").notNull(),
+    finishedAt: text("finished_at"),
+    status: text("status").notNull().default("running"),
+    failureClass: text("failure_class"),
+    command: text("command"),
+    reportId: text("report_id"),
+    artifactPath: text("artifact_path"),
+    metadataJson: text("metadata_json").notNull().default("{}"),
+  },
+  (table) => [
+    index("workspace_run_dispatches_user_project_run_started").on(
+      table.userId,
+      table.projectId,
+      table.runId,
+      table.startedAt,
+    ),
+    index("workspace_run_dispatches_user_project_run_status").on(
+      table.userId,
+      table.projectId,
+      table.runId,
+      table.status,
+    ),
+  ],
+);
+
 export const workflowRunGuards = sqliteTable(
   "workflow_run_guards",
   {

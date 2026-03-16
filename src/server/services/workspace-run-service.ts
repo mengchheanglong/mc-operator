@@ -1,4 +1,4 @@
-import { mkdir, rename, rm } from "fs/promises";
+import { mkdir, rename, rm, stat } from "fs/promises";
 import path from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
@@ -52,6 +52,31 @@ async function runGit(projectRoot: string, args: string[]) {
 
 export function listRuns(input: { userId: string; projectId: string }) {
   return listWorkspaceRuns(input.userId, input.projectId, 100);
+}
+
+export async function verifyRunWorktreePath(worktreePath: string) {
+  try {
+    const info = await stat(worktreePath);
+    return info.isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+export function detectStaleRuns(input: { userId: string; projectId: string; maxAgeHours?: number; maxInactiveHours?: number }) {
+  const maxAgeMs = (input.maxAgeHours ?? 24) * 60 * 60 * 1000;
+  const maxInactiveMs = (input.maxInactiveHours ?? 6) * 60 * 60 * 1000;
+  const now = Date.now();
+
+  return listWorkspaceRuns(input.userId, input.projectId, 200)
+    .filter((run) => run.status === "active")
+    .filter((run) => {
+      const createdAtMs = Date.parse(run.createdAt);
+      const lastDispatchAt = typeof run.metadata.lastDispatchAt === "string" ? Date.parse(run.metadata.lastDispatchAt) : Number.NaN;
+      const ageStale = Number.isFinite(createdAtMs) ? now - createdAtMs > maxAgeMs : false;
+      const inactiveStale = Number.isFinite(lastDispatchAt) ? now - lastDispatchAt > maxInactiveMs : false;
+      return ageStale || inactiveStale;
+    });
 }
 
 export async function createRun(input: {
@@ -113,11 +138,14 @@ export async function createRun(input: {
   });
 }
 
+export type WorkspaceRunCloseReason = "manual" | "stale" | "error-recovery";
+
 export async function closeRun(input: {
   userId: string;
   project: WorkspaceProject;
   runId: string;
   archive?: boolean;
+  reason?: WorkspaceRunCloseReason;
 }) {
   const run = findWorkspaceRunById(input.userId, input.project.id, input.runId);
   if (!run) {
@@ -175,6 +203,7 @@ export async function closeRun(input: {
       ...run.metadata,
       closedFrom: run.worktreePath,
       archived: finalStatus === "archived",
+      closeReason: input.reason || "manual",
     },
   });
 }

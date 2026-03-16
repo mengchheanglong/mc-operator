@@ -236,6 +236,35 @@ function ensureProjectScopedTables() {
   );
 
   ensureTable(
+    "workspace_run_dispatches",
+    `CREATE TABLE workspace_run_dispatches (
+      id text PRIMARY KEY NOT NULL,
+      user_id text NOT NULL REFERENCES users(id),
+      project_id text NOT NULL DEFAULT '${escapedDefaultProjectId}',
+      run_id text NOT NULL REFERENCES workspace_runs(id),
+      agent_id text NOT NULL,
+      session_id text,
+      model text,
+      started_at text NOT NULL,
+      finished_at text,
+      status text NOT NULL DEFAULT 'running',
+      failure_class text,
+      command text,
+      report_id text,
+      artifact_path text,
+      metadata_json text NOT NULL DEFAULT '{}'
+    )`,
+  );
+  ensureIndex(
+    "workspace_run_dispatches_user_project_run_started",
+    "CREATE INDEX workspace_run_dispatches_user_project_run_started ON workspace_run_dispatches (user_id, project_id, run_id, started_at)",
+  );
+  ensureIndex(
+    "workspace_run_dispatches_user_project_run_status",
+    "CREATE INDEX workspace_run_dispatches_user_project_run_status ON workspace_run_dispatches (user_id, project_id, run_id, status)",
+  );
+
+  ensureTable(
     "workflow_run_guards",
     `CREATE TABLE workflow_run_guards (
       id text PRIMARY KEY NOT NULL,
