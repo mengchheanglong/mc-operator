@@ -5,6 +5,11 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { FolderKanban, Loader2 } from "lucide-react";
 import type { ProjectsPayload } from "@/types/projects";
 
+function formatProjectType(projectType: ProjectsPayload["activeProject"]["projectType"]) {
+  if (projectType === "github") return "github";
+  return "external";
+}
+
 export default function ProjectSwitcher({
   collapsed,
   initialPayload,
@@ -87,15 +92,15 @@ export default function ProjectSwitcher({
 
   return (
     <div className="px-3 pb-3 pt-2">
-      <div className="rounded-[1.2rem] border border-border/85 bg-bg-panel/40 px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+      <div className="rounded-[1.1rem] border border-border/70 bg-bg-panel/55 px-3 py-3">
         <div className="flex items-center gap-2">
-          <FolderKanban className="h-3.5 w-3.5 text-text-secondary" />
+          <FolderKanban className="h-3.5 w-3.5 text-text-muted" />
           <div className="text-[0.58rem] font-semibold uppercase tracking-[0.2em] text-text-muted">
             Active Project
           </div>
         </div>
 
-        <div className="mt-2.5 flex items-center gap-2 rounded-[1rem] border border-border bg-bg-base/92 px-3 py-2">
+        <div className="mt-2.5 flex items-center gap-2 rounded-[0.85rem] border border-border/60 bg-bg-base/80 px-3 py-2">
           <select
             value={payload.activeProject.id || ""}
             onChange={(event) => {
@@ -107,6 +112,7 @@ export default function ProjectSwitcher({
             {payload.projects.map((project) => (
               <option key={project.id} value={project.id}>
                 {project.name}
+                {project.projectType === "github" ? " (github)" : ""}
               </option>
             ))}
           </select>
@@ -123,13 +129,20 @@ export default function ProjectSwitcher({
             {payload.activeProject.relativePath}
           </div>
           <div className="shrink-0 uppercase tracking-[0.16em]">
-            {payload.activeProject.isControlPlane
-              ? "control"
-              : `${payload.activeProject.category}${payload.activeProject.hasGit ? " · git" : ""}`}
+            {(payload.activeProject.isControlPlane
+              ? ["control"]
+              : [
+                  payload.activeProject.category,
+                  payload.activeProject.projectType !== "personal"
+                    ? formatProjectType(payload.activeProject.projectType)
+                    : null,
+                  payload.activeProject.hasGit ? "git" : null,
+                ].filter((t): t is string => t !== null)
+            ).join(" · ")}
           </div>
         </div>
 
-        {error ? <div className="mt-2 text-[11px] text-[#eadcc8]">{error}</div> : null}
+        {error ? <div className="mt-2 text-[11px] text-status-warning">{error}</div> : null}
       </div>
     </div>
   );

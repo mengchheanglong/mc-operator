@@ -2,9 +2,13 @@ import { execSync } from "child_process";
 import { mkdirSync, writeFileSync } from "fs";
 import path from "path";
 
-function run(command: string) {
+function run(command: string, env?: Record<string, string>) {
   try {
-    const output = execSync(command, { encoding: "utf8", stdio: "pipe" });
+    const output = execSync(command, {
+      encoding: "utf8",
+      stdio: "pipe",
+      env: { ...process.env, ...(env || {}) },
+    });
     return { command, ok: true, output: output.trim() };
   } catch (error) {
     const message = String((error as Error & { stdout?: string; stderr?: string }).message || "");
@@ -15,7 +19,9 @@ function run(command: string) {
 function main() {
   const generatedAt = new Date().toISOString();
   const reliability = run("npm run reliability:orchestrator");
-  const readiness = run("npm run check:orchestrator-readiness");
+  const readiness = run("npm run check:orchestrator-readiness", {
+    MISSION_CONTROL_READINESS_SKIP_NIGHTLY_GATES: "true",
+  });
 
   const summary = {
     generatedAt,

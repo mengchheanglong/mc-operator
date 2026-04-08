@@ -42,11 +42,32 @@ export function serializeProjectCookieValue(projectId: string) {
 }
 
 export function listAvailableProjects() {
-  return listWorkspaceProjects().filter((project) => project.category !== "archive");
+  const activeWorkspaceProjects = listWorkspaceProjects().filter((project) => {
+    if (project.category === "archive" || project.category === "tools") return false;
+    if (project.isControlPlane) return true;
+    return project.projectType === "personal";
+  });
+
+  if (activeWorkspaceProjects.length > 0) {
+    return activeWorkspaceProjects;
+  }
+
+  // Safety fallback for new/empty workspaces.
+  return listWorkspaceProjects();
 }
 
 export function resolveProjectById(projectId?: string | null): WorkspaceProject {
-  return findWorkspaceProject(projectId) as WorkspaceProject;
+  const availableProjects = listAvailableProjects();
+  if (availableProjects.length === 0) {
+    return findWorkspaceProject(projectId) as WorkspaceProject;
+  }
+
+  const normalizedProjectId = decodeCookieValue(projectId) || "";
+  const matchedProject = availableProjects.find(
+    (project) => project.id === normalizedProjectId,
+  );
+
+  return matchedProject || availableProjects[0];
 }
 
 export function resolveProjectFromRequest(req: Request | NextRequest) {

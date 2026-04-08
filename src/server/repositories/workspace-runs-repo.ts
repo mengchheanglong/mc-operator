@@ -4,7 +4,7 @@ import { db } from "@/server/sqlite/db";
 import { parseJsonField, stringifyJsonField } from "@/server/sqlite/json";
 import { workspaceRuns } from "@/server/sqlite/schema";
 
-export type WorkspaceRunStatus = "active" | "closed" | "archived" | "error";
+export type WorkspaceRunStatus = "active" | "closed" | "archived" | "error" | "closing_pending_cleanup";
 
 export interface WorkspaceRunRow {
   id: string;

@@ -28,6 +28,37 @@ export interface QuestRow {
   completedDate: string | null;
 }
 
+const QUEST_LIST_CACHE_TTL_MS = 10000;
+const questListCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    quests: QuestRow[];
+  }
+>();
+
+function questListCacheKey(
+  userId: string,
+  projectId: string,
+  opts: {
+    limit?: number;
+    skip?: number;
+    completed?: boolean;
+    status?: QuestStatus;
+    area?: string;
+  },
+) {
+  return JSON.stringify({
+    userId,
+    projectId,
+    limit: opts.limit ?? 1000,
+    skip: opts.skip ?? 0,
+    completed: typeof opts.completed === "boolean" ? opts.completed : null,
+    status: opts.status ?? null,
+    area: normalizeArea(opts.area),
+  });
+}
+
 function toQuestRow(raw: typeof quests.$inferSelect): QuestRow {
   const storedTopics = normalizeTopics(parseJsonField(raw.topicsJson));
 
@@ -60,6 +91,12 @@ export function listQuests(
     area?: string;
   } = {},
 ): QuestRow[] {
+  const cacheKey = questListCacheKey(userId, projectId, opts);
+  const cached = questListCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.quests;
+  }
+
   const limit = opts.limit ?? 1000;
   const offset = opts.skip ?? 0;
   const now = new Date().toISOString();
@@ -80,7 +117,7 @@ export function listQuests(
     conditions.push(eq(quests.area, normalizedArea));
   }
 
-  return db
+  const questRows = db
     .select()
     .from(quests)
     .where(and(...conditions))
@@ -89,6 +126,27 @@ export function listQuests(
     .offset(offset)
     .all()
     .map(toQuestRow);
+
+  questListCache.set(cacheKey, {
+    expiresAt: Date.now() + QUEST_LIST_CACHE_TTL_MS,
+    quests: questRows,
+  });
+
+  return questRows;
+}
+
+export function clearQuestListCache(userId?: string, projectId?: string) {
+  if (!userId || !projectId) {
+    questListCache.clear();
+    return;
+  }
+
+  const prefix = `{"userId":"${userId}","projectId":"${projectId}"`;
+  for (const key of questListCache.keys()) {
+    if (key.startsWith(prefix)) {
+      questListCache.delete(key);
+    }
+  }
 }
 
 export function findQuestById(
@@ -205,6 +263,8 @@ export function createQuest(
     })
     .run();
 
+  clearQuestListCache(userId, projectId);
+
   return {
     id,
     userId,
@@ -265,6 +325,8 @@ export function updateQuest(
     )
     .run();
 
+  clearQuestListCache(userId, projectId);
+
   return {
     ...existing,
     goal: data.goal ?? existing.goal,
@@ -305,6 +367,8 @@ export function toggleQuestCompletion(
     )
     .run();
 
+  clearQuestListCache(userId, projectId);
+
   return { ...existing, status: nextStatus, completed: nextCompleted, completedDate };
 }
 
@@ -319,5 +383,8 @@ export function deleteQuest(userId: string, projectId: string, id: string): bool
       ),
     )
     .run();
+  if (result.changes > 0) {
+    clearQuestListCache(userId, projectId);
+  }
   return result.changes > 0;
 }

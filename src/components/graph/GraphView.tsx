@@ -618,13 +618,13 @@ export default function GraphView({
                     className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-text-primary transition hover:text-white"
                   >
                     <Copy className="h-3.5 w-3.5" />
-                    {activeEntity?.kind === "document" ? "Generate doc task" : "Generate Task"}
+                    {activeEntity?.kind === "document" ? "Generate cluster task" : "Generate Task"}
                   </button>
                   <Link
                     href={buildPromptPackHref("workspace")}
                     className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-text-secondary transition hover:text-white"
                   >
-                    Automations
+                    Task recipes
                   </Link>
                 </div>
               </div>
@@ -663,6 +663,12 @@ export default function GraphView({
             <p className="mt-3 text-sm leading-relaxed text-text-secondary">
               {buildFallbackSummary(activeEntity)}
             </p>
+
+            {activeEntity?.kind === "document" ? (
+              <p className="mt-3 text-xs leading-relaxed text-text-muted">
+                Cluster task uses the pinned note, its direct neighbors, second-hop notes, and unresolved links to build a Codex-ready local graph brief.
+              </p>
+            ) : null}
 
             {whereFoundRows.length > 0 && (
               <div className="mt-4 space-y-2">

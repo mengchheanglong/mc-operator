@@ -6,11 +6,8 @@ import {
   requireAutomationToken,
 } from "@/server/http/automation-auth";
 import { badRequest, serverError } from "@/server/http/api-response";
-import {
-  createQuest,
-  type QuestRow,
-  type QuestStatus,
-} from "@/server/repositories/quests-repo";
+import { proxyBackendRequest } from "@/server/http/directive-backend-proxy";
+import { type QuestStatus } from "@/server/repositories/quests-repo";
 import {
   writeDashboardContextFiles,
   writeQuestContextFile,
@@ -30,13 +27,6 @@ interface AutomationQuestPayload {
   metadata?: Record<string, unknown>;
 }
 
-function serializeQuest(quest: QuestRow) {
-  return {
-    ...quest,
-    _id: quest.id,
-  };
-}
-
 function normalizeDifficulty(value: string): QuestDifficulty {
   const normalized = value.trim().toLowerCase();
   return (["easy", "normal", "hard", "nightmare", "hell"].includes(normalized)
@@ -51,6 +41,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const reqForProxy = req.clone();
     const user = await resolveUserContext();
     const project = resolveProjectFromRequest(req);
     const body = (await req.json()) as AutomationQuestPayload;
@@ -76,23 +67,50 @@ export async function POST(req: NextRequest) {
       return badRequest("Goal must be 100 characters or less.");
     }
 
-    const quest = createQuest(user.id, project.id, goal, difficulty, topics, status, area);
+    const proxiedReq = new Request(reqForProxy.url, {
+      method: "POST",
+      headers: reqForProxy.headers,
+      body: JSON.stringify({
+        goal,
+        difficulty,
+        status,
+        area,
+        topics,
+      }),
+    });
+
+    const response = await proxyBackendRequest({
+      req: proxiedReq,
+      projectId: project.id,
+      path: "/quests",
+    });
+    if (!response.ok) {
+      return response;
+    }
+
+    const payload = (await response.json()) as {
+      quest?: Record<string, unknown> & { id?: string; _id?: string; topics?: string[] };
+    };
+    const quest = payload.quest || null;
+    const questId = String(quest?._id || quest?.id || "").trim();
 
     Promise.all([
       writeDashboardContextFiles(user.id, project),
-      writeQuestContextFile(user.id, project, quest.id),
+      questId
+        ? writeQuestContextFile(user.id, project, questId)
+        : Promise.resolve(),
     ]).catch(console.error);
 
     return NextResponse.json({
       success: true,
       msg: "Automation quest created.",
-      quest: serializeQuest(quest),
+      quest,
       automation: {
         source,
         area,
         status,
         metadata,
-        topics: quest.topics,
+        topics: Array.isArray(quest?.topics) ? quest?.topics : [],
         tokenHeader: AUTOMATION_TOKEN_HEADER,
       },
     });

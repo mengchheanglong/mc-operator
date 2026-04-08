@@ -4,7 +4,10 @@ import { normalizeTopics } from "@/lib/topics";
 import { db } from "@/server/sqlite/db";
 import { parseJsonField, stringifyJsonField } from "@/server/sqlite/json";
 import { reports } from "@/server/sqlite/schema";
-import { syncDailyReportLogForDate } from "@/server/services/daily-report-log-service";
+import {
+  clearDailyReportLogCache,
+  syncDailyReportLogForDate,
+} from "@/server/services/daily-report-log-service";
 
 export type ReportCategory =
   | "system"
@@ -33,9 +36,42 @@ export interface ReportRow {
   date: string;
 }
 
+const REPORT_LIST_CACHE_TTL_MS = 10000;
+const reportListCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    reports: ReportRow[];
+  }
+>();
+
 function normalizeArea(value: string | undefined | null) {
   const trimmed = String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
   return trimmed || null;
+}
+
+function reportListCacheKey(
+  userId: string,
+  projectId: string,
+  opts: {
+    category?: ReportCategory;
+    status?: ReportStatus;
+    area?: string;
+    linkedQuestId?: string;
+    limit?: number;
+    skip?: number;
+  },
+) {
+  return JSON.stringify({
+    userId,
+    projectId,
+    category: opts.category ?? null,
+    status: opts.status ?? null,
+    area: normalizeArea(opts.area),
+    linkedQuestId: opts.linkedQuestId ?? null,
+    limit: opts.limit ?? 50,
+    skip: opts.skip ?? 0,
+  });
 }
 
 function toReportRow(raw: typeof reports.$inferSelect): ReportRow {
@@ -70,6 +106,12 @@ export function listReports(
     skip?: number;
   } = {},
 ): ReportRow[] {
+  const cacheKey = reportListCacheKey(userId, projectId, opts);
+  const cached = reportListCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.reports;
+  }
+
   const limit = opts.limit ?? 50;
   const offset = opts.skip ?? 0;
 
@@ -87,12 +129,33 @@ export function listReports(
     .select()
     .from(reports)
     .where(and(...conditions))
-    .orderBy(desc(reports.date))
+    .orderBy(desc(reports.date), desc(reports.id))
     .limit(limit)
     .offset(offset)
     .all();
 
-  return rows.map(toReportRow);
+  const reportRows = rows.map(toReportRow);
+
+  reportListCache.set(cacheKey, {
+    expiresAt: Date.now() + REPORT_LIST_CACHE_TTL_MS,
+    reports: reportRows,
+  });
+
+  return reportRows;
+}
+
+export function clearReportListCache(userId?: string, projectId?: string) {
+  if (!userId || !projectId) {
+    reportListCache.clear();
+    return;
+  }
+
+  const prefix = `{"userId":"${userId}","projectId":"${projectId}"`;
+  for (const key of reportListCache.keys()) {
+    if (key.startsWith(prefix)) {
+      reportListCache.delete(key);
+    }
+  }
 }
 
 export function findReportById(
@@ -178,6 +241,8 @@ export function createReport(
 
   db.insert(reports).values(row).run();
   syncDailyReportLogForDate(userId, projectId, now);
+  clearDailyReportLogCache(userId, projectId);
+  clearReportListCache(userId, projectId);
 
   return toReportRow(row);
 }
@@ -196,6 +261,8 @@ export function deleteReport(userId: string, projectId: string, id: string): boo
     .run();
   if (result.changes > 0 && existing) {
     syncDailyReportLogForDate(userId, projectId, existing.date);
+    clearDailyReportLogCache(userId, projectId);
+    clearReportListCache(userId, projectId);
   }
   return result.changes > 0;
 }

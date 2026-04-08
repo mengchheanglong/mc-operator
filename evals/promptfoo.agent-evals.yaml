@@ -1,0 +1,25 @@
+description: Mission Control bounded agent/automation evals
+prompts:
+  - "{{output}}"
+providers:
+  - id: echo
+
+defaultTest:
+  assert:
+    - type: contains
+      value: "Objective:"
+      metric: relevance
+    - type: contains
+      value: "Actions:"
+      metric: actionability
+    - type: contains
+      value: "Verification:"
+      metric: verification_quality
+    - type: contains
+      value: "Scope:"
+      metric: bounded_scope
+    - type: not-contains
+      value: "repeat repeat repeat"
+      metric: non_redundancy
+
+tests: file://promptfoo.agent-evals.dataset.yaml

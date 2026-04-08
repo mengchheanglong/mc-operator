@@ -1,0 +1,186 @@
+{
+  "generatedAt": "2026-03-18T10:00:00.000Z",
+  "version": 1,
+  "routes": [
+    {
+      "group": "quests",
+      "files": ["src/app/api/quests/route.ts", "src/app/api/quests/[id]/route.ts", "src/app/api/quests/[id]/complete/route.ts"],
+      "backendAuthoritative": true,
+      "localBusinessLogic": true,
+      "writeFailFastCompliant": true,
+      "readFallbackPresent": true,
+      "removalReady": false,
+      "blockingReason": "read fallback active; pending cutover runway completion"
+    },
+    {
+      "group": "docs",
+      "files": ["src/app/api/docs/route.ts", "src/app/api/docs/[id]/route.ts"],
+      "backendAuthoritative": true,
+      "localBusinessLogic": true,
+      "writeFailFastCompliant": true,
+      "readFallbackPresent": true,
+      "removalReady": false,
+      "blockingReason": "read fallback active; pending cutover runway completion"
+    },
+    {
+      "group": "reports",
+      "files": ["src/app/api/reports/route.ts", "src/app/api/reports/[id]/route.ts"],
+      "backendAuthoritative": true,
+      "localBusinessLogic": true,
+      "writeFailFastCompliant": true,
+      "readFallbackPresent": true,
+      "removalReady": false,
+      "blockingReason": "read fallback active; pending cutover runway completion"
+    },
+    {
+      "group": "notes",
+      "files": ["src/app/api/notes/route.ts", "src/app/api/notes/[id]/route.ts"],
+      "backendAuthoritative": true,
+      "localBusinessLogic": false,
+      "writeFailFastCompliant": true,
+      "readFallbackPresent": false,
+      "removalReady": true,
+      "blockingReason": null
+    },
+    {
+      "group": "views",
+      "files": ["src/app/api/views/route.ts", "src/app/api/views/[id]/route.ts"],
+      "backendAuthoritative": true,
+      "localBusinessLogic": false,
+      "writeFailFastCompliant": true,
+      "readFallbackPresent": false,
+      "removalReady": true,
+      "blockingReason": null
+    },
+    {
+      "group": "agents",
+      "files": ["src/app/api/agents/route.ts", "src/app/api/agents/[id]/route.ts", "src/app/api/agents/[id]/dispatch/route.ts", "src/app/api/agents/[id]/send/route.ts", "src/app/api/agents/[id]/status/route.ts", "src/app/api/agents/[id]/kill/route.ts", "src/app/api/agents/[id]/restore/route.ts", "src/app/api/agents/import-packs/route.ts", "src/app/api/agents/[id]/pack-assets/route.ts"],
+      "backendAuthoritative": true,
+      "localBusinessLogic": false,
+      "writeFailFastCompliant": false,
+      "readFallbackPresent": false,
+      "removalReady": true,
+      "blockingReason": null
+    },
+    {
+      "group": "automation/runs",
+      "files": ["src/app/api/automation/runs/route.ts", "src/app/api/automation/runs/create/route.ts", "src/app/api/automation/runs/[id]/close/route.ts", "src/app/api/automation/runs/[id]/summary/route.ts", "src/app/api/automation/runs/[id]/tools/route.ts", "src/app/api/automation/runs/[id]/tooling-audit/route.ts"],
+      "backendAuthoritative": true,
+      "localBusinessLogic": false,
+      "writeFailFastCompliant": false,
+      "readFallbackPresent": false,
+      "removalReady": true,
+      "blockingReason": null
+    },
+    {
+      "group": "automation/templates",
+      "files": ["src/app/api/automation/templates/route.ts", "src/app/api/automation/templates/[id]/route.ts", "src/app/api/automation/templates/[id]/check/route.ts", "src/app/api/automation/templates/[id]/execute/route.ts", "src/app/api/automation/templates/[id]/run/route.ts", "src/app/api/automation/templates/[id]/runs/route.ts"],
+      "backendAuthoritative": true,
+      "localBusinessLogic": false,
+      "writeFailFastCompliant": false,
+      "readFallbackPresent": false,
+      "removalReady": true,
+      "blockingReason": null
+    },
+    {
+      "group": "automation/quests",
+      "files": ["src/app/api/automation/quests/route.ts"],
+      "backendAuthoritative": true,
+      "localBusinessLogic": true,
+      "writeFailFastCompliant": false,
+      "readFallbackPresent": false,
+      "removalReady": false,
+      "blockingReason": "local context writes present; requires audit before removal"
+    },
+    {
+      "group": "automation/reports",
+      "files": ["src/app/api/automation/reports/route.ts"],
+      "backendAuthoritative": true,
+      "localBusinessLogic": true,
+      "writeFailFastCompliant": false,
+      "readFallbackPresent": false,
+      "removalReady": false,
+      "blockingReason": "local context writes present; requires audit before removal"
+    },
+    {
+      "group": "automation/other",
+      "files": ["src/app/api/automation/n8n/status/route.ts", "src/app/api/automation/openclaw/health/route.ts", "src/app/api/automation/session-brief/route.ts"],
+      "backendAuthoritative": true,
+      "localBusinessLogic": false,
+      "writeFailFastCompliant": false,
+      "readFallbackPresent": false,
+      "removalReady": true,
+      "blockingReason": null
+    },
+    {
+      "group": "directive-workspace",
+      "files": ["src/app/api/directive-workspace/capabilities/route.ts", "src/app/api/directive-workspace/capabilities/[id]/route.ts", "src/app/api/directive-workspace/capabilities/[id]/analysis/route.ts", "src/app/api/directive-workspace/capabilities/[id]/decision/route.ts", "src/app/api/directive-workspace/capabilities/[id]/evaluations/route.ts", "src/app/api/directive-workspace/capabilities/[id]/experiments/route.ts", "src/app/api/directive-workspace/capabilities/[id]/lifecycle/route.ts", "src/app/api/directive-workspace/capabilities/[id]/proof/route.ts", "src/app/api/directive-workspace/registry/route.ts"],
+      "backendAuthoritative": true,
+      "localBusinessLogic": false,
+      "writeFailFastCompliant": false,
+      "readFallbackPresent": false,
+      "removalReady": true,
+      "blockingReason": null
+    },
+    {
+      "group": "projects",
+      "files": ["src/app/api/projects/route.ts", "src/app/api/projects/active/route.ts", "src/app/api/projects/activate/route.ts", "src/app/api/projects/graph/route.ts"],
+      "backendAuthoritative": true,
+      "localBusinessLogic": true,
+      "writeFailFastCompliant": false,
+      "readFallbackPresent": false,
+      "removalReady": false,
+      "blockingReason": "local cookie state management (active/activate); requires audit before removal"
+    },
+    {
+      "group": "ops",
+      "files": ["src/app/api/ops/health/route.ts", "src/app/api/ops/nightly/route.ts", "src/app/api/ops/repo-sources/route.ts"],
+      "backendAuthoritative": false,
+      "localBusinessLogic": true,
+      "writeFailFastCompliant": false,
+      "readFallbackPresent": false,
+      "removalReady": false,
+      "blockingReason": "ops/repo-sources uses pure local services with async backend writes; not proxy-only"
+    },
+    {
+      "group": "workspace",
+      "files": ["src/app/api/workspace/bootstrap/route.ts"],
+      "backendAuthoritative": true,
+      "localBusinessLogic": false,
+      "writeFailFastCompliant": false,
+      "readFallbackPresent": false,
+      "removalReady": true,
+      "blockingReason": null
+    },
+    {
+      "group": "code-graph",
+      "files": ["src/app/api/code-graph/index/route.ts"],
+      "backendAuthoritative": true,
+      "localBusinessLogic": false,
+      "writeFailFastCompliant": false,
+      "readFallbackPresent": false,
+      "removalReady": true,
+      "blockingReason": null
+    },
+    {
+      "group": "context",
+      "files": ["src/app/api/context/export/route.ts"],
+      "backendAuthoritative": true,
+      "localBusinessLogic": false,
+      "writeFailFastCompliant": false,
+      "readFallbackPresent": false,
+      "removalReady": true,
+      "blockingReason": null
+    },
+    {
+      "group": "workflow",
+      "files": ["src/app/api/workflow/guards/route.ts"],
+      "backendAuthoritative": true,
+      "localBusinessLogic": false,
+      "writeFailFastCompliant": false,
+      "readFallbackPresent": false,
+      "removalReady": true,
+      "blockingReason": null
+    }
+  ]
+}

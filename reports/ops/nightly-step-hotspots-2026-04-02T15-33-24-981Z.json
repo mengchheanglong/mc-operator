@@ -1,0 +1,132 @@
+{
+  "generatedAt": "2026-04-02T15:33:24.981Z",
+  "ok": false,
+  "health": {
+    "status": "warning",
+    "ok": false,
+    "reasons": [
+      "flagged_steps_exceeded"
+    ],
+    "totalSteps": 5,
+    "flaggedCount": 4,
+    "thresholds": {
+      "maxFlaggedSteps": 0
+    }
+  },
+  "thresholds": {
+    "limit": 8,
+    "minSamplesPerStep": 3,
+    "maxFailureRate": 0.35,
+    "slowDurationMs": 180000,
+    "maxSlowRuns": 3,
+    "maxDurationSpikeRatio": 2,
+    "minFailingStreak": 2,
+    "minSlowStreak": 2,
+    "maxFlaggedSteps": 0
+  },
+  "hotspots": [
+    {
+      "stepId": "ops_health_snapshot",
+      "severity": "high",
+      "severityScore": 9,
+      "samples": 8,
+      "failureCount": 4,
+      "failureRate": 0.5,
+      "failingStreak": 4,
+      "slowCount": 0,
+      "slowStreak": 0,
+      "avgDurationMs": 1006.125,
+      "medianDurationMs": 792,
+      "latestDurationMs": 825,
+      "durationSpikeRatio": 1.0416666666666667,
+      "lastFailureAt": "2026-04-02T15:30:02.909Z",
+      "latestReportFile": "nightly-ops-bundle-2026-04-02T15-30-02-909Z.json",
+      "reasons": [
+        "failure_rate_exceeded"
+      ],
+      "flagged": true
+    },
+    {
+      "stepId": "orchestrator_nightly",
+      "severity": "high",
+      "severityScore": 9,
+      "samples": 8,
+      "failureCount": 4,
+      "failureRate": 0.5,
+      "failingStreak": 4,
+      "slowCount": 1,
+      "slowStreak": 0,
+      "avgDurationMs": 121006.375,
+      "medianDurationMs": 136064,
+      "latestDurationMs": 90265,
+      "durationSpikeRatio": 0.6634010465663217,
+      "lastFailureAt": "2026-04-02T15:30:02.909Z",
+      "latestReportFile": "nightly-ops-bundle-2026-04-02T15-30-02-909Z.json",
+      "reasons": [
+        "failure_rate_exceeded"
+      ],
+      "flagged": true
+    },
+    {
+      "stepId": "workspace_health_nightly",
+      "severity": "high",
+      "severityScore": 9,
+      "samples": 8,
+      "failureCount": 4,
+      "failureRate": 0.5,
+      "failingStreak": 4,
+      "slowCount": 0,
+      "slowStreak": 0,
+      "avgDurationMs": 130873.25,
+      "medianDurationMs": 152632,
+      "latestDurationMs": 90111,
+      "durationSpikeRatio": 0.5903807851564548,
+      "lastFailureAt": "2026-04-02T15:30:02.909Z",
+      "latestReportFile": "nightly-ops-bundle-2026-04-02T15-30-02-909Z.json",
+      "reasons": [
+        "failure_rate_exceeded"
+      ],
+      "flagged": true
+    },
+    {
+      "stepId": "canary_nightly",
+      "severity": "high",
+      "severityScore": 9,
+      "samples": 8,
+      "failureCount": 4,
+      "failureRate": 0.5,
+      "failingStreak": 4,
+      "slowCount": 0,
+      "slowStreak": 0,
+      "avgDurationMs": 38283.125,
+      "medianDurationMs": 65145,
+      "latestDurationMs": 7908,
+      "durationSpikeRatio": 0.12139074372553535,
+      "lastFailureAt": "2026-04-02T15:30:02.909Z",
+      "latestReportFile": "nightly-ops-bundle-2026-04-02T15-30-02-909Z.json",
+      "reasons": [
+        "failure_rate_exceeded"
+      ],
+      "flagged": true
+    },
+    {
+      "stepId": "repo_sources_nightly",
+      "severity": "low",
+      "severityScore": 0,
+      "samples": 8,
+      "failureCount": 0,
+      "failureRate": 0,
+      "failingStreak": 0,
+      "slowCount": 0,
+      "slowStreak": 0,
+      "avgDurationMs": 13872.875,
+      "medianDurationMs": 12828,
+      "latestDurationMs": 11805,
+      "durationSpikeRatio": 0.9202525724976613,
+      "lastFailureAt": null,
+      "latestReportFile": "nightly-ops-bundle-2026-04-02T15-30-02-909Z.json",
+      "reasons": [],
+      "flagged": false
+    }
+  ]
+}

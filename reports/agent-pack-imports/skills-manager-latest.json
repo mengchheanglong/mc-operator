@@ -1,0 +1,25 @@
+{
+  "suite": "skills-manager-import-smoke",
+  "ok": true,
+  "generatedAt": "2026-03-21T14:08:57.241Z",
+  "workspaceRoot": "C:\\Users\\User\\.openclaw\\workspace",
+  "backendBaseUrl": "http://127.0.0.1:3418/api/v1",
+  "sourcePack": "skills-manager",
+  "importedCount": 1,
+  "updatedCount": 1,
+  "importedAgent": {
+    "name": "Skills Lifecycle Operator",
+    "sourcePack": "skills-manager",
+    "sourceRef": "skills-manager/lifecycle-operator",
+    "workflowMode": "execution",
+    "packAssetLabels": [
+      "README.md",
+      "scripts",
+      "src",
+      "assets"
+    ],
+    "packAssetCount": 4
+  },
+  "latestPath": "C:\\Users\\User\\.openclaw\\workspace\\mission-control\\reports\\agent-pack-imports\\skills-manager-latest.json",
+  "archivePath": "C:\\Users\\User\\.openclaw\\workspace\\mission-control\\reports\\agent-pack-imports\\skills-manager-2026-03-21T14-08-57-242Z.json"
+}

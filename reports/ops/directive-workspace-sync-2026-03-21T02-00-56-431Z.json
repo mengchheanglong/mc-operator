@@ -1,0 +1,81 @@
+{
+  "generatedAt": "2026-03-21T02:00:56.431Z",
+  "timezone": "Asia/Bangkok",
+  "dayKey": "2026-03-21",
+  "latestArtifactAt": "2026-03-21T01:59:53.536Z",
+  "artifactCount": 7,
+  "artifactsByTrack": {
+    "architecture": 3,
+    "discovery": 1,
+    "forge": 0,
+    "shared": 3
+  },
+  "artifacts": [
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-19-gh-aw-slice-4-adopted-planned-next.md",
+      "relativePath": "architecture/03-adopted/2026-03-19-gh-aw-slice-4-adopted-planned-next.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-21T01:59:53.536Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\discovery\\routing-log\\2026-03-21-accepted-implementation-bundle-21-gh-aw-contract-closure.md",
+      "relativePath": "discovery/routing-log/2026-03-21-accepted-implementation-bundle-21-gh-aw-contract-closure.md",
+      "track": "discovery",
+      "mtimeIso": "2026-03-21T01:59:43.678Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-21-gh-aw-contract-closure-slice-12.md",
+      "relativePath": "architecture/02-experiments/2026-03-21-gh-aw-contract-closure-slice-12.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-21T01:59:31.184Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\05-reference-patterns\\2026-03-21-gh-aw-lane-split-contract-policy.md",
+      "relativePath": "architecture/05-reference-patterns/2026-03-21-gh-aw-lane-split-contract-policy.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-21T01:59:17.256Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\automation-lane-split.md",
+      "relativePath": "shared/contracts/automation-lane-split.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-21T01:59:09.900Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\templates\\promotion-record.md",
+      "relativePath": "shared/templates/promotion-record.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-21T01:59:01.942Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\promotion-contract.md",
+      "relativePath": "shared/contracts/promotion-contract.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-21T01:58:56.826Z"
+    }
+  ],
+  "graphChanges": [
+    "docs/operations/CODEGRAPH_PROD_GUARDRAILS.md",
+    "reports/codegraph-spike-artifacts/",
+    "reports/codegraph-spike-report.md",
+    "scripts/check-codegraph-rollback-threshold.ts",
+    "scripts/check-codegraph-spike.ts",
+    "scripts/run-codegraph-spike.ts",
+    "scripts/summarize-codegraph-telemetry.ts",
+    "src/app/api/code-graph/index/route.ts",
+    "src/app/api/projects/graph/route.ts",
+    "src/app/dashboard/graph/GraphPageClient.tsx",
+    "src/components/graph/GraphView.tsx",
+    "src/server/services/codegraph-summary-service.ts"
+  ],
+  "signature": "fc4a9fe7df0993df",
+  "reportId": "27401ae6-6243-4ae4-bf48-97bb776ea225",
+  "graphReportId": "2bec6770-7fac-4dd7-a27b-be3e48fb6c03",
+  "reusedReportId": null,
+  "reportPaths": {
+    "timestampedMarkdown": "C:\\Users\\User\\.openclaw\\workspace\\mission-control\\reports\\ops\\directive-workspace-sync-2026-03-21T02-00-56-431Z.md",
+    "latestMarkdown": "C:\\Users\\User\\.openclaw\\workspace\\mission-control\\reports\\ops\\directive-workspace-sync-latest.md",
+    "timestampedJson": "C:\\Users\\User\\.openclaw\\workspace\\mission-control\\reports\\ops\\directive-workspace-sync-2026-03-21T02-00-56-431Z.json",
+    "latestJson": "C:\\Users\\User\\.openclaw\\workspace\\mission-control\\reports\\ops\\directive-workspace-sync-latest.json"
+  }
+}

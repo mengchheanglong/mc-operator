@@ -1,6 +1,6 @@
 # Tool Admission Guardrails
 
-This guardrail defines the deterministic admission pipeline for candidate tools from `agent-lab` into Mission Control/OpenClaw workflows.
+This guardrail defines the deterministic admission pipeline for candidate tools into Directive Workspace / Mission Control workflows.
 
 ## Command
 
@@ -28,9 +28,9 @@ npm run check:tool-admission
    - numeric score
    - reason
    - next action
-5. Syncs report-driven generated blocks into:
-   - `../agent-lab/PROJECT_CLASSIFICATION.md`
-   - `../agent-lab/tooling-parked/MANIFEST.md`
+5. Syncs report-driven generated blocks into Directive Workspace retirement mirrors:
+   - `../directive-workspace/discovery/agent-lab-extraction/PROJECT_CLASSIFICATION.md`
+   - `../directive-workspace/discovery/agent-lab-extraction/PARKED_MANIFEST.md`
 
 ## Status policy
 

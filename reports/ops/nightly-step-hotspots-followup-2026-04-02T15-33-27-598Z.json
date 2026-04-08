@@ -1,0 +1,74 @@
+{
+  "generatedAt": "2026-04-02T15:33:27.598Z",
+  "ok": false,
+  "minSeverity": "high",
+  "sourceGeneratedAt": "2026-04-02T15:33:26.501Z",
+  "sourceAlertCount": 4,
+  "selectedAlertCount": 4,
+  "bySeverity": {
+    "high": 4,
+    "medium": 0,
+    "low": 0
+  },
+  "topAlerts": [
+    {
+      "stepId": "ops_health_snapshot",
+      "severity": "high",
+      "reasons": [
+        "failure_rate_exceeded"
+      ],
+      "failureRate": 0.5,
+      "failingStreak": 4,
+      "slowStreak": 0,
+      "latestDurationMs": 825,
+      "lastFailureAt": "2026-04-02T15:30:02.909Z"
+    },
+    {
+      "stepId": "orchestrator_nightly",
+      "severity": "high",
+      "reasons": [
+        "failure_rate_exceeded"
+      ],
+      "failureRate": 0.5,
+      "failingStreak": 4,
+      "slowStreak": 0,
+      "latestDurationMs": 90265,
+      "lastFailureAt": "2026-04-02T15:30:02.909Z"
+    },
+    {
+      "stepId": "workspace_health_nightly",
+      "severity": "high",
+      "reasons": [
+        "failure_rate_exceeded"
+      ],
+      "failureRate": 0.5,
+      "failingStreak": 4,
+      "slowStreak": 0,
+      "latestDurationMs": 90111,
+      "lastFailureAt": "2026-04-02T15:30:02.909Z"
+    },
+    {
+      "stepId": "canary_nightly",
+      "severity": "high",
+      "reasons": [
+        "failure_rate_exceeded"
+      ],
+      "failureRate": 0.5,
+      "failingStreak": 4,
+      "slowStreak": 0,
+      "latestDurationMs": 7908,
+      "lastFailureAt": "2026-04-02T15:30:02.909Z"
+    }
+  ],
+  "questAction": {
+    "action": "created",
+    "questId": "1113b66d-f566-4d70-92fb-46c8eb6cc577",
+    "dedupeKey": "nightly-hotspot:5bb172dca2b9",
+    "failureClass": "high:canary_nightly:failure_rate_exceeded|high:ops_health_snapshot:failure_rate_exceeded|high:orchestrator_nightly:failure_rate_exceeded|high:workspace_health_nightly:failure_rate_exceeded",
+    "cooldown": {
+      "onCooldown": false,
+      "minutesRemaining": 0,
+      "lastAlertAt": null
+    }
+  }
+}

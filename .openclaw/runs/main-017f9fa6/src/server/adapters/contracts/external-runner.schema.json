@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mission-control/adapter/external-runner",
+  "type": "object",
+  "properties": {
+    "input": {
+      "type": "object",
+      "required": ["args"],
+      "properties": {
+        "args": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "output": {
+      "type": "object",
+      "required": ["ok", "status", "body", "args", "sessionId"],
+      "properties": {
+        "ok": { "type": "boolean" },
+        "status": { "type": "number" },
+        "body": { "type": "string" },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "sessionId": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    }
+  },
+  "required": ["input", "output"],
+  "additionalProperties": false
+}

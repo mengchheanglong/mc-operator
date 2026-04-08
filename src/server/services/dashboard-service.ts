@@ -14,6 +14,24 @@ import {
 } from "@/server/services/workspace-intel-service";
 import { buildN8nAutomationSnapshot } from "@/server/services/n8n-service";
 import { evaluateReliability, type ReliabilitySample } from "@/server/services/reliability-ops-service";
+import {
+  readRepoSourcesLatestReport,
+  type RepoSourcesLatestSnapshot,
+} from "@/server/services/repo-sources-report-service";
+import {
+  evaluateNightlyOpsStepHotspotsHealth,
+  evaluateNightlyOpsTrendHealth,
+  readNightlyOpsStepHotspots,
+  readNightlyOpsStepHotspotAlertsLatest,
+  readNightlyOpsStepHotspotFollowUpLatest,
+  readNightlyOpsStepHotspotReportLatest,
+  readNightlyOpsStepHotspotSummaryLatest,
+  readNightlyOpsStepHotspotTrend,
+  readNightlyOpsBundleTrend,
+  readNightlyOpsSnapshot,
+  type NightlyOpsStepHotspot,
+  type NightlyOpsStatusItem,
+} from "@/server/services/nightly-ops-status-service";
 import type { AutomationSnapshotView } from "@/types/context-pack";
 
 type DashboardDoc = {
@@ -138,6 +156,80 @@ export interface DashboardSnapshot {
     status: "healthy" | "degraded" | "insufficient_data";
     trend24h: Array<{ at: string; timeout_rate: number; failover_rate: number; tool_error_rate: number }>;
   };
+  nightlyOps: {
+    bundle: NightlyOpsStatusItem;
+    opsHealthSnapshot: NightlyOpsStatusItem;
+    repoSources: NightlyOpsStatusItem;
+    workspaceHealth: NightlyOpsStatusItem;
+    canary: NightlyOpsStatusItem;
+    orchestrator: NightlyOpsStatusItem;
+  };
+  nightlyOpsTrend: Array<{ at: string; durationMs: number; ok: boolean }>;
+  nightlyOpsTrendHealth: {
+    status: "healthy" | "warning" | "insufficient_data";
+    reasons: string[];
+    failingRatio: number;
+    latestDurationMs: number | null;
+    medianDurationMs: number | null;
+    spikeRatio: number | null;
+  };
+  nightlyOpsHotspots: NightlyOpsStepHotspot[];
+  nightlyOpsHotspotHealth: {
+    status: "healthy" | "warning" | "insufficient_data";
+    reasons: string[];
+    totalSteps: number;
+    flaggedCount: number;
+  };
+  nightlyOpsHotspotReport: {
+    available: boolean;
+    stale: boolean;
+    ok: boolean | null;
+    generatedAt: string | null;
+    flaggedCount: number;
+    totalSteps: number;
+  };
+  nightlyOpsHotspotTrend: Array<{ at: string; flaggedCount: number; ok: boolean }>;
+  nightlyOpsHotspotSummary: {
+    available: boolean;
+    overall: "PASS" | "FAIL" | "UNKNOWN";
+    generatedAt: string | null;
+    hotspotReportGeneratedAt: string | null;
+    flaggedCount: number | null;
+    totalSteps: number | null;
+    worstStep: string | null;
+  };
+  nightlyOpsHotspotAlerts: {
+    available: boolean;
+    stale: boolean;
+    ok: boolean | null;
+    generatedAt: string | null;
+    alertCount: number;
+    bySeverity: {
+      high: number;
+      medium: number;
+      low: number;
+    };
+  };
+  nightlyOpsHotspotFollowUp: {
+    available: boolean;
+    stale: boolean;
+    ok: boolean | null;
+    generatedAt: string | null;
+    minSeverity: "high" | "medium" | "low" | null;
+    selectedCount: number;
+    questAction: {
+      action: "none" | "created" | "updated" | "suppressed";
+      questId: string | null;
+      dedupeKey: string | null;
+      failureClass: string | null;
+      cooldown: {
+        onCooldown: boolean;
+        minutesRemaining: number;
+        lastAlertAt: string | null;
+      };
+    } | null;
+  };
+  repoSources: RepoSourcesLatestSnapshot;
   resumeWork: DashboardActionItem[];
   activeQuests: DashboardQuest[];
   health: {
@@ -280,6 +372,80 @@ export async function buildDashboardSnapshot(
   );
   const assistantReadiness = buildWorkspaceReadiness(userId, project);
   const repoSnapshot = buildRepoSnapshot(project);
+  const repoSources = readRepoSourcesLatestReport();
+  const nightlyOps = readNightlyOpsSnapshot({ maxAgeHours: 30 }).items;
+  const nightlyOpsTrend = readNightlyOpsBundleTrend({ limit: 8 })
+    .map((item) => ({
+      at: item.generatedAt || new Date().toISOString(),
+      durationMs: Math.max(0, item.durationMs),
+      ok: item.ok === true,
+    }));
+  const nightlyOpsTrendHealthRaw = evaluateNightlyOpsTrendHealth(
+    readNightlyOpsBundleTrend({ limit: 8 }),
+  );
+  const nightlyOpsTrendHealth = {
+    status: nightlyOpsTrendHealthRaw.status,
+    reasons: nightlyOpsTrendHealthRaw.reasons,
+    failingRatio: nightlyOpsTrendHealthRaw.failingRatio,
+    latestDurationMs: nightlyOpsTrendHealthRaw.latestDurationMs,
+    medianDurationMs: nightlyOpsTrendHealthRaw.medianDurationMs,
+    spikeRatio: nightlyOpsTrendHealthRaw.spikeRatio,
+  };
+  const nightlyOpsHotspots = readNightlyOpsStepHotspots({ limit: 8 });
+  const nightlyOpsHotspotHealthRaw = evaluateNightlyOpsStepHotspotsHealth(nightlyOpsHotspots);
+  const nightlyOpsHotspotReportRaw = readNightlyOpsStepHotspotReportLatest({ maxAgeHours: 30 });
+  const nightlyOpsHotspotSummaryRaw = readNightlyOpsStepHotspotSummaryLatest();
+  const nightlyOpsHotspotAlertsRaw = readNightlyOpsStepHotspotAlertsLatest({ maxAgeHours: 30 });
+  const nightlyOpsHotspotFollowUpRaw = readNightlyOpsStepHotspotFollowUpLatest({ maxAgeHours: 30 });
+  const nightlyOpsHotspotTrend = readNightlyOpsStepHotspotTrend({ limit: 8 })
+    .map((item) => ({
+      at: item.generatedAt || new Date().toISOString(),
+      flaggedCount: Math.max(0, item.flaggedCount),
+      ok: item.ok === true,
+    }));
+  const nightlyOpsHotspotHealth = {
+    status: nightlyOpsHotspotHealthRaw.status,
+    reasons: nightlyOpsHotspotHealthRaw.reasons,
+    totalSteps: nightlyOpsHotspotHealthRaw.totalSteps,
+    flaggedCount: nightlyOpsHotspotHealthRaw.flaggedCount,
+  };
+  const nightlyOpsHotspotReport = {
+    available: nightlyOpsHotspotReportRaw.available,
+    stale: nightlyOpsHotspotReportRaw.stale,
+    ok: nightlyOpsHotspotReportRaw.ok,
+    generatedAt: nightlyOpsHotspotReportRaw.generatedAt,
+    flaggedCount: nightlyOpsHotspotReportRaw.flaggedCount,
+    totalSteps: nightlyOpsHotspotReportRaw.totalSteps,
+  };
+  const nightlyOpsHotspotSummary = {
+    available: nightlyOpsHotspotSummaryRaw.available,
+    overall: nightlyOpsHotspotSummaryRaw.overall,
+    generatedAt: nightlyOpsHotspotSummaryRaw.generatedAt,
+    hotspotReportGeneratedAt: nightlyOpsHotspotSummaryRaw.hotspotReportGeneratedAt,
+    flaggedCount: nightlyOpsHotspotSummaryRaw.flaggedCount,
+    totalSteps: nightlyOpsHotspotSummaryRaw.totalSteps,
+    worstStep: nightlyOpsHotspotSummaryRaw.worstStep,
+  };
+  const nightlyOpsHotspotAlerts = {
+    available: nightlyOpsHotspotAlertsRaw.available,
+    stale: nightlyOpsHotspotAlertsRaw.stale,
+    ok: nightlyOpsHotspotAlertsRaw.ok,
+    generatedAt: nightlyOpsHotspotAlertsRaw.generatedAt,
+    alertCount: nightlyOpsHotspotAlertsRaw.alertCount,
+    bySeverity: nightlyOpsHotspotAlertsRaw.bySeverity,
+  };
+  const nightlyOpsHotspotFollowUp = {
+    available: nightlyOpsHotspotFollowUpRaw.available,
+    stale: nightlyOpsHotspotFollowUpRaw.stale,
+    ok: nightlyOpsHotspotFollowUpRaw.ok,
+    generatedAt: nightlyOpsHotspotFollowUpRaw.generatedAt,
+    minSeverity: nightlyOpsHotspotFollowUpRaw.minSeverity,
+    selectedCount:
+      nightlyOpsHotspotFollowUpRaw.highCount
+      + nightlyOpsHotspotFollowUpRaw.mediumCount
+      + nightlyOpsHotspotFollowUpRaw.lowCount,
+    questAction: nightlyOpsHotspotFollowUpRaw.questAction,
+  };
   const automation = await buildN8nAutomationSnapshot(project);
   const unresolvedMap = new Map<
     string,
@@ -554,6 +720,32 @@ export async function buildDashboardSnapshot(
     });
   }
 
+  if (repoSources.available && repoSources.summary.blocked > 0) {
+    suggestions.unshift({
+      id: "suggest-repo-sources-reconcile",
+      title: "Unblock repository sync failures",
+      description: `${repoSources.summary.blocked} repository source checks are blocked.`,
+      href: "/dashboard/report",
+      cta: "Review ops report",
+      tone: "warning",
+    });
+  }
+
+  if (!nightlyOps.bundle.available || nightlyOps.bundle.stale || nightlyOps.bundle.ok !== true) {
+    suggestions.unshift({
+      id: "suggest-run-nightly-ops",
+      title: "Refresh nightly ops bundle",
+      description: !nightlyOps.bundle.available
+        ? "Nightly ops bundle report is missing."
+        : nightlyOps.bundle.stale
+          ? "Nightly ops bundle report is stale."
+          : "Nightly ops bundle is degraded.",
+      href: "/dashboard/report",
+      cta: "Review nightly reports",
+      tone: "warning",
+    });
+  }
+
   const tagCountMap = new Map<string, number>();
   for (const document of docs) {
     for (const tag of document.tags) {
@@ -690,6 +882,17 @@ export async function buildDashboardSnapshot(
       status: reliabilitySummary.status,
       trend24h,
     },
+    nightlyOps,
+    nightlyOpsTrend,
+    nightlyOpsTrendHealth,
+    nightlyOpsHotspots,
+    nightlyOpsHotspotHealth,
+    nightlyOpsHotspotReport,
+    nightlyOpsHotspotTrend,
+    nightlyOpsHotspotSummary,
+    nightlyOpsHotspotAlerts,
+    nightlyOpsHotspotFollowUp,
+    repoSources,
     resumeWork,
     activeQuests,
     health: {

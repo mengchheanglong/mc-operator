@@ -3,14 +3,15 @@ import { PROMPT_PACK_ROUTE } from "@/lib/context-pack/href";
 
 export const dynamic = "force-dynamic";
 
-export default function PromptPackPage({
+export default async function PromptPackPage({
   searchParams,
 }: {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const resolvedSearchParams = (await searchParams) ?? {};
   const params = new URLSearchParams();
 
-  for (const [key, value] of Object.entries(searchParams || {})) {
+  for (const [key, value] of Object.entries(resolvedSearchParams)) {
     if (Array.isArray(value)) {
       for (const item of value) {
         params.append(key, item);

@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
 import { resolveProjectFromRequest } from "@/server/context/project-context";
 import { resolveUserContext } from "@/server/context/user-context";
-import { listNotes, createNote, type NoteRow } from "@/server/repositories/notes-repo";
 import { badRequest, serverError } from "@/server/http/api-response";
+import { backendRequiredForWriteResponse } from "@/server/http/backend-write-policy";
+import { proxyBackendRequest } from "@/server/http/directive-backend-proxy";
 import { writeDashboardContextFiles } from "@/server/services/workspace-context-writer";
 
 export const dynamic = "force-dynamic";
@@ -11,24 +11,14 @@ interface CreateNotePayload {
   content?: string;
 }
 
-function serializeNote(note: NoteRow) {
-  return {
-    id: note.id,
-    content: note.content,
-    completed: note.completed,
-    createdAt: note.createdAt,
-    updatedAt: note.updatedAt,
-  };
-}
-
 export async function GET(req: Request) {
   try {
-    const user = await resolveUserContext();
+    await resolveUserContext();
     const project = resolveProjectFromRequest(req);
-    const notes = listNotes(user.id, project.id);
-
-    return NextResponse.json({
-      notes: notes.map(serializeNote),
+    return proxyBackendRequest({
+      req,
+      projectId: project.id,
+      path: "/notes",
     });
   } catch (error) {
     return serverError(error, "Fetch notes error");
@@ -37,6 +27,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const reqForProxy = req.clone();
     const user = await resolveUserContext();
     const project = resolveProjectFromRequest(req);
 
@@ -51,14 +42,29 @@ export async function POST(req: Request) {
       return badRequest("Note content must be 500 characters or less.");
     }
 
-    const note = createNote(user.id, project.id, content);
+    const proxiedReq = new Request(reqForProxy.url, {
+      method: "POST",
+      headers: reqForProxy.headers,
+      body: JSON.stringify({ content }),
+    });
+
+    const response = await proxyBackendRequest({
+      req: proxiedReq,
+      projectId: project.id,
+      path: "/notes",
+    });
+
+    if (response.status === 502) {
+      return backendRequiredForWriteResponse("Note");
+    }
+
+    if (!response.ok) {
+      return response;
+    }
 
     writeDashboardContextFiles(user.id, project).catch(console.error);
 
-    return NextResponse.json({
-      msg: "Note created.",
-      note: serializeNote(note),
-    });
+    return response;
   } catch (error) {
     return serverError(error, "Create note error");
   }

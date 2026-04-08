@@ -12,7 +12,13 @@ import {
 } from "@/server/services/nightly-canary-guardrails-service";
 
 interface CanaryCheck {
-  id: "eval-guard" | "adapters" | "ui-smoke" | "reliability-thresholds";
+  id:
+    | "eval-guard"
+    | "adapters"
+    | "ui-smoke"
+    | "reliability-thresholds"
+    | "directive-proof-integrity"
+    | "agency-agents";
   command: string;
   critical: boolean;
 }
@@ -96,6 +102,8 @@ async function main() {
 
   const checks: CanaryCheck[] = [
     { id: "eval-guard", command: "check:agent-evals", critical: true },
+    { id: "directive-proof-integrity", command: "check:directive-integration-proof", critical: true },
+    { id: "agency-agents", command: "check:agency-agents", critical: true },
     { id: "adapters", command: "check:adapters", critical: true },
     { id: "ui-smoke", command: "check:ui-smoke", critical: true },
     { id: "reliability-thresholds", command: "check:reliability", critical: true },
@@ -151,6 +159,8 @@ async function main() {
 
     const nextSteps = [
       "npm run check:agent-evals",
+      "npm run check:directive-integration-proof",
+      "npm run check:agency-agents",
       "npm run check:adapters",
       "npm run check:ui-smoke",
       "npm run check:reliability",

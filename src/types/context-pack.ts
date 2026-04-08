@@ -200,6 +200,18 @@ export interface GraphNeighbor {
   relation: "incoming" | "outgoing";
 }
 
+export interface GraphClusterGap {
+  kind: "unresolved_link" | "orphan_doc" | "hub_doc" | "bridge_doc";
+  label: string;
+  detail: string;
+}
+
+export interface GraphCodeTarget {
+  path: string;
+  reason: string;
+  source: "hotspot" | "key_file" | "git_change";
+}
+
 export interface ContextMemorySource {
   label: string;
   type: "doc" | "daily_report";
@@ -236,6 +248,48 @@ export interface ContextPromotionSnapshot {
   candidates: ContextPromotionCandidate[];
 }
 
+export interface CodegraphSummaryBlock {
+  markdown: string;
+  compact: {
+    status: string;
+    repoPath: string;
+    indexed: boolean;
+    indexedRepositoryCount: number;
+    statsPreview: string[];
+    insights: string[];
+    usedCommands: Array<{
+      command: string;
+      ok: boolean;
+    }>;
+    metadata: {
+      generatedAt: string;
+      sourceMode: "full" | "refresh" | "fallback";
+      qualityState: "fresh" | "stale" | "degraded";
+      failureReason: string;
+      indexAgeMinutes: number;
+    };
+    sections: {
+      changeImpact: string[];
+      callChains: string[];
+      hotspots: string[];
+      verificationTargets: string[];
+    };
+  };
+  budget: {
+    maxChars: number;
+    maxTokens: number;
+    deltaTokensBudget: number;
+    chars: number;
+    tokensEstimated: number;
+    deltaTokensEstimated: number;
+  };
+  diagnostics?: {
+    injected: boolean;
+    reasonCode: string;
+    strictGateMode: boolean;
+  };
+}
+
 export interface ContextProvenanceItem {
   section: "docs" | "memory" | "activity" | "quests" | "context_files";
   label: string;
@@ -270,6 +324,12 @@ export interface ContextPack {
   promotionCandidates: ContextPromotionSnapshot;
   provenance: ContextProvenanceItem[];
   repoSnapshot: RepoSnapshotView;
+  codegraph_summary?: CodegraphSummaryBlock;
+  codegraph_summary_diagnostics?: {
+    injected: boolean;
+    reason?: string;
+    reasonCode?: string;
+  };
   automation: AutomationSnapshotView;
   collaborationGuide: CollaborationGuideView;
   readiness: WorkspaceReadinessView;
@@ -281,9 +341,22 @@ export interface ContextPack {
     recentCommits: GitCommitSummaryView[];
   };
   graphContext?: {
-    focalNode?: { id: string; title: string; tags: string[] };
+    focalNode?: {
+      id: string;
+      title: string;
+      tags: string[];
+      degree: number;
+      incomingCount: number;
+      outgoingCount: number;
+      role: "hub" | "bridge" | "orphan" | "normal";
+    };
+    clusterSummary: string;
+    clusterDocTitles: string[];
     neighbors: GraphNeighbor[];
+    secondHopNeighbors: GraphNeighbor[];
     unresolvedLinks: string[];
+    gapCandidates: GraphClusterGap[];
+    codeTargets: GraphCodeTarget[];
   };
   contextFiles: ContextFileReference[];
   suggestedPrompts: {

@@ -1,0 +1,27 @@
+{
+  "status": "HEALTHY",
+  "thresholds": {
+    "indexSuccessRate": 0.85,
+    "injectionRate": 0.8,
+    "rule": "rollback when either metric is below threshold in BOTH 10-run windows"
+  },
+  "windowSize": 10,
+  "windows": {
+    "previous": {
+      "total": 10,
+      "indexSuccessRate": 0.8,
+      "injectionRate": 0.8
+    },
+    "current": {
+      "total": 10,
+      "indexSuccessRate": 0.9,
+      "injectionRate": 0.9
+    }
+  },
+  "evaluatedRows": 20,
+  "telemetryPath": "C:\\Users\\User\\.openclaw\\workspace\\mission-control\\reports\\codegraph-spike-artifacts\\telemetry.jsonl",
+  "latestTelemetryTs": "2026-03-15T06:55:26.024Z",
+  "telemetryAgeHours": 0.718,
+  "freshnessThresholdHours": 24,
+  "generatedAt": "2026-03-15T07:38:30.678Z"
+}

@@ -9,9 +9,10 @@ import { getControlPlaneProjectId } from "@/server/projects/workspace-projects";
 // Resolve DB path and ensure parent directory exists
 // ---------------------------------------------------------------------------
 
-const dbPath = path.resolve(
-  process.env.SQLITE_PATH || path.join(process.cwd(), "data", "openclaw.db"),
-);
+const configuredSqlitePath = String(process.env.SQLITE_PATH || "").trim();
+const dbPath = configuredSqlitePath
+  ? path.resolve(configuredSqlitePath)
+  : path.join("data", "openclaw.db");
 
 const dbDir = path.dirname(dbPath);
 if (!fs.existsSync(dbDir)) {
@@ -66,6 +67,55 @@ function ensureTable(tableName: string, sqlStatement: string) {
 function ensureProjectScopedTables() {
   const defaultProjectId = getControlPlaneProjectId();
   const escapedDefaultProjectId = defaultProjectId.replace(/'/g, "''");
+
+  ensureTable(
+    "users",
+    `CREATE TABLE users (
+      id text PRIMARY KEY NOT NULL,
+      name text NOT NULL DEFAULT 'Adventurer',
+      timezone text NOT NULL DEFAULT 'Asia/Bangkok',
+      join_date text NOT NULL,
+      created_at text NOT NULL,
+      updated_at text NOT NULL
+    )`,
+  );
+  ensureTable(
+    "quests",
+    `CREATE TABLE quests (
+      id text PRIMARY KEY NOT NULL,
+      user_id text NOT NULL REFERENCES users(id),
+      goal text NOT NULL,
+      difficulty text NOT NULL DEFAULT 'normal',
+      completed integer NOT NULL DEFAULT 0,
+      date text NOT NULL,
+      completed_date text
+    )`,
+  );
+  ensureTable(
+    "notes",
+    `CREATE TABLE notes (
+      id text PRIMARY KEY NOT NULL,
+      user_id text NOT NULL REFERENCES users(id),
+      content text NOT NULL,
+      completed integer NOT NULL DEFAULT 0,
+      created_at text NOT NULL,
+      updated_at text NOT NULL
+    )`,
+  );
+  ensureTable(
+    "reports",
+    `CREATE TABLE reports (
+      id text PRIMARY KEY NOT NULL,
+      user_id text NOT NULL REFERENCES users(id),
+      title text NOT NULL,
+      content text NOT NULL,
+      category text NOT NULL DEFAULT 'system',
+      status text NOT NULL DEFAULT 'info',
+      source text NOT NULL DEFAULT 'OpenClaw',
+      metadata_json text NOT NULL DEFAULT '{}',
+      date text NOT NULL
+    )`,
+  );
 
   ensureColumn(
     "quests",
@@ -263,6 +313,224 @@ function ensureProjectScopedTables() {
     "workspace_run_dispatches_user_project_run_status",
     "CREATE INDEX workspace_run_dispatches_user_project_run_status ON workspace_run_dispatches (user_id, project_id, run_id, status)",
   );
+
+  ensureTable(
+    "directive_capabilities",
+    `CREATE TABLE directive_capabilities (
+      id text PRIMARY KEY NOT NULL,
+      user_id text NOT NULL REFERENCES users(id),
+      project_id text NOT NULL DEFAULT '${escapedDefaultProjectId}',
+      source_type text NOT NULL DEFAULT 'github-repo',
+      source_ref text NOT NULL,
+      title text NOT NULL,
+      status text NOT NULL DEFAULT 'intake',
+      framework_status text NOT NULL DEFAULT 'intake',
+      runtime_status text NOT NULL DEFAULT 'none',
+      workflow_family text NOT NULL,
+      user_intent text,
+      notes_json text NOT NULL DEFAULT '[]',
+      analysis_summary text,
+      category text,
+      problem_fit text,
+      overlap_notes text,
+      risk_notes text,
+      recommendation text,
+      metadata_json text NOT NULL DEFAULT '{}',
+      created_at text NOT NULL,
+      updated_at text NOT NULL
+    )`,
+  );
+  ensureIndex(
+    "directive_capabilities_user_project_created",
+    "CREATE INDEX directive_capabilities_user_project_created ON directive_capabilities (user_id, project_id, created_at)",
+  );
+  ensureIndex(
+    "directive_capabilities_user_project_status_updated",
+    "CREATE INDEX directive_capabilities_user_project_status_updated ON directive_capabilities (user_id, project_id, status, updated_at)",
+  );
+  ensureIndex(
+    "directive_capabilities_user_project_source_ref",
+    "CREATE INDEX directive_capabilities_user_project_source_ref ON directive_capabilities (user_id, project_id, source_ref)",
+  );
+  ensureColumn(
+    "directive_capabilities",
+    "framework_status",
+    "framework_status text NOT NULL DEFAULT 'intake'",
+  );
+  ensureColumn(
+    "directive_capabilities",
+    "runtime_status",
+    "runtime_status text NOT NULL DEFAULT 'none'",
+  );
+
+  ensureTable(
+    "directive_experiments",
+    `CREATE TABLE directive_experiments (
+      id text PRIMARY KEY NOT NULL,
+      user_id text NOT NULL REFERENCES users(id),
+      project_id text NOT NULL DEFAULT '${escapedDefaultProjectId}',
+      capability_id text NOT NULL REFERENCES directive_capabilities(id),
+      run_id text REFERENCES workspace_runs(id),
+      hypothesis text NOT NULL,
+      plan text NOT NULL,
+      success_criteria_json text NOT NULL DEFAULT '[]',
+      status text NOT NULL DEFAULT 'proposed',
+      artifact_path text,
+      metadata_json text NOT NULL DEFAULT '{}',
+      created_at text NOT NULL,
+      updated_at text NOT NULL,
+      completed_at text
+    )`,
+  );
+  ensureIndex(
+    "directive_experiments_user_project_capability_created",
+    "CREATE INDEX directive_experiments_user_project_capability_created ON directive_experiments (user_id, project_id, capability_id, created_at)",
+  );
+  ensureIndex(
+    "directive_experiments_user_project_status_updated",
+    "CREATE INDEX directive_experiments_user_project_status_updated ON directive_experiments (user_id, project_id, status, updated_at)",
+  );
+
+  ensureTable(
+    "directive_evaluations",
+    `CREATE TABLE directive_evaluations (
+      id text PRIMARY KEY NOT NULL,
+      user_id text NOT NULL REFERENCES users(id),
+      project_id text NOT NULL DEFAULT '${escapedDefaultProjectId}',
+      capability_id text NOT NULL REFERENCES directive_capabilities(id),
+      experiment_id text NOT NULL REFERENCES directive_experiments(id),
+      outcome text NOT NULL DEFAULT 'inconclusive',
+      usefulness text,
+      friction text,
+      workflow_impact text,
+      evidence_summary text NOT NULL,
+      metadata_json text NOT NULL DEFAULT '{}',
+      created_at text NOT NULL,
+      updated_at text NOT NULL
+    )`,
+  );
+  ensureIndex(
+    "directive_evaluations_user_project_capability_created",
+    "CREATE INDEX directive_evaluations_user_project_capability_created ON directive_evaluations (user_id, project_id, capability_id, created_at)",
+  );
+  ensureIndex(
+    "directive_evaluations_user_project_experiment",
+    "CREATE INDEX directive_evaluations_user_project_experiment ON directive_evaluations (user_id, project_id, experiment_id, created_at)",
+  );
+
+  ensureTable(
+    "directive_decisions",
+    `CREATE TABLE directive_decisions (
+      id text PRIMARY KEY NOT NULL,
+      user_id text NOT NULL REFERENCES users(id),
+      project_id text NOT NULL DEFAULT '${escapedDefaultProjectId}',
+      capability_id text NOT NULL REFERENCES directive_capabilities(id),
+      evaluation_id text REFERENCES directive_evaluations(id),
+      decision text NOT NULL,
+      rationale text NOT NULL,
+      decided_by text NOT NULL DEFAULT 'user',
+      metadata_json text NOT NULL DEFAULT '{}',
+      created_at text NOT NULL
+    )`,
+  );
+  ensureIndex(
+    "directive_decisions_user_project_capability_created",
+    "CREATE INDEX directive_decisions_user_project_capability_created ON directive_decisions (user_id, project_id, capability_id, created_at)",
+  );
+
+  ensureTable(
+    "directive_integrations",
+    `CREATE TABLE directive_integrations (
+      id text PRIMARY KEY NOT NULL,
+      user_id text NOT NULL REFERENCES users(id),
+      project_id text NOT NULL DEFAULT '${escapedDefaultProjectId}',
+      capability_id text NOT NULL REFERENCES directive_capabilities(id),
+      decision_id text NOT NULL REFERENCES directive_decisions(id),
+      status text NOT NULL DEFAULT 'planned',
+      integration_mode text NOT NULL DEFAULT 'adapt',
+      integration_surface text NOT NULL,
+      target_runtime_surface text,
+      owner text,
+      due_at text,
+      required_gates_json text NOT NULL DEFAULT '[]',
+      proof_artifact_path text,
+      rollback_plan text,
+      dependency_notes text,
+      rollback_notes text,
+      metadata_json text NOT NULL DEFAULT '{}',
+      created_at text NOT NULL,
+      updated_at text NOT NULL
+    )`,
+  );
+  ensureIndex(
+    "directive_integrations_user_project_capability_created",
+    "CREATE INDEX directive_integrations_user_project_capability_created ON directive_integrations (user_id, project_id, capability_id, created_at)",
+  );
+  ensureIndex(
+    "directive_integrations_user_project_status_updated",
+    "CREATE INDEX directive_integrations_user_project_status_updated ON directive_integrations (user_id, project_id, status, updated_at)",
+  );
+  ensureColumn(
+    "directive_integrations",
+    "integration_mode",
+    "integration_mode text NOT NULL DEFAULT 'adapt'",
+  );
+  ensureColumn(
+    "directive_integrations",
+    "target_runtime_surface",
+    "target_runtime_surface text",
+  );
+  ensureColumn("directive_integrations", "owner", "owner text");
+  ensureColumn("directive_integrations", "due_at", "due_at text");
+  ensureColumn(
+    "directive_integrations",
+    "required_gates_json",
+    "required_gates_json text NOT NULL DEFAULT '[]'",
+  );
+  ensureColumn(
+    "directive_integrations",
+    "proof_artifact_path",
+    "proof_artifact_path text",
+  );
+  ensureColumn(
+    "directive_integrations",
+    "rollback_plan",
+    "rollback_plan text",
+  );
+
+  sqlite.exec(`
+    UPDATE directive_capabilities
+    SET framework_status = CASE
+      WHEN status IN ('intake','analyzed','experimenting','evaluated','decided') THEN status
+      WHEN status = 'integrated' THEN 'decided'
+      ELSE 'intake'
+    END
+    WHERE COALESCE(framework_status, '') = ''
+       OR framework_status NOT IN ('intake','analyzed','experimenting','evaluated','decided')
+  `);
+  sqlite.exec(`
+    UPDATE directive_capabilities
+    SET runtime_status = CASE
+      WHEN status = 'integrated' THEN 'callable'
+      WHEN status = 'decided' THEN 'none'
+      ELSE COALESCE(runtime_status, 'none')
+    END
+    WHERE COALESCE(runtime_status, '') = ''
+       OR (status = 'integrated' AND runtime_status = 'none')
+  `);
+  sqlite.exec(`
+    UPDATE directive_integrations
+    SET integration_mode = COALESCE(NULLIF(integration_mode, ''), 'adapt'),
+        target_runtime_surface = COALESCE(NULLIF(target_runtime_surface, ''), integration_surface),
+        owner = COALESCE(NULLIF(owner, ''), 'operator'),
+        due_at = COALESCE(NULLIF(due_at, ''), datetime(created_at, '+24 hours')),
+        required_gates_json = CASE
+          WHEN required_gates_json IS NULL OR required_gates_json = '' OR required_gates_json = '[]'
+            THEN '["npm run check:directive-v0","npm run check:directive-integration-proof","npm run check:ops-stack"]'
+          ELSE required_gates_json
+        END,
+        rollback_plan = COALESCE(NULLIF(rollback_plan, ''), rollback_notes, 'Set integration status to parked and remove callable wiring.')
+  `);
 
   ensureTable(
     "orchestrator_reliability_stats",

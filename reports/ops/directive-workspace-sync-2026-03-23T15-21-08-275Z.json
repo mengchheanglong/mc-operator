@@ -1,0 +1,796 @@
+{
+  "generatedAt": "2026-03-23T15:21:08.275Z",
+  "timezone": "Asia/Bangkok",
+  "dayKey": "2026-03-23",
+  "latestArtifactAt": "2026-03-23T15:20:50.031Z",
+  "artifactCount": 126,
+  "artifactsByTrack": {
+    "architecture": 74,
+    "discovery": 1,
+    "forge": 12,
+    "shared": 39
+  },
+  "artifacts": [
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\CHANGELOG.md",
+      "relativePath": "CHANGELOG.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T15:20:50.031Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\PUBLISH_READINESS.md",
+      "relativePath": "PUBLISH_READINESS.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T15:20:50.029Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\README.md",
+      "relativePath": "README.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T15:20:50.029Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\lib\\README.md",
+      "relativePath": "shared/lib/README.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T15:14:52.949Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\README.md",
+      "relativePath": "forge/README.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-23T14:56:24.466Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\schemas\\README.md",
+      "relativePath": "shared/schemas/README.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T13:53:43.548Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\standalone-host-sqlite-persistence-profile.md",
+      "relativePath": "shared/contracts/standalone-host-sqlite-persistence-profile.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T13:53:40.207Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\standalone-host-runtime-profile.md",
+      "relativePath": "shared/contracts/standalone-host-runtime-profile.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T13:53:30.865Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\standalone-host-api-auth-guard.md",
+      "relativePath": "shared/contracts/standalone-host-api-auth-guard.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T13:15:23.779Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\openclaw-maintenance-watchdog-signal.md",
+      "relativePath": "shared/contracts/openclaw-maintenance-watchdog-signal.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T09:43:57.140Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\openclaw-to-discovery.md",
+      "relativePath": "shared/contracts/openclaw-to-discovery.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T09:43:57.140Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\discovery-intake-queue.md",
+      "relativePath": "shared/contracts/discovery-intake-queue.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T09:36:17.200Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\knowledge\\active-mission.md",
+      "relativePath": "knowledge/active-mission.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T09:36:17.200Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\discovery\\README.md",
+      "relativePath": "discovery/README.md",
+      "track": "discovery",
+      "mtimeIso": "2026-03-23T09:36:17.200Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-23-mini-swe-agent-adoption-decision-envelope-lib-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-23-mini-swe-agent-adoption-decision-envelope-lib-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T08:44:56.631Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-architecture-cycle-evaluation-wave-09.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-architecture-cycle-evaluation-wave-09.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T08:44:56.631Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-mini-swe-agent-adoption-decision-envelope-adaptation.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-mini-swe-agent-adoption-decision-envelope-adaptation.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T08:44:56.631Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-mini-swe-agent-adoption-decision-envelope-source-analysis.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-mini-swe-agent-adoption-decision-envelope-source-analysis.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T08:44:56.631Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\knowledge\\workflow.md",
+      "relativePath": "knowledge/workflow.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T08:43:11.199Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-architecture-cycle-evaluation-wave-08.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-architecture-cycle-evaluation-wave-08.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T08:37:27.233Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-23-gpt-researcher-adoption-decision-store-lib-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-23-gpt-researcher-adoption-decision-store-lib-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T08:37:27.215Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-gpt-researcher-adoption-decision-store-adaptation.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-gpt-researcher-adoption-decision-store-adaptation.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T08:37:27.215Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-gpt-researcher-adoption-decision-store-source-analysis.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-gpt-researcher-adoption-decision-store-source-analysis.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T08:37:27.214Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-architecture-cycle-evaluation-wave-07.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-architecture-cycle-evaluation-wave-07.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T08:26:38.639Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\templates\\architecture-cycle-evaluation.md",
+      "relativePath": "shared/templates/architecture-cycle-evaluation.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T08:24:51.284Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-23-architecture-cycle-decision-loader-lib-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-23-architecture-cycle-decision-loader-lib-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T08:24:51.284Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-architecture-cycle-decision-loader-lib.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-architecture-cycle-decision-loader-lib.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T08:24:51.284Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-23-architecture-closeout-lib-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-23-architecture-closeout-lib-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T08:09:54.103Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-architecture-closeout-lib.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-architecture-closeout-lib.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T08:09:54.103Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\architecture-adoption-criteria.md",
+      "relativePath": "shared/contracts/architecture-adoption-criteria.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T08:09:54.101Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-23-architecture-adoption-decision-corpus-backfill-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-23-architecture-adoption-decision-corpus-backfill-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T07:23:45.254Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-architecture-adoption-decision-corpus-backfill.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-architecture-adoption-decision-corpus-backfill.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T07:23:45.253Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-23-architecture-adoption-decision-writer-lib-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-23-architecture-adoption-decision-writer-lib-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T06:54:27.413Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-architecture-adoption-decision-writer-lib.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-architecture-adoption-decision-writer-lib.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T06:54:27.413Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-23-architecture-adoption-decision-corpus-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-23-architecture-adoption-decision-corpus-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T06:37:12.238Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-architecture-adoption-decision-corpus.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-architecture-adoption-decision-corpus.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T06:37:12.238Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-architecture-cycle-evaluation-wave-06.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-architecture-cycle-evaluation-wave-06.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T06:37:12.238Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-23-architecture-cycle-decision-summary-lib-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-23-architecture-cycle-decision-summary-lib-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T06:21:15.715Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-architecture-cycle-decision-summary-lib.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-architecture-cycle-decision-summary-lib.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T06:21:15.715Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-23-architecture-adoption-artifacts-lib-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-23-architecture-adoption-artifacts-lib-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T06:16:32.245Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-architecture-adoption-artifacts-lib.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-architecture-adoption-artifacts-lib.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T06:16:32.245Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-23-architecture-adoption-resolution-lib-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-23-architecture-adoption-resolution-lib-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T05:15:58.227Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-architecture-adoption-resolution-lib.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-architecture-adoption-resolution-lib.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T05:15:47.306Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\templates\\architecture-review-checklist.md",
+      "relativePath": "shared/templates/architecture-review-checklist.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T05:09:08.726Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\architecture-review-guardrails.md",
+      "relativePath": "shared/contracts/architecture-review-guardrails.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T05:09:02.359Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-23-architecture-review-resolution-lib-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-23-architecture-review-resolution-lib-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T05:08:53.293Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-architecture-review-resolution-lib.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-architecture-review-resolution-lib.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T05:08:42.498Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-23-openmoss-review-feedback-lib-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-23-openmoss-review-feedback-lib-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T04:41:11.520Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-openmoss-review-feedback-lib-adaptation.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-openmoss-review-feedback-lib-adaptation.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T04:41:11.518Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-openmoss-review-feedback-lib-source-analysis.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-openmoss-review-feedback-lib-source-analysis.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T04:41:11.518Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\architecture-self-improvement-contract.md",
+      "relativePath": "shared/contracts/architecture-self-improvement-contract.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T04:28:14.593Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-23-metaclaw-generation-boundary-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-23-metaclaw-generation-boundary-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T04:26:52.298Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-metaclaw-generation-boundary-adaptation.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-metaclaw-generation-boundary-adaptation.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T04:26:52.298Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-metaclaw-generation-boundary-source-analysis.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-metaclaw-generation-boundary-source-analysis.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T04:26:52.298Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-post-doctrine-architecture-generation-boundary.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-post-doctrine-architecture-generation-boundary.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T04:26:52.298Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\templates\\generation-boundary-note.md",
+      "relativePath": "shared/templates/generation-boundary-note.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T04:26:52.278Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\self-improvement-generation-boundary.md",
+      "relativePath": "shared/contracts/self-improvement-generation-boundary.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T04:26:52.278Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\records\\2026-03-23-scientify-literature-monitoring-forge-record.md",
+      "relativePath": "forge/records/2026-03-23-scientify-literature-monitoring-forge-record.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-23T04:14:30.960Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\follow-up\\2026-03-23-scientify-literature-monitoring-runtime-followup.md",
+      "relativePath": "forge/follow-up/2026-03-23-scientify-literature-monitoring-runtime-followup.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-23T04:14:30.960Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\records\\2026-03-23-scientify-literature-monitoring-runtime-slice-01-proof-checklist.md",
+      "relativePath": "forge/records/2026-03-23-scientify-literature-monitoring-runtime-slice-01-proof-checklist.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-23T04:14:30.958Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\records\\2026-03-23-scientify-literature-monitoring-runtime-slice-02-live-fetch-proof.md",
+      "relativePath": "forge/records/2026-03-23-scientify-literature-monitoring-runtime-slice-02-live-fetch-proof.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-23T04:14:30.958Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\records\\2026-03-23-scientify-literature-monitoring-runtime-slice-01-proof.md",
+      "relativePath": "forge/records/2026-03-23-scientify-literature-monitoring-runtime-slice-01-proof.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-23T04:06:26.701Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\literature-monitoring-degraded-state-guard.md",
+      "relativePath": "shared/contracts/literature-monitoring-degraded-state-guard.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T03:59:54.609Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\bounded-literature-monitoring-workflow.md",
+      "relativePath": "shared/contracts/bounded-literature-monitoring-workflow.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T03:59:54.608Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\templates\\literature-monitoring-degraded-state.md",
+      "relativePath": "shared/templates/literature-monitoring-degraded-state.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T03:59:54.606Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\templates\\literature-monitoring-digest.md",
+      "relativePath": "shared/templates/literature-monitoring-digest.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T03:59:54.606Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-23-scientify-mixed-value-partition-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-23-scientify-mixed-value-partition-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T03:17:01.675Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-architecture-cycle-evaluation-wave-05.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-architecture-cycle-evaluation-wave-05.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T03:17:01.675Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-23-scientify-literature-monitoring-forge-handoff.md",
+      "relativePath": "architecture/03-adopted/2026-03-23-scientify-literature-monitoring-forge-handoff.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T03:17:01.674Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-scientify-mixed-value-partition-adaptation.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-scientify-mixed-value-partition-adaptation.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T03:17:01.674Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\architecture-to-forge.md",
+      "relativePath": "shared/contracts/architecture-to-forge.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T03:13:13.753Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\source-analysis-contract.md",
+      "relativePath": "shared/contracts/source-analysis-contract.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T03:13:13.753Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-architecture-cycle-evaluation-wave-04.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-architecture-cycle-evaluation-wave-04.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T03:11:35.481Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-scientify-mixed-value-partition-source-analysis.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-scientify-mixed-value-partition-source-analysis.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T03:11:35.480Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\templates\\mixed-value-source-partition.md",
+      "relativePath": "shared/templates/mixed-value-source-partition.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T03:11:35.479Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\mixed-value-source-partition.md",
+      "relativePath": "shared/contracts/mixed-value-source-partition.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T03:11:35.479Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-architecture-cycle-evaluation-wave-03.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-architecture-cycle-evaluation-wave-03.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T03:01:40.420Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-23-impeccable-packet-aware-review-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-23-impeccable-packet-aware-review-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T03:01:40.419Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-impeccable-packet-aware-review-adaptation.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-impeccable-packet-aware-review-adaptation.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T03:01:40.401Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-impeccable-packet-aware-review-source-analysis.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-impeccable-packet-aware-review-source-analysis.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T03:01:40.399Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-23-paper2code-gpt-researcher-packet-reuse-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-23-paper2code-gpt-researcher-packet-reuse-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T02:49:26.188Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-paper2code-gpt-researcher-cross-source-synthesis-packet.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-paper2code-gpt-researcher-cross-source-synthesis-packet.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T02:49:26.188Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-paper2code-gpt-researcher-mechanism-packet.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-paper2code-gpt-researcher-mechanism-packet.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T02:49:26.188Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-paper2code-gpt-researcher-packet-reuse-adaptation.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-paper2code-gpt-researcher-packet-reuse-adaptation.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T02:49:26.188Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-paper2code-gpt-researcher-packet-reuse-analysis-packet.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-paper2code-gpt-researcher-packet-reuse-analysis-packet.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T02:49:26.187Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-paper2code-gpt-researcher-packet-reuse-source-analysis.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-paper2code-gpt-researcher-packet-reuse-source-analysis.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T02:49:26.187Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-architecture-cycle-evaluation-wave-02.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-architecture-cycle-evaluation-wave-02.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T02:43:00.384Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\adaptation-decision-contract.md",
+      "relativePath": "shared/contracts/adaptation-decision-contract.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T02:34:38.973Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\architecture-mechanism-packet.md",
+      "relativePath": "shared/contracts/architecture-mechanism-packet.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T02:34:38.973Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-23-cross-source-synthesis-packet-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-23-cross-source-synthesis-packet-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T02:34:38.972Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-cross-source-synthesis-packet-adaptation.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-cross-source-synthesis-packet-adaptation.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T02:34:38.972Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-cross-source-synthesis-packet-analysis-packet.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-cross-source-synthesis-packet-analysis-packet.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T02:34:38.971Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-cross-source-synthesis-packet-source-analysis.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-cross-source-synthesis-packet-source-analysis.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T02:34:38.971Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\templates\\cross-source-synthesis-packet.md",
+      "relativePath": "shared/templates/cross-source-synthesis-packet.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T02:33:09.161Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\cross-source-synthesis-packet.md",
+      "relativePath": "shared/contracts/cross-source-synthesis-packet.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T02:33:09.160Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\phase-isolated-processing.md",
+      "relativePath": "shared/contracts/phase-isolated-processing.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T02:30:27.140Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\transformation-artifact-gate.md",
+      "relativePath": "shared/contracts/transformation-artifact-gate.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T02:30:27.140Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-23-arscontexta-assembly-over-creation-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-23-arscontexta-assembly-over-creation-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T02:30:00.405Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-arscontexta-assembly-over-creation-adaptation.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-arscontexta-assembly-over-creation-adaptation.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T02:30:00.404Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-arscontexta-assembly-over-creation-analysis-packet.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-arscontexta-assembly-over-creation-analysis-packet.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T02:30:00.403Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-arscontexta-assembly-over-creation-source-analysis.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-arscontexta-assembly-over-creation-source-analysis.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T02:30:00.403Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\templates\\architecture-mechanism-packet.md",
+      "relativePath": "shared/templates/architecture-mechanism-packet.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T02:28:46.719Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\templates\\experiment-record.md",
+      "relativePath": "shared/templates/experiment-record.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T02:23:57.545Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\knowledge\\architecture-completion-rubric.md",
+      "relativePath": "knowledge/architecture-completion-rubric.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T02:23:57.545Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-23-arscontexta-transformation-artifact-gate-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-23-arscontexta-transformation-artifact-gate-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T02:20:57.311Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-arscontexta-transformation-artifact-gate-adaptation.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-arscontexta-transformation-artifact-gate-adaptation.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T02:20:57.311Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-arscontexta-transformation-artifact-gate-source-analysis.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-arscontexta-transformation-artifact-gate-source-analysis.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T02:20:57.310Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-23-arscontexta-phase-isolated-processing-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-23-arscontexta-phase-isolated-processing-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T02:11:49.247Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-arscontexta-phase-isolated-processing-adaptation.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-arscontexta-phase-isolated-processing-adaptation.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T02:11:49.246Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-arscontexta-phase-isolated-processing-source-analysis.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-arscontexta-phase-isolated-processing-source-analysis.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T02:11:49.246Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\templates\\phase-handoff-packet.md",
+      "relativePath": "shared/templates/phase-handoff-packet.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T02:11:49.245Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-23-architecture-cycle-evaluation-wave-01.md",
+      "relativePath": "architecture/02-experiments/2026-03-23-architecture-cycle-evaluation-wave-01.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T02:04:07.310Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-22-architecture-corpus-normalization-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-22-architecture-corpus-normalization-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T01:59:05.780Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-22-architecture-corpus-normalization.md",
+      "relativePath": "architecture/02-experiments/2026-03-22-architecture-corpus-normalization.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-23T01:58:41.899Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\architecture-artifact-lifecycle.md",
+      "relativePath": "shared/contracts/architecture-artifact-lifecycle.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-23T01:58:41.898Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\records\\2026-03-23-repo-snapshot-code-intel-cache-transformation-record.md",
+      "relativePath": "forge/records/2026-03-23-repo-snapshot-code-intel-cache-transformation-record.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-23T01:33:23.182Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\records\\2026-03-23-repo-snapshot-cgc-cli-health-transformation-record.md",
+      "relativePath": "forge/records/2026-03-23-repo-snapshot-cgc-cli-health-transformation-record.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-23T01:29:03.850Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\records\\2026-03-23-repo-snapshot-internal-cache-transformation-record.md",
+      "relativePath": "forge/records/2026-03-23-repo-snapshot-internal-cache-transformation-record.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-23T01:11:35.731Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\records\\2026-03-23-context-pack-doc-derived-cache-transformation-record.md",
+      "relativePath": "forge/records/2026-03-23-context-pack-doc-derived-cache-transformation-record.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-23T01:11:24.753Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\records\\2026-03-23-context-pack-readonly-repo-cache-transformation-record.md",
+      "relativePath": "forge/records/2026-03-23-context-pack-readonly-repo-cache-transformation-record.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-23T00:52:47.224Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\records\\2026-03-23-repo-snapshot-cache-transformation-record.md",
+      "relativePath": "forge/records/2026-03-23-repo-snapshot-cache-transformation-record.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-22T17:08:11.049Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\05-reference-patterns\\2026-03-20-stage-evidence-citation-handoff-contract.md",
+      "relativePath": "architecture/05-reference-patterns/2026-03-20-stage-evidence-citation-handoff-contract.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T17:07:46.095Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-19-adopted-candidates-architecture-recheck.md",
+      "relativePath": "architecture/03-adopted/2026-03-19-adopted-candidates-architecture-recheck.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T17:06:37.071Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-21-hermes-wave-02-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-21-hermes-wave-02-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T17:06:11.684Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-21-impeccable-wave-02-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-21-impeccable-wave-02-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T17:05:57.486Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-19-gpt-researcher-directive-architecture-adopted-planned-next.md",
+      "relativePath": "architecture/03-adopted/2026-03-19-gpt-researcher-directive-architecture-adopted-planned-next.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T17:05:42.956Z"
+    }
+  ],
+  "graphChanges": [
+    "docs/operations/CODEGRAPH_PROD_GUARDRAILS.md",
+    "reports/codegraph-spike-artifacts/",
+    "reports/codegraph-spike-report.md",
+    "scripts/check-codegraph-rollback-threshold.ts",
+    "scripts/check-codegraph-spike.ts",
+    "scripts/check-directive-codegraphcontext-contracts.ts",
+    "scripts/run-codegraph-spike.ts",
+    "scripts/summarize-codegraph-telemetry.ts",
+    "src/app/api/code-graph/index/route.ts",
+    "src/app/api/projects/graph/route.ts",
+    "src/app/dashboard/graph/GraphPageClient.tsx",
+    "src/components/graph/GraphView.tsx",
+    "src/server/services/codegraph-summary-service.ts"
+  ],
+  "signature": "f4323a6645a945b3",
+  "reportId": "c8fdadeb-9973-41d5-816f-23fb951392d8",
+  "graphReportId": "6ca33d99-72ab-44a6-9139-9aff4d51c5ac",
+  "reusedReportId": "c8fdadeb-9973-41d5-816f-23fb951392d8",
+  "reportPaths": {
+    "timestampedMarkdown": "C:\\Users\\User\\.openclaw\\workspace\\mission-control\\reports\\ops\\directive-workspace-sync-2026-03-23T15-21-08-275Z.md",
+    "latestMarkdown": "C:\\Users\\User\\.openclaw\\workspace\\mission-control\\reports\\ops\\directive-workspace-sync-latest.md",
+    "timestampedJson": "C:\\Users\\User\\.openclaw\\workspace\\mission-control\\reports\\ops\\directive-workspace-sync-2026-03-23T15-21-08-275Z.json",
+    "latestJson": "C:\\Users\\User\\.openclaw\\workspace\\mission-control\\reports\\ops\\directive-workspace-sync-latest.json"
+  }
+}

@@ -9,12 +9,17 @@ import {
   findActiveWorkspaceRunByBranch,
   findWorkspaceRunById,
   listWorkspaceRuns,
+  type WorkspaceRunRow,
   updateWorkspaceRun,
 } from "@/server/repositories/workspace-runs-repo";
 import {
   recordCloseOutcome,
   recordCreateOutcome,
 } from "@/server/repositories/orchestrator-reliability-repo";
+import {
+  classifyWorktreeRemoveFailure,
+  computeCleanupRetryDelayMs,
+} from "@/server/services/workspace-run-close-policy";
 
 const execFileAsync = promisify(execFile);
 
@@ -54,6 +59,70 @@ async function runGit(projectRoot: string, args: string[]) {
   });
 }
 
+function extractCleanupAttempts(metadata: Record<string, unknown>) {
+  const value = metadata.cleanupAttempts;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(0, Math.floor(value));
+  }
+  return 0;
+}
+
+async function removeWorktreeWithPolicy(projectRoot: string, worktreePath: string) {
+  try {
+    await runGit(projectRoot, ["worktree", "remove", worktreePath, "--force"]);
+    return { ok: true as const, kind: "removed" as const, errorText: "" };
+  } catch (error) {
+    const kind = classifyWorktreeRemoveFailure(error);
+    const errorText = error instanceof Error ? error.message : String(error || "");
+    if (kind === "missing") {
+      return { ok: true as const, kind: "missing" as const, errorText };
+    }
+    return { ok: false as const, kind, errorText };
+  }
+}
+
+async function finalizeRunAsClosed(input: {
+  userId: string;
+  project: WorkspaceProject;
+  run: WorkspaceRunRow;
+  reason: WorkspaceRunCloseReason;
+  archive: boolean;
+}) {
+  const archiveRoot = resolveArchiveRoot(input.project);
+  const archivePath = path.join(archiveRoot, `${path.basename(input.run.worktreePath)}-${Date.now()}`);
+  let finalStatus: "closed" | "archived" = "closed";
+  let finalPath = input.run.worktreePath;
+
+  if (input.archive) {
+    try {
+      await mkdir(archiveRoot, { recursive: true });
+      await rename(input.run.worktreePath, archivePath);
+      finalStatus = "archived";
+      finalPath = archivePath;
+    } catch {
+      // worktree remove usually deletes folder; best effort archive fallback
+      try {
+        await rm(input.run.worktreePath, { recursive: true, force: true });
+      } catch {}
+    }
+  }
+
+  return updateWorkspaceRun(input.userId, input.project.id, input.run.id, {
+    status: finalStatus,
+    closedAt: new Date().toISOString(),
+    worktreePath: finalPath,
+    metadata: {
+      ...input.run.metadata,
+      cleanupPending: false,
+      cleanupLastError: null,
+      cleanupNextRetryAt: null,
+      closedFrom: input.run.worktreePath,
+      archived: finalStatus === "archived",
+      closeReason: input.reason,
+    },
+  });
+}
+
 export function listRuns(input: { userId: string; projectId: string }) {
   return listWorkspaceRuns(input.userId, input.projectId, 100);
 }
@@ -65,6 +134,57 @@ export async function verifyRunWorktreePath(worktreePath: string) {
   } catch {
     return false;
   }
+}
+
+export async function retryPendingRunCleanups(input: { userId: string; project: WorkspaceProject; limit?: number }) {
+  const now = Date.now();
+  const candidates = listWorkspaceRuns(input.userId, input.project.id, 200)
+    .filter((run) => run.status === "closing_pending_cleanup")
+    .slice(0, input.limit ?? 10);
+
+  let recovered = 0;
+  let stillPending = 0;
+
+  for (const run of candidates) {
+    const nextRetryAt = typeof run.metadata.cleanupNextRetryAt === "string"
+      ? Date.parse(run.metadata.cleanupNextRetryAt)
+      : Number.NaN;
+    if (Number.isFinite(nextRetryAt) && nextRetryAt > now) {
+      stillPending += 1;
+      continue;
+    }
+
+    const result = await removeWorktreeWithPolicy(input.project.rootPath, run.worktreePath);
+    if (result.ok) {
+      await finalizeRunAsClosed({
+        userId: input.userId,
+        project: input.project,
+        run,
+        archive: false,
+        reason: (run.metadata.closeReason as WorkspaceRunCloseReason) || "manual",
+      });
+      recovered += 1;
+      continue;
+    }
+
+    const attempts = extractCleanupAttempts(run.metadata) + 1;
+    const delayMs = computeCleanupRetryDelayMs(attempts);
+    updateWorkspaceRun(input.userId, input.project.id, run.id, {
+      status: "closing_pending_cleanup",
+      closedAt: run.closedAt || new Date().toISOString(),
+      metadata: {
+        ...run.metadata,
+        cleanupPending: true,
+        cleanupAttempts: attempts,
+        cleanupFailureClass: result.kind,
+        cleanupLastError: result.errorText || "worktree cleanup retry failed",
+        cleanupNextRetryAt: new Date(Date.now() + delayMs).toISOString(),
+      },
+    });
+    stillPending += 1;
+  }
+
+  return { recovered, stillPending, scanned: candidates.length };
 }
 
 export function detectStaleRuns(input: { userId: string; projectId: string; maxAgeHours?: number; maxInactiveHours?: number }) {
@@ -89,6 +209,8 @@ export async function createRun(input: {
   branch: string;
   metadata?: Record<string, unknown>;
 }) {
+  await retryPendingRunCleanups({ userId: input.userId, project: input.project, limit: 8 });
+
   const branch = input.branch.trim();
   if (!branch) {
     recordCreateOutcome(input.userId, input.project.id, false);
@@ -168,54 +290,57 @@ export async function closeRun(input: {
     });
   }
 
+  const shouldArchive = input.archive !== false;
+  const closeReason = input.reason || "manual";
+
+  if (run.status === "closing_pending_cleanup") {
+    const retried = await retryPendingRunCleanups({
+      userId: input.userId,
+      project: input.project,
+      limit: 1,
+    });
+    const refreshed = findWorkspaceRunById(input.userId, input.project.id, run.id);
+    if (refreshed) return refreshed;
+    if (retried.recovered > 0) {
+      const closed = findWorkspaceRunById(input.userId, input.project.id, run.id);
+      if (closed) return closed;
+    }
+    return run;
+  }
+
   if (run.status !== "active") {
     return run;
   }
 
-  const shouldArchive = input.archive !== false;
-  const archiveRoot = resolveArchiveRoot(input.project);
-  const archivePath = path.join(archiveRoot, `${path.basename(run.worktreePath)}-${Date.now()}`);
-
-  try {
-    await runGit(input.project.rootPath, ["worktree", "remove", run.worktreePath, "--force"]);
-  } catch {
-    recordCloseOutcome(input.userId, input.project.id, false, input.reason);
-    throw new WorkspaceRunError({
-      message: "Failed to remove git worktree.",
-      reason: "git_worktree_remove_failed",
-      nextCommand: `git -C "${input.project.rootPath}" worktree remove "${run.worktreePath}" --force`,
-      artifactPath: run.worktreePath,
-      status: 502,
+  const removal = await removeWorktreeWithPolicy(input.project.rootPath, run.worktreePath);
+  if (!removal.ok) {
+    const attempts = extractCleanupAttempts(run.metadata) + 1;
+    const delayMs = computeCleanupRetryDelayMs(attempts);
+    const pending = updateWorkspaceRun(input.userId, input.project.id, run.id, {
+      status: "closing_pending_cleanup",
+      closedAt: new Date().toISOString(),
+      metadata: {
+        ...run.metadata,
+        cleanupPending: true,
+        cleanupFailureClass: removal.kind,
+        cleanupLastError: removal.errorText || "git worktree remove failed",
+        cleanupAttempts: attempts,
+        cleanupNextRetryAt: new Date(Date.now() + delayMs).toISOString(),
+        closeReason,
+        closeDegraded: true,
+        closeDegradedCommand: `git -C "${input.project.rootPath}" worktree remove "${run.worktreePath}" --force`,
+      },
     });
+    recordCloseOutcome(input.userId, input.project.id, true, input.reason);
+    return pending;
   }
 
-  let finalStatus: "closed" | "archived" = "closed";
-  let finalPath = run.worktreePath;
-
-  if (shouldArchive) {
-    try {
-      await mkdir(archiveRoot, { recursive: true });
-      await rename(run.worktreePath, archivePath);
-      finalStatus = "archived";
-      finalPath = archivePath;
-    } catch {
-      // worktree remove usually deletes folder; best effort archive fallback
-      try {
-        await rm(run.worktreePath, { recursive: true, force: true });
-      } catch {}
-    }
-  }
-
-  const updated = updateWorkspaceRun(input.userId, input.project.id, run.id, {
-    status: finalStatus,
-    closedAt: new Date().toISOString(),
-    worktreePath: finalPath,
-    metadata: {
-      ...run.metadata,
-      closedFrom: run.worktreePath,
-      archived: finalStatus === "archived",
-      closeReason: input.reason || "manual",
-    },
+  const updated = await finalizeRunAsClosed({
+    userId: input.userId,
+    project: input.project,
+    run,
+    archive: shouldArchive,
+    reason: closeReason,
   });
   recordCloseOutcome(input.userId, input.project.id, true, input.reason);
   return updated;

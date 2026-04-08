@@ -1,17 +1,13 @@
-import { NextResponse } from "next/server";
 import { resolveProjectFromRequest } from "@/server/context/project-context";
 import { resolveUserContext } from "@/server/context/user-context";
-import {
-  createSavedView,
-  listSavedViews,
-  type SavedViewSurface,
-} from "@/server/repositories/saved-views-repo";
 import { badRequest, serverError } from "@/server/http/api-response";
+import { backendRequiredForWriteResponse } from "@/server/http/backend-write-policy";
+import { proxyBackendRequest } from "@/server/http/directive-backend-proxy";
 
 export const dynamic = "force-dynamic";
 
 interface CreateSavedViewPayload {
-  surface?: SavedViewSurface;
+  surface?: "quests" | "reports";
   name?: string;
   filters?: Record<string, unknown>;
 }
@@ -22,7 +18,7 @@ function normalizeSurface(value: string | null | undefined) {
 
 export async function GET(req: Request) {
   try {
-    const user = await resolveUserContext();
+    await resolveUserContext();
     const project = resolveProjectFromRequest(req);
     const { searchParams } = new URL(req.url);
     const surface = normalizeSurface(searchParams.get("surface"));
@@ -31,8 +27,10 @@ export async function GET(req: Request) {
       return badRequest("Surface is required.");
     }
 
-    return NextResponse.json({
-      views: listSavedViews(user.id, project.id, surface),
+    return proxyBackendRequest({
+      req,
+      projectId: project.id,
+      path: "/views",
     });
   } catch (error) {
     return serverError(error, "Fetch saved views error", "Failed to fetch saved views.");
@@ -41,7 +39,8 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const user = await resolveUserContext();
+    const reqForProxy = req.clone();
+    await resolveUserContext();
     const project = resolveProjectFromRequest(req);
     const body = (await req.json()) as CreateSavedViewPayload;
     const surface = normalizeSurface(body.surface);
@@ -59,10 +58,27 @@ export async function POST(req: Request) {
       return badRequest("View name is required.");
     }
 
-    return NextResponse.json({
-      msg: "Saved view created.",
-      view: createSavedView(user.id, project.id, surface, name, filters),
+    const proxyReq = new Request(reqForProxy.url, {
+      method: "POST",
+      headers: reqForProxy.headers,
+      body: JSON.stringify({
+        surface,
+        name,
+        filters,
+      }),
     });
+
+    const response = await proxyBackendRequest({
+      req: proxyReq,
+      projectId: project.id,
+      path: "/views",
+    });
+
+    if (response.status === 502) {
+      return backendRequiredForWriteResponse("Saved view");
+    }
+
+    return response;
   } catch (error) {
     return serverError(error, "Create saved view error", "Failed to create saved view.");
   }

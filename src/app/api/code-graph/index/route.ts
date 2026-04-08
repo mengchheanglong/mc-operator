@@ -1,30 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveProjectFromRequest } from "@/server/context/project-context";
-import { indexProjectWithCodeGraphContext } from "@/server/services/workspace-intel-service";
+import { serverError } from "@/server/http/api-response";
+import { proxyBackendRequest } from "@/server/http/directive-backend-proxy";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
     const project = resolveProjectFromRequest(req);
-    const result = indexProjectWithCodeGraphContext(project);
-
-    return NextResponse.json(
-      {
-        success: result.success,
-        message: result.message,
-        output: result.output,
-      },
-      { status: result.success ? 200 : 400 },
-    );
+    const response = await proxyBackendRequest({
+      req,
+      projectId: project.id,
+      path: "/code-graph/index",
+    });
+    if (!response.ok) {
+      return response;
+    }
+    const payload = await response.json();
+    return NextResponse.json(payload, { status: response.status });
   } catch (error) {
-    console.error("CodeGraphContext index error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        message: "Failed to run CodeGraphContext indexing for the active project.",
-      },
-      { status: 500 },
+    return serverError(
+      error,
+      "CodeGraph index proxy error",
+      "Failed to run CodeGraphContext indexing for the active project.",
     );
   }
 }

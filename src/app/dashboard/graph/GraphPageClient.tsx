@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { Loader2, Network } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -57,6 +57,7 @@ interface ActiveProjectResponse {
     id?: string;
     name?: string;
     isControlPlane?: boolean;
+    projectType?: "personal" | "github" | "external";
   };
   projects?: Array<{
     id?: string;
@@ -66,6 +67,7 @@ interface ActiveProjectResponse {
     isControlPlane?: boolean;
     hasGit?: boolean;
     hasPackageJson?: boolean;
+    projectType?: "personal" | "github" | "external";
   }>;
 }
 
@@ -93,9 +95,19 @@ function GraphPageContent({ initialModel, initialN8nBaseUrl }: GraphPageClientPr
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [n8nBaseUrl, setN8nBaseUrl] = useState<string | null>(initialN8nBaseUrl);
+  const refreshInFlightRef = useRef(false);
+  const lastRefreshAtRef = useRef(0);
   const focusedDocumentId = searchParams.get("focus");
 
   const fetchGraphData = useCallback(async (showLoading: boolean) => {
+    if (!showLoading) {
+      const now = Date.now();
+      if (refreshInFlightRef.current || now - lastRefreshAtRef.current < 1200) {
+        return;
+      }
+      refreshInFlightRef.current = true;
+    }
+
     try {
       if (showLoading) {
         setLoading(true);
@@ -197,12 +209,14 @@ function GraphPageContent({ initialModel, initialN8nBaseUrl }: GraphPageClientPr
         }),
       );
       setError("");
+      lastRefreshAtRef.current = Date.now();
     } catch {
       setError("Unable to load project map.");
     } finally {
       if (showLoading) {
         setLoading(false);
       }
+      refreshInFlightRef.current = false;
     }
   }, []);
 
@@ -267,7 +281,7 @@ function GraphPageContent({ initialModel, initialN8nBaseUrl }: GraphPageClientPr
                 },
                 {
                   id: "build-doc-pack",
-                  label: "Build doc pack",
+                  label: "Build cluster task",
                   href: buildPromptPackHref("graph_focus", entity.id),
                 },
               ];
@@ -323,7 +337,7 @@ function GraphPageContent({ initialModel, initialN8nBaseUrl }: GraphPageClientPr
                   },
                   {
                     id: "switch-project-pack",
-                    label: "Automations",
+                    label: "Task recipes",
                     href: `/api/projects/activate?projectId=${encodedProjectId}&next=${encodeURIComponent(buildPromptPackHref("workspace"))}`,
                   },
                 );

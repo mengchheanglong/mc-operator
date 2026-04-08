@@ -1,23 +1,24 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { resolveProjectFromRequest } from "@/server/context/project-context";
-import { buildN8nAutomationSnapshot } from "@/server/services/n8n-service";
+import { serverError } from "@/server/http/api-response";
+import { proxyBackendRequest } from "@/server/http/directive-backend-proxy";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+export async function GET(req: Request) {
   try {
     const project = resolveProjectFromRequest(req);
-    const snapshot = await buildN8nAutomationSnapshot(project);
-
-    return NextResponse.json({
-      success: true,
-      automation: snapshot,
+    const response = await proxyBackendRequest({
+      req,
+      projectId: project.id,
+      path: "/automation/n8n/status",
     });
+    if (!response.ok) {
+      return response;
+    }
+    const payload = await response.json();
+    return NextResponse.json(payload, { status: response.status });
   } catch (error) {
-    console.error("n8n status error:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to inspect n8n status." },
-      { status: 500 },
-    );
+    return serverError(error, "n8n status error", "Failed to inspect n8n status.");
   }
 }

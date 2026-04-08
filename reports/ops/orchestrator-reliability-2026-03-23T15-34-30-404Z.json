@@ -1,0 +1,20 @@
+{
+  "generatedAt": "2026-03-23T15:34:30.404Z",
+  "userId": "795edcca-fd18-4be3-8ba0-b86045af08ef",
+  "projectId": "mission-control",
+  "counters": {
+    "create_total": 176,
+    "create_success": 165,
+    "dispatch_total": 25,
+    "dispatch_success": 25,
+    "close_total": 169,
+    "close_success": 164,
+    "overlap_block_count": 3,
+    "stale_cleanup_count": 0
+  },
+  "rates": {
+    "create_success_rate": 0.9375,
+    "dispatch_success_rate": 1,
+    "close_success_rate": 0.9704
+  }
+}

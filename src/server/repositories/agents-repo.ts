@@ -51,7 +51,15 @@ function normalizeChainPolicy(value: string | undefined | null): AgentChainPolic
 }
 
 function normalizeSourcePack(value: string | undefined | null): AgentSourcePack {
-  if (value === "agency-agents" || value === "arscontexta") return value;
+  if (
+    value === "agency-agents" ||
+    value === "arscontexta" ||
+    value === "superpowers" ||
+    value === "software-design-philosophy-skill" ||
+    value === "skills-manager" ||
+    value === "impeccable" ||
+    value === "celtrix"
+  ) return value;
   return "native";
 }
 

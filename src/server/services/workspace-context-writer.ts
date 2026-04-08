@@ -1,9 +1,11 @@
 import fs from "fs";
 import path from "path";
-import { buildContextPack } from "@/server/services/context-pack-service";
+import {
+  buildContextPack,
+  loadContextPackPreloadedData,
+} from "@/server/services/context-pack-service";
 import {
   buildCollaborationGuide,
-  buildRepoSnapshot,
   buildWorkspaceReadiness,
   renderCollaborationGuideMarkdown,
   renderIdeAgentSetupMarkdown,
@@ -233,6 +235,23 @@ export function renderContextPackMarkdown(pack: ContextPack) {
           ),
         ]
       : []),
+    ...(pack.codegraph_summary
+      ? [
+          "",
+          "### codegraph_summary (bounded)",
+          ...pack.codegraph_summary.markdown.split("\n"),
+          `- Budget: ${pack.codegraph_summary.budget.chars}/${pack.codegraph_summary.budget.maxChars} chars`,
+          `- Estimated tokens: ${pack.codegraph_summary.budget.tokensEstimated}/${pack.codegraph_summary.budget.maxTokens}`,
+          `- Token delta: ${pack.codegraph_summary.budget.deltaTokensEstimated}/${pack.codegraph_summary.budget.deltaTokensBudget}`,
+          `- Quality: ${pack.codegraph_summary.compact.metadata.qualityState} (${pack.codegraph_summary.compact.metadata.sourceMode})`,
+        ]
+      : pack.codegraph_summary_diagnostics?.reasonCode
+        ? [
+            "",
+            "### codegraph_summary (bounded)",
+            `- omitted: ${pack.codegraph_summary_diagnostics.reasonCode}`,
+          ]
+        : []),
     "",
     "### Git",
     `- ${pack.repoSnapshot.git.summary}`,
@@ -359,6 +378,15 @@ export function renderContextPackMarkdown(pack: ContextPack) {
     lines.push("");
     lines.push("## Graph Context");
     lines.push(`Focal node: ${pack.graphContext.focalNode.title}`);
+    lines.push(`Cluster summary: ${pack.graphContext.clusterSummary}`);
+    lines.push(
+      `Role: ${pack.graphContext.focalNode.role} (${pack.graphContext.focalNode.incomingCount} incoming / ${pack.graphContext.focalNode.outgoingCount} outgoing / degree ${pack.graphContext.focalNode.degree})`,
+    );
+    lines.push(
+      ...(pack.graphContext.clusterDocTitles.length
+        ? [`Cluster docs: ${pack.graphContext.clusterDocTitles.join(", ")}`]
+        : ["Cluster docs: none"]),
+    );
     lines.push(
       ...(pack.graphContext.neighbors.length
         ? pack.graphContext.neighbors.map(
@@ -367,10 +395,40 @@ export function renderContextPackMarkdown(pack: ContextPack) {
         : ["- No connected neighbors"]),
     );
 
+    if (pack.graphContext.secondHopNeighbors.length > 0) {
+      lines.push("");
+      lines.push("Second-hop notes:");
+      lines.push(
+        ...pack.graphContext.secondHopNeighbors.map(
+          (neighbor) => `- ${neighbor.title}`,
+        ),
+      );
+    }
+
     if (pack.graphContext.unresolvedLinks.length > 0) {
       lines.push("");
       lines.push("Unresolved links:");
       lines.push(...pack.graphContext.unresolvedLinks.map((item) => `- ${item}`));
+    }
+
+    if (pack.graphContext.gapCandidates.length > 0) {
+      lines.push("");
+      lines.push("Cluster gaps:");
+      lines.push(
+        ...pack.graphContext.gapCandidates.map(
+          (item) => `- ${item.label}: ${item.detail}`,
+        ),
+      );
+    }
+
+    if (pack.graphContext.codeTargets.length > 0) {
+      lines.push("");
+      lines.push("Suggested code targets:");
+      lines.push(
+        ...pack.graphContext.codeTargets.map(
+          (item) => `- ${item.path} [${item.source}]: ${item.reason}`,
+        ),
+      );
     }
   }
 
@@ -497,23 +555,33 @@ export async function writeDashboardContextFiles(
 ) {
   try {
     const dir = getContextDir(project);
+    const preloaded = await loadContextPackPreloadedData(userId, project);
     const summaryPack = await buildContextPack(userId, project, {
       focusType: "workspace",
       tier: "summary",
+      preloaded,
     });
     const workspacePack = await buildContextPack(userId, project, {
       focusType: "workspace",
       tier: "overview",
+      preloaded,
     });
     const fullPack = await buildContextPack(userId, project, {
       focusType: "workspace",
       tier: "full",
+      preloaded,
     });
     const readiness = buildWorkspaceReadiness(userId, project, {
       assumeContextFiles: true,
+      preloaded: {
+        docs: preloaded.docs,
+        quests: preloaded.readinessQuests,
+        reports: preloaded.reports,
+        repoSnapshot: preloaded.repoSnapshot,
+      },
     });
     const collaborationGuide = buildCollaborationGuide(readiness, project);
-    const repoSnapshot = buildRepoSnapshot(project);
+    const repoSnapshot = preloaded.repoSnapshot;
 
     const activeContext = [
       "# Active Context",

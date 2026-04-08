@@ -239,6 +239,181 @@ export const workspaceRunDispatches = sqliteTable(
   ],
 );
 
+export const directiveCapabilities = sqliteTable(
+  "directive_capabilities",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => users.id),
+    projectId: text("project_id").notNull().default("mission-control"),
+    sourceType: text("source_type").notNull().default("github-repo"),
+    sourceRef: text("source_ref").notNull(),
+    title: text("title").notNull(),
+    status: text("status").notNull().default("intake"),
+    frameworkStatus: text("framework_status").notNull().default("intake"),
+    runtimeStatus: text("runtime_status").notNull().default("none"),
+    workflowFamily: text("workflow_family").notNull(),
+    userIntent: text("user_intent"),
+    notesJson: text("notes_json").notNull().default("[]"),
+    analysisSummary: text("analysis_summary"),
+    category: text("category"),
+    problemFit: text("problem_fit"),
+    overlapNotes: text("overlap_notes"),
+    riskNotes: text("risk_notes"),
+    recommendation: text("recommendation"),
+    metadataJson: text("metadata_json").notNull().default("{}"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    index("directive_capabilities_user_project_created").on(
+      table.userId,
+      table.projectId,
+      table.createdAt,
+    ),
+    index("directive_capabilities_user_project_status_updated").on(
+      table.userId,
+      table.projectId,
+      table.status,
+      table.updatedAt,
+    ),
+    index("directive_capabilities_user_project_source_ref").on(
+      table.userId,
+      table.projectId,
+      table.sourceRef,
+    ),
+  ],
+);
+
+export const directiveExperiments = sqliteTable(
+  "directive_experiments",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => users.id),
+    projectId: text("project_id").notNull().default("mission-control"),
+    capabilityId: text("capability_id").notNull().references(() => directiveCapabilities.id),
+    runId: text("run_id").references(() => workspaceRuns.id),
+    hypothesis: text("hypothesis").notNull(),
+    plan: text("plan").notNull(),
+    successCriteriaJson: text("success_criteria_json").notNull().default("[]"),
+    status: text("status").notNull().default("proposed"),
+    artifactPath: text("artifact_path"),
+    metadataJson: text("metadata_json").notNull().default("{}"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+    completedAt: text("completed_at"),
+  },
+  (table) => [
+    index("directive_experiments_user_project_capability_created").on(
+      table.userId,
+      table.projectId,
+      table.capabilityId,
+      table.createdAt,
+    ),
+    index("directive_experiments_user_project_status_updated").on(
+      table.userId,
+      table.projectId,
+      table.status,
+      table.updatedAt,
+    ),
+  ],
+);
+
+export const directiveEvaluations = sqliteTable(
+  "directive_evaluations",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => users.id),
+    projectId: text("project_id").notNull().default("mission-control"),
+    capabilityId: text("capability_id").notNull().references(() => directiveCapabilities.id),
+    experimentId: text("experiment_id").notNull().references(() => directiveExperiments.id),
+    outcome: text("outcome").notNull().default("inconclusive"),
+    usefulness: text("usefulness"),
+    friction: text("friction"),
+    workflowImpact: text("workflow_impact"),
+    evidenceSummary: text("evidence_summary").notNull(),
+    metadataJson: text("metadata_json").notNull().default("{}"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    index("directive_evaluations_user_project_capability_created").on(
+      table.userId,
+      table.projectId,
+      table.capabilityId,
+      table.createdAt,
+    ),
+    index("directive_evaluations_user_project_experiment").on(
+      table.userId,
+      table.projectId,
+      table.experimentId,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const directiveDecisions = sqliteTable(
+  "directive_decisions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => users.id),
+    projectId: text("project_id").notNull().default("mission-control"),
+    capabilityId: text("capability_id").notNull().references(() => directiveCapabilities.id),
+    evaluationId: text("evaluation_id").references(() => directiveEvaluations.id),
+    decision: text("decision").notNull(),
+    rationale: text("rationale").notNull(),
+    decidedBy: text("decided_by").notNull().default("user"),
+    metadataJson: text("metadata_json").notNull().default("{}"),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    index("directive_decisions_user_project_capability_created").on(
+      table.userId,
+      table.projectId,
+      table.capabilityId,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const directiveIntegrations = sqliteTable(
+  "directive_integrations",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => users.id),
+    projectId: text("project_id").notNull().default("mission-control"),
+    capabilityId: text("capability_id").notNull().references(() => directiveCapabilities.id),
+    decisionId: text("decision_id").notNull().references(() => directiveDecisions.id),
+    status: text("status").notNull().default("planned"),
+    integrationMode: text("integration_mode").notNull().default("adapt"),
+    integrationSurface: text("integration_surface").notNull(),
+    targetRuntimeSurface: text("target_runtime_surface"),
+    owner: text("owner"),
+    dueAt: text("due_at"),
+    requiredGatesJson: text("required_gates_json").notNull().default("[]"),
+    proofArtifactPath: text("proof_artifact_path"),
+    rollbackPlan: text("rollback_plan"),
+    dependencyNotes: text("dependency_notes"),
+    rollbackNotes: text("rollback_notes"),
+    metadataJson: text("metadata_json").notNull().default("{}"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    index("directive_integrations_user_project_capability_created").on(
+      table.userId,
+      table.projectId,
+      table.capabilityId,
+      table.createdAt,
+    ),
+    index("directive_integrations_user_project_status_updated").on(
+      table.userId,
+      table.projectId,
+      table.status,
+      table.updatedAt,
+    ),
+  ],
+);
+
 export const orchestratorReliabilityStats = sqliteTable(
   "orchestrator_reliability_stats",
   {

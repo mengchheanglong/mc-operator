@@ -1,0 +1,97 @@
+- description: concise implementation task
+  vars:
+    output: |
+      Objective: Implement a focused fix for agent dispatch retries.
+      Actions:
+      - Update retry cap in dispatch service.
+      - Add one targeted regression check.
+      Verification:
+      - npm run typecheck
+      - npm run lint
+      Scope:
+      - touched files: 2
+
+- description: bugfix task
+  vars:
+    output: |
+      Objective: Fix status-only quest update regression.
+      Actions:
+      - Keep existing goal when goal is omitted.
+      - Preserve verification gate behavior.
+      Verification:
+      - npm run typecheck
+      - npm run lint -- src/app/api/quests/[id]/route.ts
+      Scope:
+      - touched files: 1
+
+- description: review task
+  vars:
+    output: |
+      Objective: Review AO adapter stability after parser changes.
+      Actions:
+      - Check failure modes and duplicate declarations.
+      - Confirm check:ao-adapter passes.
+      Verification:
+      - npm run check:ao-adapter
+      - npm run typecheck
+      Scope:
+      - touched files: 1
+
+- description: automation task
+  vars:
+    output: |
+      Objective: Prepare automation execution brief with bounded context.
+      Actions:
+      - Generate brief packet with deduped context blocks.
+      - Attach run metadata and cost-risk tier.
+      Verification:
+      - npm run check:workflow-guardrails
+      Scope:
+      - touched files: 2
+
+- description: failure-path missing verification
+  vars:
+    output: |
+      Objective: Complete quest with missing verification should fail.
+      Actions:
+      - Enforce verificationSummary or structured verificationEvidence.
+      Verification:
+      - expect HTTP 400 when proof missing
+      Scope:
+      - touched files: 1
+
+- description: bounded refactor task
+  vars:
+    output: |
+      Objective: Refactor reports ordering with deterministic tie-breaks.
+      Actions:
+      - order by date then id.
+      - keep API compatibility.
+      Verification:
+      - npm run typecheck
+      - npm run lint
+      - npm run build
+      Scope:
+      - touched files: 2
+
+- description: over-scoped request should be penalized
+  vars:
+    output: |
+      Objective: Rewrite the whole platform, all APIs, all UI, and all data models in one sweep.
+      Actions:
+      - update everything
+      - rewrite architecture end-to-end
+      - replace all workflows
+      - redesign entire UI
+      - migrate every table
+      - regenerate all docs
+      - rebuild integration stack
+      - rewrite tests from scratch
+      Verification:
+      - none
+      Scope:
+      - touched files: 120+
+  assert:
+    - type: not-contains
+      value: "Rewrite the whole platform"
+      metric: bounded_scope

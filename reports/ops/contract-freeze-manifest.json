@@ -1,0 +1,93 @@
+{
+  "generatedAt": "2026-03-18T10:18:45.646Z",
+  "entries": [
+    {
+      "file": "src/app/api/directive-workspace/capabilities/route.ts",
+      "hash": "e308c54507791dec4c4e78f5f59d5c33cdc939be474239dbd92c0f6440657ec9"
+    },
+    {
+      "file": "src/app/api/directive-workspace/capabilities/[id]/route.ts",
+      "hash": "f8457a8f85079aa7909202707e716d2906601b2c6491de3d717bbd62d8d53d5e"
+    },
+    {
+      "file": "src/app/api/directive-workspace/capabilities/[id]/analysis/route.ts",
+      "hash": "399bfa2dd4c33c157415900535c8b86e7f64c643e8f37fc92109530e9f695c7a"
+    },
+    {
+      "file": "src/app/api/directive-workspace/capabilities/[id]/decision/route.ts",
+      "hash": "c9f747d1075f151247beff50ecff8304cee45911d087b87032e2145510d6cd54"
+    },
+    {
+      "file": "src/app/api/directive-workspace/capabilities/[id]/evaluations/route.ts",
+      "hash": "8dca262e74e6b87cdd871e94dbeda5c58187faf2aa88f7cec0bf367258c81b04"
+    },
+    {
+      "file": "src/app/api/directive-workspace/capabilities/[id]/experiments/route.ts",
+      "hash": "26c9721dc03c65229e671e3baaf1ba5007c76290de3836449507c72b2eb23245"
+    },
+    {
+      "file": "src/app/api/directive-workspace/capabilities/[id]/lifecycle/route.ts",
+      "hash": "ce66ebb5ba17786cfd9fe971d45f53661dec6b2978320974d2bcf2c5f2e0f141"
+    },
+    {
+      "file": "src/app/api/directive-workspace/capabilities/[id]/proof/route.ts",
+      "hash": "05eda14d23cd4c5060d9bcb23ef0fffc3681549823cbab1f4dfbbf5582563b0a"
+    },
+    {
+      "file": "src/app/api/directive-workspace/registry/route.ts",
+      "hash": "fe5c8a27b242dafa9afef7152f5379e1e3461ae56f24ada4eb9fb4f406aa6075"
+    },
+    {
+      "file": "src/app/api/quests/route.ts",
+      "hash": "5954711876aff25c83c0f4c2781a3282bd870409d19bff7d56120b631eeca217"
+    },
+    {
+      "file": "src/app/api/quests/[id]/route.ts",
+      "hash": "e4bde6037413215ef679b888cc9c100d1ea9301f59b5263db60c7632991f118f"
+    },
+    {
+      "file": "src/app/api/quests/[id]/complete/route.ts",
+      "hash": "bbf89cfd9b58683d47e5bf5dab769b7f41c8504de83df1b4b4f1fe6c0d062521"
+    },
+    {
+      "file": "src/app/api/docs/route.ts",
+      "hash": "02d45cbb3faa745cb71d3637b1b442c69b0653d235e0a6f04dc9b5378a52c91f"
+    },
+    {
+      "file": "src/app/api/docs/[id]/route.ts",
+      "hash": "c418968b9f406aa8e5addf3c8d61cfc75679d34d775e4fb7ca1ef687c4934190"
+    },
+    {
+      "file": "src/app/api/reports/route.ts",
+      "hash": "5f6158aa9d63e4da34fc874bca0378584644a73b949c4d8ce4862fcfa0924da2"
+    },
+    {
+      "file": "src/app/api/reports/[id]/route.ts",
+      "hash": "a6d7aafbb88a65e523d21513d1681649601aa3ba8ba7d74c2de3730f8a655ca6"
+    },
+    {
+      "file": "src/app/api/automation/runs/route.ts",
+      "hash": "f5fe74f068eaa7096a6b24bf63547df964bf8bb4eabf79c1fac36d47c5b9fb39"
+    },
+    {
+      "file": "src/app/api/automation/runs/create/route.ts",
+      "hash": "578ca3a2e8b5aa79f8b7dca507b4e75969a3fca5b8bc9dd1447dd21edc7becfb"
+    },
+    {
+      "file": "src/app/api/automation/templates/route.ts",
+      "hash": "62a6b5d838e05cbb377594c0a9377bad4fd2f7f253ab3fd0684a5dfe0ea0461c"
+    },
+    {
+      "file": "src/app/api/automation/templates/[id]/route.ts",
+      "hash": "1362ed104b339b94f9b14220411a03686abb908236f068efca97d94d56bf509d"
+    },
+    {
+      "file": "src/server/http/backend-write-policy.ts",
+      "hash": "5ce90a5aee2b74c48e922ce75233520e832e284597cd762aee12c630bbcf5b29"
+    },
+    {
+      "file": "src/server/http/directive-backend-proxy.ts",
+      "hash": "ed1cfdbfb577b449ae69295158b74d8bd7517ea18d0886e5d2e417eba1c9ecd9"
+    }
+  ]
+}

@@ -1,0 +1,126 @@
+{
+  "generatedAt": "2026-03-23T15:37:54.881Z",
+  "ok": false,
+  "health": {
+    "status": "warning",
+    "ok": false,
+    "reasons": [
+      "flagged_steps_exceeded"
+    ],
+    "totalSteps": 5,
+    "flaggedCount": 1,
+    "thresholds": {
+      "maxFlaggedSteps": 0
+    }
+  },
+  "thresholds": {
+    "limit": 8,
+    "minSamplesPerStep": 3,
+    "maxFailureRate": 0.35,
+    "slowDurationMs": 180000,
+    "maxSlowRuns": 3,
+    "maxDurationSpikeRatio": 2,
+    "minFailingStreak": 2,
+    "minSlowStreak": 2,
+    "maxFlaggedSteps": 0
+  },
+  "hotspots": [
+    {
+      "stepId": "ops_health_snapshot",
+      "severity": "low",
+      "severityScore": 3,
+      "samples": 8,
+      "failureCount": 2,
+      "failureRate": 0.25,
+      "failingStreak": 0,
+      "slowCount": 0,
+      "slowStreak": 0,
+      "avgDurationMs": 972.375,
+      "medianDurationMs": 734,
+      "latestDurationMs": 2663,
+      "durationSpikeRatio": 3.628065395095368,
+      "lastFailureAt": "2026-03-21T15:30:03.153Z",
+      "latestReportFile": "nightly-ops-bundle-2026-03-23T15-30-05-165Z.json",
+      "reasons": [
+        "duration_spike_exceeded"
+      ],
+      "flagged": true
+    },
+    {
+      "stepId": "orchestrator_nightly",
+      "severity": "low",
+      "severityScore": 0,
+      "samples": 8,
+      "failureCount": 2,
+      "failureRate": 0.25,
+      "failingStreak": 0,
+      "slowCount": 2,
+      "slowStreak": 1,
+      "avgDurationMs": 153676.25,
+      "medianDurationMs": 150368,
+      "latestDurationMs": 201681,
+      "durationSpikeRatio": 1.341249467971909,
+      "lastFailureAt": "2026-03-21T15:30:03.153Z",
+      "latestReportFile": "nightly-ops-bundle-2026-03-23T15-30-05-165Z.json",
+      "reasons": [],
+      "flagged": false
+    },
+    {
+      "stepId": "workspace_health_nightly",
+      "severity": "low",
+      "severityScore": 0,
+      "samples": 8,
+      "failureCount": 2,
+      "failureRate": 0.25,
+      "failingStreak": 0,
+      "slowCount": 2,
+      "slowStreak": 0,
+      "avgDurationMs": 171143.875,
+      "medianDurationMs": 163878,
+      "latestDurationMs": 169482,
+      "durationSpikeRatio": 1.0341961703218248,
+      "lastFailureAt": "2026-03-21T15:30:03.153Z",
+      "latestReportFile": "nightly-ops-bundle-2026-03-23T15-30-05-165Z.json",
+      "reasons": [],
+      "flagged": false
+    },
+    {
+      "stepId": "repo_sources_nightly",
+      "severity": "low",
+      "severityScore": 0,
+      "samples": 8,
+      "failureCount": 1,
+      "failureRate": 0.125,
+      "failingStreak": 0,
+      "slowCount": 0,
+      "slowStreak": 0,
+      "avgDurationMs": 23676,
+      "medianDurationMs": 13990,
+      "latestDurationMs": 24391,
+      "durationSpikeRatio": 1.7434596140100072,
+      "lastFailureAt": "2026-03-20T16:08:23.704Z",
+      "latestReportFile": "nightly-ops-bundle-2026-03-23T15-30-05-165Z.json",
+      "reasons": [],
+      "flagged": false
+    },
+    {
+      "stepId": "canary_nightly",
+      "severity": "low",
+      "severityScore": 0,
+      "samples": 8,
+      "failureCount": 0,
+      "failureRate": 0,
+      "failingStreak": 0,
+      "slowCount": 0,
+      "slowStreak": 0,
+      "avgDurationMs": 67021.875,
+      "medianDurationMs": 65436,
+      "latestDurationMs": 69011,
+      "durationSpikeRatio": 1.0546335350571552,
+      "lastFailureAt": null,
+      "latestReportFile": "nightly-ops-bundle-2026-03-23T15-30-05-165Z.json",
+      "reasons": [],
+      "flagged": false
+    }
+  ]
+}

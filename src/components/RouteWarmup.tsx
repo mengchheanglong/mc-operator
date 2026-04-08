@@ -9,18 +9,8 @@ const ROUTES_TO_WARM = [
   "/dashboard/quests",
   "/dashboard/graph",
   "/dashboard/agents",
-  "/dashboard/automations",
   "/dashboard/docs",
   "/dashboard/report",
-];
-
-const APIS_TO_WARM = [
-  "/api/projects",
-  "/api/notes",
-  "/api/quests?limit=100",
-  "/api/reports?limit=60",
-  "/api/docs",
-  "/api/automation/n8n/status",
 ];
 
 declare global {
@@ -43,21 +33,14 @@ export default function RouteWarmup() {
 
     window.__missionControlWarmupDone = true;
 
-    const controller = new AbortController();
-
     const warm = async () => {
       const routeTargets = ROUTES_TO_WARM.filter((href) => href !== pathname);
 
-      for (const href of [...routeTargets, ...APIS_TO_WARM]) {
-        if (controller.signal.aborted) {
-          return;
-        }
-
+      for (const href of routeTargets) {
         try {
           await fetch(href, {
             credentials: "same-origin",
             cache: "no-store",
-            signal: controller.signal,
           });
         } catch {
           // Warmup is best-effort only.
@@ -82,8 +65,6 @@ export default function RouteWarmup() {
     }
 
     return () => {
-      controller.abort();
-
       if (idleCallbackId !== null && "cancelIdleCallback" in window) {
         window.cancelIdleCallback(idleCallbackId);
       }

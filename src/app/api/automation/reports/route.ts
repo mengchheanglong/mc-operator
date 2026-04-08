@@ -6,11 +6,8 @@ import {
   requireAutomationToken,
 } from "@/server/http/automation-auth";
 import { badRequest, serverError } from "@/server/http/api-response";
-import {
-  createReport,
-  type ReportCategory,
-  type ReportStatus,
-} from "@/server/repositories/reports-repo";
+import { proxyBackendRequest } from "@/server/http/directive-backend-proxy";
+import { type ReportCategory, type ReportStatus } from "@/server/repositories/reports-repo";
 import { writeDashboardContextFiles } from "@/server/services/workspace-context-writer";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +31,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const reqForProxy = req.clone();
     const user = await resolveUserContext();
     const project = resolveProjectFromRequest(req);
     const body = (await req.json()) as AutomationReportPayload;
@@ -66,28 +64,44 @@ export async function POST(req: NextRequest) {
       return badRequest("Content must be 5000 characters or less.");
     }
 
-    const report = createReport(user.id, project.id, {
-      title,
-      content,
-      category,
-      status,
-      area,
-      linkedQuestId: linkedQuestId || undefined,
-      source,
-      topics,
-      metadata: {
-        ...metadata,
-        automation: "n8n",
-        tokenHeader: AUTOMATION_TOKEN_HEADER,
-      },
+    const proxiedReq = new Request(reqForProxy.url, {
+      method: "POST",
+      headers: reqForProxy.headers,
+      body: JSON.stringify({
+        title,
+        content,
+        category,
+        status,
+        area,
+        linkedQuestId: linkedQuestId || undefined,
+        source,
+        topics,
+        metadata: {
+          ...metadata,
+          automation: "n8n",
+          tokenHeader: AUTOMATION_TOKEN_HEADER,
+        },
+      }),
     });
+
+    const response = await proxyBackendRequest({
+      req: proxiedReq,
+      projectId: project.id,
+      path: "/reports",
+    });
+    if (!response.ok) {
+      return response;
+    }
+    const payload = (await response.json()) as {
+      report?: Record<string, unknown>;
+    };
 
     writeDashboardContextFiles(user.id, project).catch(console.error);
 
     return NextResponse.json({
       success: true,
       msg: "Automation report created.",
-      report,
+      report: payload.report || null,
     });
   } catch (error) {
     return serverError(

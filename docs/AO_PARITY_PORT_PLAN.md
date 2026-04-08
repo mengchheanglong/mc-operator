@@ -9,7 +9,7 @@ Adopt the most valuable orchestration behaviors from agent-orchestrator into Mis
 - Keep OpenClaw as orchestration/dispatch layer.
 - Keep Mission Control as durable system of record.
 - Keep n8n as route/schedule engine.
-- Reuse existing local-first adapters (CodeGraphContext, puppeteer, promptfoo, agency-agents, arscontexta, OpenViking pilot).
+- Reuse existing local-first adapters (puppeteer, promptfoo, agency-agents, arscontexta) and only keep bounded-spike learnings from parked tools (CodeGraphContext, OpenViking).
 - Do not import AO wholesale; port patterns selectively.
 
 ---
@@ -29,9 +29,9 @@ Adopt the most valuable orchestration behaviors from agent-orchestrator into Mis
 Already in place:
 - OpenClaw direct execution path for automations + agents
 - n8n dispatch path
-- external-tool contract and adapters (agent-lab/orchestration)
+- Directive Workspace Forge external-run contract and host adapters
 - imported agent packs (agency-agents + arscontexta)
-- OpenViking local pilot stack
+- OpenViking bounded-spike findings (parked; pattern source only)
 
 Gaps vs AO:
 - no first-class worktree lifecycle manager in Mission Control

@@ -41,6 +41,8 @@ const FIXED_WAIT_MS = 400;
 const ROOT = process.cwd();
 const REPORT_DIR = path.join(ROOT, "reports", "ui-smoke");
 const SCREENSHOT_DIR = path.join(REPORT_DIR, "screenshots");
+const DEV_SCRIPT = process.env.UI_SMOKE_DEV_SCRIPT || "dev:web";
+const SERVER_TIMEOUT_MS = Number(process.env.UI_SMOKE_SERVER_TIMEOUT_MS || "240000");
 
 function nowTag(date = new Date()) {
   return date.toISOString().replace(/[.:]/g, "-");
@@ -62,6 +64,32 @@ async function waitForServer(url: string, timeoutMs = 120000) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
   throw new Error(`Timed out waiting for app server at ${url}`);
+}
+
+async function isResponsiveBaseUrl(url: string) {
+  try {
+    const res = await fetch(`${url}/dashboard/agents`, { redirect: "manual" });
+    return res.status < 500;
+  } catch {
+    return false;
+  }
+}
+
+async function findExistingBaseUrl() {
+  const candidates = [
+    process.env.UI_SMOKE_BASE_URL || "",
+    `http://${HOST}:${REQUESTED_PORT}`,
+    `http://${HOST}:3000`,
+    `http://${HOST}:3100`,
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    if (await isResponsiveBaseUrl(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
 }
 
 async function isPortFree(port: number) {
@@ -92,7 +120,7 @@ async function resolveRuntimePort() {
 function startDevServer() {
   const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
   const child = spawn(
-    `${npmCmd} run dev -- --hostname ${HOST} --port ${runtimePort}`,
+    `${npmCmd} run ${DEV_SCRIPT} -- --hostname ${HOST} --port ${runtimePort}`,
     {
       cwd: ROOT,
       env: { ...process.env, FORCE_COLOR: "0" },
@@ -143,6 +171,7 @@ async function runFlow(page: Page, input: {
   const issues: SmokeIssue[] = [];
   let status: FlowStatus = "pass";
   let error: string | null = null;
+  let navigationAborted = false;
 
   const consoleHandler = (msg: { type: () => string; text: () => string }) => {
     const type = msg.type();
@@ -171,10 +200,25 @@ async function runFlow(page: Page, input: {
   page.on("requestfailed", reqFailHandler);
 
   try {
-    await page.goto(`${runtimeBaseUrl}${input.route}`, { waitUntil: "domcontentloaded", timeout: 60000 });
+    try {
+      await page.goto(`${runtimeBaseUrl}${input.route}`, {
+        waitUntil: "domcontentloaded",
+        timeout: 60000,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (!message.includes("ERR_ABORTED")) {
+        throw err;
+      }
+      navigationAborted = true;
+    }
     await sleep(FIXED_WAIT_MS);
     await input.action();
     await sleep(FIXED_WAIT_MS);
+    const currentUrl = page.url();
+    if (!currentUrl.includes(input.route)) {
+      throw new Error(`Navigation settled on unexpected route: ${currentUrl}`);
+    }
   } catch (err) {
     status = "fail";
     error = err instanceof Error ? err.message : String(err);
@@ -207,11 +251,16 @@ async function runFlow(page: Page, input: {
 async function main() {
   await mkdir(SCREENSHOT_DIR, { recursive: true });
   const stamp = nowTag();
-
-  await resolveRuntimePort();
-  const server = startDevServer();
+  const existingBaseUrl = await findExistingBaseUrl();
+  let server: ChildProcess | null = null;
   try {
-    await waitForServer(runtimeBaseUrl);
+    if (existingBaseUrl) {
+      runtimeBaseUrl = existingBaseUrl;
+    } else {
+      await resolveRuntimePort();
+      server = startDevServer();
+    }
+    await waitForServer(runtimeBaseUrl, SERVER_TIMEOUT_MS);
     const browser = await puppeteer.launch({ headless: true, defaultViewport: VIEWPORT });
     const page = await browser.newPage();
 
@@ -286,7 +335,9 @@ async function main() {
       process.exitCode = 1;
     }
   } finally {
-    await stopServer(server);
+    if (server) {
+      await stopServer(server);
+    }
   }
 }
 

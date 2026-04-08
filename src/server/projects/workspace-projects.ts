@@ -1,6 +1,8 @@
 import fs from "fs";
 import path from "path";
 
+export type WorkspaceProjectType = "personal" | "github" | "external";
+
 export interface WorkspaceProject {
   id: string;
   name: string;
@@ -10,6 +12,7 @@ export interface WorkspaceProject {
   isControlPlane: boolean;
   hasGit: boolean;
   hasPackageJson: boolean;
+  projectType: WorkspaceProjectType;
 }
 
 type PackageJsonLike = {
@@ -40,6 +43,18 @@ const GENERIC_PROJECT_FOLDER_NAMES = new Set([
   "site",
 ]);
 
+const DEFAULT_PERSONAL_PROJECT_NAMES = [
+  "mission-control",
+  "studyspace",
+  "venturespace",
+  "freshhaul-kh",
+  "Business-Analytics-Backend",
+];
+
+const CONTROL_PLANE_PROJECT_ID =
+  String(process.env.MISSION_CONTROL_PROJECT_ID || "mission-control").trim() ||
+  "mission-control";
+
 function workspaceRootPath() {
   return process.env.OPENCLAW_WORKSPACE_ROOT
     ? path.resolve(process.env.OPENCLAW_WORKSPACE_ROOT)
@@ -51,7 +66,7 @@ export function getWorkspaceRootPath() {
 }
 
 export function getControlPlaneProjectId() {
-  return path.relative(workspaceRootPath(), process.cwd()).replace(/\\/g, "/");
+  return CONTROL_PLANE_PROJECT_ID;
 }
 
 function normalizeRelativePath(relativePath: string) {
@@ -76,6 +91,137 @@ function resolveFolderDisplayName(rootPath: string) {
 
 function normalizeProjectToken(value: string) {
   return value.trim().toLowerCase().replace(/[-_\s]+/g, "");
+}
+
+function configuredPersonalProjectTokens() {
+  const configuredProjects = String(process.env.MISSION_CONTROL_PERSONAL_PROJECTS || "");
+  const candidates = [
+    ...DEFAULT_PERSONAL_PROJECT_NAMES,
+    ...configuredProjects
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+  ];
+
+  return new Set(candidates.map(normalizeProjectToken).filter(Boolean));
+}
+
+function collectProjectTokens(relativePath: string, folderName: string, displayName: string) {
+  const rawTokens = [relativePath, folderName, displayName];
+  return rawTokens.map(normalizeProjectToken).filter(Boolean);
+}
+
+function resolveGitDir(rootPath: string) {
+  const gitPath = path.join(rootPath, ".git");
+  if (!pathExists(gitPath)) {
+    return null;
+  }
+
+  try {
+    const gitStat = fs.statSync(gitPath);
+    if (gitStat.isDirectory()) {
+      return gitPath;
+    }
+
+    if (gitStat.isFile()) {
+      const gitPointer = fs.readFileSync(gitPath, "utf8");
+      const gitDirMatch = gitPointer.match(/^gitdir:\s*(.+)$/im);
+      if (!gitDirMatch?.[1]) {
+        return null;
+      }
+
+      return path.resolve(rootPath, gitDirMatch[1].trim());
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function readGitOriginUrl(rootPath: string) {
+  const gitDir = resolveGitDir(rootPath);
+  if (!gitDir) {
+    return null;
+  }
+
+  const configPath = path.join(gitDir, "config");
+  if (!pathExists(configPath)) {
+    return null;
+  }
+
+  try {
+    const lines = fs.readFileSync(configPath, "utf8").split(/\r?\n/);
+    let inOriginSection = false;
+
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      const remoteHeader = trimmedLine.match(/^\[remote\s+"(.+)"\]$/i);
+      if (remoteHeader) {
+        inOriginSection = remoteHeader[1].toLowerCase() === "origin";
+        continue;
+      }
+
+      if (trimmedLine.startsWith("[") && !remoteHeader) {
+        inOriginSection = false;
+        continue;
+      }
+
+      if (!inOriginSection) {
+        continue;
+      }
+
+      const urlMatch = trimmedLine.match(/^url\s*=\s*(.+)$/i);
+      if (urlMatch?.[1]) {
+        return urlMatch[1].trim();
+      }
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function isGitHubOriginUrl(originUrl: string | null) {
+  if (!originUrl) {
+    return false;
+  }
+
+  const normalizedUrl = originUrl.toLowerCase();
+  return normalizedUrl.includes("github.com") || normalizedUrl.startsWith("git@github");
+}
+
+function resolveProjectType({
+  rootPath,
+  relativePath,
+  folderName,
+  displayName,
+  isControlPlane,
+  hasGit,
+}: {
+  rootPath: string;
+  relativePath: string;
+  folderName: string;
+  displayName: string;
+  isControlPlane: boolean;
+  hasGit: boolean;
+}): WorkspaceProjectType {
+  if (isControlPlane) {
+    return "personal";
+  }
+
+  const personalTokens = configuredPersonalProjectTokens();
+  const projectTokens = collectProjectTokens(relativePath, folderName, displayName);
+  if (projectTokens.some((token) => personalTokens.has(token))) {
+    return "personal";
+  }
+
+  if (hasGit && isGitHubOriginUrl(readGitOriginUrl(rootPath))) {
+    return "github";
+  }
+
+  return "external";
 }
 
 function pathExists(targetPath: string) {
@@ -193,18 +339,28 @@ function createProjectRecord(
 
   const packageJson = readPackageJson(resolvedRootPath);
   const folderName = path.basename(resolvedRootPath);
-  const isControlPlane =
-    path.resolve(resolvedRootPath) === path.resolve(process.cwd());
+  const projectName = resolveProjectDisplayName(packageJson.name, folderName, resolvedRootPath);
+  const isControlPlane = relativePath === getControlPlaneProjectId();
+  const hasGit = pathExists(path.join(resolvedRootPath, ".git"));
+  const hasPackageJson = pathExists(path.join(resolvedRootPath, "package.json"));
 
   return {
     id: relativePath,
-    name: resolveProjectDisplayName(packageJson.name, folderName, resolvedRootPath),
+    name: projectName,
     rootPath: resolvedRootPath,
     relativePath,
     category,
     isControlPlane,
-    hasGit: pathExists(path.join(resolvedRootPath, ".git")),
-    hasPackageJson: pathExists(path.join(resolvedRootPath, "package.json")),
+    hasGit,
+    hasPackageJson,
+    projectType: resolveProjectType({
+      rootPath: resolvedRootPath,
+      relativePath,
+      folderName,
+      displayName: projectName,
+      isControlPlane,
+      hasGit,
+    }),
   };
 }
 
@@ -239,6 +395,29 @@ function collectNestedProjects(root: string, containerName: "projects" | "archiv
     .filter(Boolean) as WorkspaceProject[];
 }
 
+function collectPortfolioProjects(root: string) {
+  if (!pathExists(root)) {
+    return [];
+  }
+
+  return fs
+    .readdirSync(root, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .filter((entry) => !IGNORED_ROOT_NAMES.has(entry.name))
+    .flatMap((entry) => {
+      const nestedProjectsPath = path.join(root, entry.name, "projects");
+      if (!pathExists(nestedProjectsPath)) {
+        return [];
+      }
+
+      return fs
+        .readdirSync(nestedProjectsPath, { withFileTypes: true })
+        .filter((child) => child.isDirectory())
+        .map((child) => createProjectRecord(path.join(nestedProjectsPath, child.name), "projects"))
+        .filter(Boolean) as WorkspaceProject[];
+    });
+}
+
 function collectOptionalNestedProjects(root: string, containerName: "archive" | "tools") {
   const containerPath = path.join(root, containerName);
   if (!pathExists(containerPath)) {
@@ -256,6 +435,7 @@ export function listWorkspaceProjects(): WorkspaceProject[] {
   const root = workspaceRootPath();
   const projects = [
     ...collectRootProjects(root),
+    ...collectPortfolioProjects(root),
     ...collectNestedProjects(root, "projects"),
     ...collectNestedProjects(root, "archive"),
   ];
@@ -292,6 +472,7 @@ export function listWorkspaceGraphProjects(): WorkspaceProject[] {
   const root = workspaceRootPath();
   const projects = [
     ...collectRootProjects(root),
+    ...collectPortfolioProjects(root),
     ...collectNestedProjects(root, "projects"),
     ...collectOptionalNestedProjects(root, "archive"),
     ...collectOptionalNestedProjects(root, "tools"),
@@ -350,6 +531,35 @@ export function findWorkspaceProject(projectId?: string | null) {
         return resolved;
       }
     }
+
+    // Keep request-scoped project ids stable even when the workspace root is sparse
+    // (for example in isolated backend API tests that provision an empty temp workspace).
+    const relativeCategory = normalizedId.split("/")[0];
+    const category: WorkspaceProject["category"] =
+      relativeCategory === "studyspace"
+        ? "studyspace"
+        : relativeCategory === "projects"
+          ? "projects"
+          : relativeCategory === "archive"
+            ? "archive"
+            : relativeCategory === "tools"
+              ? "tools"
+              : "root";
+    const syntheticRoot = path.join(workspaceRootPath(), normalizedId);
+    const folderName = path.basename(normalizedId);
+    const isControlPlane = normalizedId === getControlPlaneProjectId();
+
+    return {
+      id: normalizedId,
+      name: humanizeProjectName(folderName || normalizedId),
+      rootPath: syntheticRoot,
+      relativePath: normalizedId,
+      category,
+      isControlPlane,
+      hasGit: false,
+      hasPackageJson: false,
+      projectType: isControlPlane ? "personal" : "external",
+    };
   }
 
   return (

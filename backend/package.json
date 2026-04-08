@@ -1,0 +1,30 @@
+{
+  "name": "mission-control-backend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node --watch -r ts-node/register src/main.ts",
+    "build": "node ./scripts/clean-dist.mjs && tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "smoke": "npm run build && node dist/smoke.js"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.17",
+    "@nestjs/config": "^4.0.3",
+    "@nestjs/core": "^11.1.17",
+    "@nestjs/platform-express": "^11.1.17",
+    "better-sqlite3": "^12.6.2",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "gray-matter": "^4.0.3",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.3.5",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

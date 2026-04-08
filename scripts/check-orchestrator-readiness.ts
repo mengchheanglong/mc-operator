@@ -2,6 +2,7 @@ import { execSync } from "child_process";
 import { findOrCreateUser } from "../src/server/repositories/users-repo";
 import { resolveProjectById } from "../src/server/context/project-context";
 import { listAgents } from "../src/server/repositories/agents-repo";
+import { findActiveWorkspaceRunByBranch } from "../src/server/repositories/workspace-runs-repo";
 import { closeRun, createRun, listRuns } from "../src/server/services/workspace-run-service";
 import { createWorkspaceRunDispatch, hasRunningWorkspaceRunDispatch, updateWorkspaceRunDispatch } from "../src/server/repositories/workspace-run-dispatches-repo";
 import { findWorkspaceRunById } from "../src/server/repositories/workspace-runs-repo";
@@ -22,13 +23,41 @@ async function main() {
   const currentBranch = execSync("git rev-parse --abbrev-ref HEAD", { cwd: project.rootPath, encoding: "utf8" }).trim();
   const probeBranch = `readiness-probe-${Date.now()}`;
 
-  const adapterChecks = [
+  const skipNightlyGates = String(process.env.MISSION_CONTROL_READINESS_SKIP_NIGHTLY_GATES || "").toLowerCase() === "true";
+  const adapterChecksRaw: string[] = [
+    "npm run check:codex-first-workflow",
     "npm run check:agent-evals",
     "npm run check:agent-eval-regression",
-    "npm run check:canary-health",
-    "npm run check:adapters",
-    "npm run check:ui-smoke",
-  ].map(runCheck);
+    "npm run check:directive-integration-proof",
+    "npm run check:agents-catalog-api-backend",
+    "npm run check:agents-runtime-api-backend",
+    "npm run check:agents-dispatch-api-backend",
+    "npm run check:agents-import-packs-api-backend",
+    "npm run check:agents-pack-assets-api-backend",
+    "npm run check:agents-send-api-backend",
+    "npm run check:automation-runs-api-backend",
+    "npm run check:automation-templates-api-backend",
+    "npm run check:automation-template-entry-api-backend",
+    "npm run check:automation-template-runs-api-backend",
+    "npm run check:automation-run-tools-api-backend",
+    "npm run check:automation-health-api-backend",
+    "npm run check:migration-batch-api-backend",
+    "npm run check:automation-template-run-api-backend",
+    "npm run check:automation-template-check-api-backend",
+    "npm run check:automation-template-execute-api-backend",
+    "npm run check:agency-agents",
+    "npm run ops:repo-sources:check -- --fetch",
+  ];
+  if (skipNightlyGates) {
+    // Avoid circular dependencies when readiness is called from nightly jobs.
+    adapterChecksRaw.push("npm run check:repo-sources-health");
+    adapterChecksRaw.push("npm run check:canary-health");
+  } else {
+    adapterChecksRaw.push("npm run check:ops-stack");
+  }
+  adapterChecksRaw.push("npm run check:adapters");
+  adapterChecksRaw.push("npm run check:ui-smoke");
+  const adapterChecks = adapterChecksRaw.map(runCheck);
 
   let happyPath = { ok: false, error: "not_run" as string | null, createdRunId: null as string | null };
   let closedBlocked = { ok: false, status: 0, body: {} as Record<string, unknown> };
@@ -74,7 +103,8 @@ async function main() {
       },
     };
 
-    const activeRun = listRuns({ userId: user.id, projectId: project.id }).find((row) => row.status === "active");
+    const activeRun = findActiveWorkspaceRunByBranch(user.id, project.id, currentBranch)
+      || listRuns({ userId: user.id, projectId: project.id }).find((row) => row.status === "active");
     if (activeRun) {
       const lock = createWorkspaceRunDispatch({
         userId: user.id,

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { resolveProjectFromRequest } from "@/server/context/project-context";
 import { resolveUserContext } from "@/server/context/user-context";
-import { findDocById, updateDoc, deleteDoc, type DocWithTags } from "@/server/repositories/docs-repo";
 import { extractLinks } from "@/lib/parser/extractLinks";
 import { badRequest, notFound, serverError } from "@/server/http/api-response";
+import { backendRequiredForWriteResponse } from "@/server/http/backend-write-policy";
+import { proxyBackendRequest } from "@/server/http/directive-backend-proxy";
 import { writeDashboardContextFiles, writeDocContextFile } from "@/server/services/workspace-context-writer";
 
 export const dynamic = "force-dynamic";
@@ -12,26 +13,47 @@ interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
-function serializeDoc(doc: DocWithTags) {
+interface BackendDoc {
+  id: string;
+  title: string;
+  content: string;
+  fileType: string;
+  createdAt: string;
+  updatedAt: string;
+  tags?: string[];
+}
+
+function serializeDoc(doc: BackendDoc) {
   return {
     ...doc,
     _id: doc.id,
     links: extractLinks(doc.content),
+    tags: Array.isArray(doc.tags) ? doc.tags : [],
   };
 }
 
-export async function GET(_req: Request, { params }: RouteContext) {
+export async function GET(req: Request, { params }: RouteContext) {
   try {
-    const user = await resolveUserContext();
-    const project = resolveProjectFromRequest(_req);
+    await resolveUserContext();
+    const project = resolveProjectFromRequest(req);
     const { id } = await params;
 
-    const doc = findDocById(user.id, project.id, id);
-    if (!doc) {
+    const response = await proxyBackendRequest({
+      req,
+      projectId: project.id,
+      path: `/docs/${encodeURIComponent(id)}`,
+      includeSearchParams: false,
+    });
+    if (!response.ok) {
+      return response;
+    }
+
+    const payload = (await response.json()) as { doc?: BackendDoc };
+    if (!payload.doc) {
       return notFound("Document not found.");
     }
 
-    return NextResponse.json({ doc: serializeDoc(doc) });
+    return NextResponse.json({ doc: serializeDoc(payload.doc) }, { status: response.status });
   } catch (error) {
     return serverError(error, "Fetch doc error");
   }
@@ -46,6 +68,7 @@ interface UpdateDocPayload {
 
 export async function PUT(req: Request, { params }: RouteContext) {
   try {
+    const reqForProxy = req.clone();
     const user = await resolveUserContext();
     const project = resolveProjectFromRequest(req);
     const { id } = await params;
@@ -75,11 +98,35 @@ export async function PUT(req: Request, { params }: RouteContext) {
       return badRequest("No valid fields provided for update.");
     }
 
-    const doc = updateDoc(user.id, project.id, id, updateData);
+    const proxiedReq = new Request(reqForProxy.url, {
+      method: "PUT",
+      headers: reqForProxy.headers,
+      body: JSON.stringify(updateData),
+    });
+    const response = await proxyBackendRequest({
+      req: proxiedReq,
+      projectId: project.id,
+      path: `/docs/${encodeURIComponent(id)}`,
+      includeSearchParams: false,
+    });
+    if (response.status === 502) {
+      return backendRequiredForWriteResponse(
+        "Document",
+        "Start the backend with `npm run backend:dev` or `npm run backend:start`, then retry document update.",
+      );
+    }
+    if (!response.ok) {
+      return response;
+    }
 
-    if (!doc) {
+    const payload = (await response.json()) as {
+      msg?: string;
+      doc?: BackendDoc;
+    };
+    if (!payload.doc) {
       return notFound("Document not found.");
     }
+    const doc = serializeDoc(payload.doc);
 
     // Fire & forget context file updates
     Promise.all([
@@ -87,30 +134,42 @@ export async function PUT(req: Request, { params }: RouteContext) {
       writeDocContextFile(user.id, project, doc.id)
     ]).catch(console.error);
 
-    return NextResponse.json({ msg: "Document updated.", doc: serializeDoc(doc) });
+    return NextResponse.json({ ...payload, doc }, { status: response.status });
   } catch (error) {
-    if (error instanceof Error && error.message.includes("already exists")) {
-      return badRequest(error.message);
-    }
     return serverError(error, "Update doc error");
   }
 }
 
-export async function DELETE(_req: Request, { params }: RouteContext) {
+export async function DELETE(req: Request, { params }: RouteContext) {
   try {
     const user = await resolveUserContext();
-    const project = resolveProjectFromRequest(_req);
+    const project = resolveProjectFromRequest(req);
     const { id } = await params;
 
-    const success = deleteDoc(user.id, project.id, id);
-    if (!success) {
-      return notFound("Document not found.");
+    if (!id) {
+      return badRequest("Document ID is required.");
+    }
+
+    const response = await proxyBackendRequest({
+      req,
+      projectId: project.id,
+      path: `/docs/${encodeURIComponent(id)}`,
+      includeSearchParams: false,
+    });
+    if (response.status === 502) {
+      return backendRequiredForWriteResponse(
+        "Document",
+        "Start the backend with `npm run backend:dev` or `npm run backend:start`, then retry document deletion.",
+      );
+    }
+    if (!response.ok) {
+      return response;
     }
 
     // Fire & forget context file updates
     writeDashboardContextFiles(user.id, project).catch(console.error);
 
-    return NextResponse.json({ msg: "Document deleted." });
+    return response;
   } catch (error) {
     return serverError(error, "Delete doc error");
   }

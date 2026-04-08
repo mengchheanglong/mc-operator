@@ -2,6 +2,8 @@ import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 import { TOOL_ADMISSION_CATALOG } from "./tool-admission/catalog.ts";
 import { scoreTool, summarize, type ToolAdmissionResult } from "./tool-admission/rubric.ts";
+import { findOrCreateUser } from "../src/server/repositories/users-repo.ts";
+import { syncDirectiveWorkspaceFromAdmission } from "./tool-admission/directive-sync.ts";
 
 type AdmissionReport = {
   schemaVersion: string;
@@ -11,9 +13,24 @@ type AdmissionReport = {
 };
 
 const REPORT_DIR = path.resolve(process.cwd(), "reports", "tool-admission");
-const AGENT_LAB_ROOT = path.resolve(process.cwd(), "..", "agent-lab");
-const CLASSIFICATION_DOC = path.join(AGENT_LAB_ROOT, "PROJECT_CLASSIFICATION.md");
-const PARKED_MANIFEST_DOC = path.join(AGENT_LAB_ROOT, "tooling-parked", "MANIFEST.md");
+const DIRECTIVE_WORKSPACE_ROOT = path.resolve(
+  process.cwd(),
+  "..",
+  "directive-workspace",
+);
+const AGENT_LAB_EXTRACTION_ROOT = path.join(
+  DIRECTIVE_WORKSPACE_ROOT,
+  "discovery",
+  "agent-lab-extraction",
+);
+const CLASSIFICATION_DOC = path.join(
+  AGENT_LAB_EXTRACTION_ROOT,
+  "PROJECT_CLASSIFICATION.md",
+);
+const PARKED_MANIFEST_DOC = path.join(
+  AGENT_LAB_EXTRACTION_ROOT,
+  "PARKED_MANIFEST.md",
+);
 
 function utcTimestampForFile(date: Date): string {
   const iso = date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
@@ -59,6 +76,7 @@ function generatedClassificationBlock(report: AdmissionReport): string {
     "## generated-tool-admission (deterministic)",
     "",
     `Generated from \`mission-control/reports/tool-admission/latest.json\` at ${report.generatedAt}.`,
+    "Mirror target: `directive-workspace/discovery/agent-lab-extraction/PROJECT_CLASSIFICATION.md`.",
     "",
     "### promote",
     "| Tool | Score | Reason | Next action |",
@@ -93,7 +111,8 @@ function generatedParkedBlock(report: AdmissionReport): string {
     "<!-- TOOL_ADMISSION:START -->",
     "## Generated admission state",
     "",
-    `Source: \`../mission-control/reports/tool-admission/latest.json\` (${report.generatedAt})`,
+    `Source: \`mission-control/reports/tool-admission/latest.json\` (${report.generatedAt})`,
+    "Mirror target: `directive-workspace/discovery/agent-lab-extraction/PARKED_MANIFEST.md`.",
     "",
     "| Tool | Status | Score | Reason | Next action |",
     "|---|---|---:|---|---|",
@@ -125,6 +144,8 @@ function upsertGeneratedBlock(filePath: string, generatedBlock: string): void {
 function run(): void {
   const tools = stableSortResults(TOOL_ADMISSION_CATALOG.map(scoreTool));
   const now = new Date();
+  const user = findOrCreateUser();
+  const projectId = process.env.MISSION_CONTROL_PROJECT_ID || "mission-control";
 
   const report: AdmissionReport = {
     schemaVersion: "tool-admission.v1",
@@ -144,6 +165,11 @@ function run(): void {
 
   upsertGeneratedBlock(CLASSIFICATION_DOC, generatedClassificationBlock(report));
   upsertGeneratedBlock(PARKED_MANIFEST_DOC, generatedParkedBlock(report));
+  const directiveSync = syncDirectiveWorkspaceFromAdmission({
+    userId: user.id,
+    projectId,
+    results: tools,
+  });
 
   process.stdout.write(
     `${JSON.stringify(
@@ -154,6 +180,10 @@ function run(): void {
           timestamped: timestampedPath,
         },
         summary: report.summary,
+        directiveWorkspaceSync: {
+          projectId,
+          ...directiveSync,
+        },
       },
       null,
       2,

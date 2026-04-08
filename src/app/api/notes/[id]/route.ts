@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
 import { resolveProjectFromRequest } from "@/server/context/project-context";
 import { resolveUserContext } from "@/server/context/user-context";
-import { updateNote, deleteNote, type NoteRow } from "@/server/repositories/notes-repo";
-import { badRequest, notFound, serverError } from "@/server/http/api-response";
+import { badRequest, serverError } from "@/server/http/api-response";
+import { backendRequiredForWriteResponse } from "@/server/http/backend-write-policy";
+import { proxyBackendRequest } from "@/server/http/directive-backend-proxy";
 import { writeDashboardContextFiles } from "@/server/services/workspace-context-writer";
 
 export const dynamic = "force-dynamic";
@@ -18,18 +18,9 @@ interface UpdateNotePayload {
   completed?: boolean;
 }
 
-function serializeNote(note: NoteRow) {
-  return {
-    id: note.id,
-    content: note.content,
-    completed: note.completed,
-    createdAt: note.createdAt,
-    updatedAt: note.updatedAt,
-  };
-}
-
 export async function PUT(req: Request, { params }: RouteContext) {
   try {
+    const reqForProxy = req.clone();
     const user = await resolveUserContext();
     const project = resolveProjectFromRequest(req);
 
@@ -60,18 +51,29 @@ export async function PUT(req: Request, { params }: RouteContext) {
       return badRequest("No valid fields provided for update.");
     }
 
-    const note = updateNote(user.id, project.id, id, updateData);
+    const proxiedReq = new Request(reqForProxy.url, {
+      method: "PUT",
+      headers: reqForProxy.headers,
+      body: JSON.stringify(updateData),
+    });
 
-    if (!note) {
-      return notFound("Note not found.");
+    const response = await proxyBackendRequest({
+      req: proxiedReq,
+      projectId: project.id,
+      path: `/notes/${encodeURIComponent(id)}`,
+    });
+
+    if (response.status === 502) {
+      return backendRequiredForWriteResponse("Note");
+    }
+
+    if (!response.ok) {
+      return response;
     }
 
     writeDashboardContextFiles(user.id, project).catch(console.error);
 
-    return NextResponse.json({
-      msg: "Note updated.",
-      note: serializeNote(note),
-    });
+    return response;
   } catch (error) {
     return serverError(error, "Update note error");
   }
@@ -84,14 +86,27 @@ export async function DELETE(req: Request, { params }: RouteContext) {
 
     const { id } = await params;
 
-    const success = deleteNote(user.id, project.id, id);
-    if (!success) {
-      return notFound("Note not found.");
+    if (!id) {
+      return badRequest("Note ID is required.");
+    }
+
+    const response = await proxyBackendRequest({
+      req,
+      projectId: project.id,
+      path: `/notes/${encodeURIComponent(id)}`,
+    });
+
+    if (response.status === 502) {
+      return backendRequiredForWriteResponse("Note");
+    }
+
+    if (!response.ok) {
+      return response;
     }
 
     writeDashboardContextFiles(user.id, project).catch(console.error);
 
-    return NextResponse.json({ msg: "Note deleted." });
+    return response;
   } catch (error) {
     return serverError(error, "Delete note error");
   }

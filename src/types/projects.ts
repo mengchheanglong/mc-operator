@@ -6,6 +6,7 @@ export interface ProjectOption {
   isControlPlane: boolean;
   hasGit: boolean;
   hasPackageJson: boolean;
+  projectType: "personal" | "github" | "external";
 }
 
 export interface ProjectsPayload {

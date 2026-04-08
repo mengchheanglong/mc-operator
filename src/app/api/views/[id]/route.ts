@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
 import { resolveProjectFromRequest } from "@/server/context/project-context";
 import { resolveUserContext } from "@/server/context/user-context";
-import { deleteSavedView } from "@/server/repositories/saved-views-repo";
-import { badRequest, notFound, serverError } from "@/server/http/api-response";
+import { badRequest, serverError } from "@/server/http/api-response";
+import { backendRequiredForWriteResponse } from "@/server/http/backend-write-policy";
+import { proxyBackendRequest } from "@/server/http/directive-backend-proxy";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +12,7 @@ interface RouteParams {
 
 export async function DELETE(req: Request, { params }: RouteParams) {
   try {
-    const user = await resolveUserContext();
+    await resolveUserContext();
     const project = resolveProjectFromRequest(req);
     const { id } = await params;
 
@@ -20,12 +20,17 @@ export async function DELETE(req: Request, { params }: RouteParams) {
       return badRequest("Saved view ID is required.");
     }
 
-    const deleted = deleteSavedView(user.id, project.id, id);
-    if (!deleted) {
-      return notFound("Saved view not found.");
+    const response = await proxyBackendRequest({
+      req,
+      projectId: project.id,
+      path: `/views/${encodeURIComponent(id)}`,
+    });
+
+    if (response.status === 502) {
+      return backendRequiredForWriteResponse("Saved view");
     }
 
-    return NextResponse.json({ msg: "Saved view deleted." });
+    return response;
   } catch (error) {
     return serverError(error, "Delete saved view error", "Failed to delete saved view.");
   }

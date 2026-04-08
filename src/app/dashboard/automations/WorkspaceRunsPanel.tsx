@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import { Loader2, RefreshCw, XCircle } from "lucide-react";
 
@@ -37,7 +37,7 @@ export default function WorkspaceRunsPanel({ projectId }: { projectId: string })
   const [busyRunId, setBusyRunId] = useState<string | null>(null);
   const [summaries, setSummaries] = useState<Record<string, RunSummary>>({});
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     setLoading(true);
     try {
       const response = await axios.get("/api/automation/runs", { params: { projectId } });
@@ -46,12 +46,44 @@ export default function WorkspaceRunsPanel({ projectId }: { projectId: string })
     } finally {
       setLoading(false);
     }
-  }
+  }, [projectId]);
 
   async function closeRun(runId: string, reason: "manual" | "stale" | "error-recovery" = "manual") {
     setBusyRunId(runId);
     try {
       await axios.post(`/api/automation/runs/${runId}/close`, { reason, archive: false, projectId });
+      await refresh();
+    } finally {
+      setBusyRunId(null);
+    }
+  }
+
+  async function runDesloppifyPrototype(runId: string) {
+    setBusyRunId(runId);
+    try {
+      await axios.post(`/api/automation/runs/${runId}/tools`, {
+        projectId,
+        toolId: "desloppify-prototype",
+        timeoutMs: 90_000,
+      });
+      await loadSummary(runId);
+      await refresh();
+    } finally {
+      setBusyRunId(null);
+    }
+  }
+
+  async function runAgencyAgents(runId: string) {
+    setBusyRunId(runId);
+    try {
+      await axios.post(`/api/automation/runs/${runId}/tools`, {
+        projectId,
+        toolId: "agency-agents",
+        action: "sync",
+        profile: "engineering",
+        timeoutMs: 60_000,
+      });
+      await loadSummary(runId);
       await refresh();
     } finally {
       setBusyRunId(null);
@@ -67,14 +99,17 @@ export default function WorkspaceRunsPanel({ projectId }: { projectId: string })
 
   useEffect(() => {
     void refresh();
-  }, [projectId]);
+  }, [refresh]);
 
   return (
     <section className="matte-panel p-5 sm:p-6">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="matte-panel-heading">Workspace Runs</h2>
-          <p className="mt-1 text-sm text-text-secondary">Run status, close action, and last dispatch telemetry.</p>
+          <p className="mt-1 text-sm text-text-secondary">Run status, close action, and latest execution telemetry.</p>
+          <p className="mt-1 text-xs text-text-muted">
+            Canonical run-scoped tool is `desloppify-prototype`; `tooling-audit` remains a deprecated compatibility alias.
+          </p>
         </div>
         <button type="button" className="matte-action-secondary" onClick={() => void refresh()}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Refresh
@@ -88,17 +123,38 @@ export default function WorkspaceRunsPanel({ projectId }: { projectId: string })
           const stale = staleRuns.includes(run.id);
           return (
             <div key={run.id} className="rounded-xl border border-border bg-bg-panel/40 p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="text-xs text-text-secondary">
-                  <span className="matte-chip">{run.status}</span> <span className="matte-chip">{run.branch}</span>
-                  {stale ? <span className="matte-chip">stale</span> : null}
-                  <div className="mt-1 break-all">{run.worktreePath}</div>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="matte-chip">{run.status}</span>
+                    <span className="matte-chip">{run.branch}</span>
+                    {stale ? <span className="matte-chip">stale</span> : null}
+                  </div>
+                  <div className="mt-1.5 break-all font-mono text-[11px] text-text-muted">{run.worktreePath}</div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button className="matte-action-secondary" onClick={() => void loadSummary(run.id)}>Summary</button>
                   {run.status === "active" ? (
                     <button
                       className="matte-action-secondary"
+                      disabled={busyRunId === run.id}
+                      onClick={() => void runDesloppifyPrototype(run.id)}
+                    >
+                      {busyRunId === run.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Run Desloppify Prototype
+                    </button>
+                  ) : null}
+                  {run.status === "active" ? (
+                    <button
+                      className="matte-action-secondary"
+                      disabled={busyRunId === run.id}
+                      onClick={() => void runAgencyAgents(run.id)}
+                    >
+                      {busyRunId === run.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Agency Agents
+                    </button>
+                  ) : null}
+                  {run.status === "active" ? (
+                    <button
+                      className="matte-action-danger"
                       disabled={busyRunId === run.id}
                       onClick={() => void closeRun(run.id, stale ? "stale" : "manual")}
                     >
@@ -108,11 +164,14 @@ export default function WorkspaceRunsPanel({ projectId }: { projectId: string })
                 </div>
               </div>
               {summary ? (
-                <div className="mt-2 text-xs text-text-muted">
-                  last dispatch: {summary.lastDispatch?.status || "none"}
-                  {summary.lastDispatch?.failureClass ? ` (${summary.lastDispatch.failureClass})` : ""}
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border pt-2 text-[11px] text-text-muted">
+                  <span className="matte-section-title shrink-0">Last dispatch</span>
+                  <span>{summary.lastDispatch?.status || "none"}{summary.lastDispatch?.failureClass ? ` | ${summary.lastDispatch.failureClass}` : ""}</span>
                   {summary.verificationArtifacts.reportHref ? (
-                    <a className="ml-2 underline" href={summary.verificationArtifacts.reportHref}>report</a>
+                    <a className="underline-offset-2 hover:text-text-primary hover:underline" href={summary.verificationArtifacts.reportHref}>report</a>
+                  ) : null}
+                  {summary.verificationArtifacts.artifactPath ? (
+                    <span className="font-mono">{summary.verificationArtifacts.artifactPath}</span>
                   ) : null}
                 </div>
               ) : null}

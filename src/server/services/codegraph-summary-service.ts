@@ -65,6 +65,27 @@ function resolveSummaryJsonPath(project: WorkspaceProject) {
   return path.join(project.rootPath, ".openclaw", "context", "codegraph-summary.json");
 }
 
+function readSummaryJson(project: WorkspaceProject): {
+  summaryPath: string;
+  parsed?: any;
+  reason?: string;
+  reasonCode?: string;
+} {
+  const summaryPath = resolveSummaryJsonPath(project);
+  try {
+    return {
+      summaryPath,
+      parsed: JSON.parse(fs.readFileSync(summaryPath, "utf8")),
+    };
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException | undefined)?.code;
+    if (code === "ENOENT") {
+      return { summaryPath, reason: `summary file missing: ${summaryPath}`, reasonCode: "summary_missing" };
+    }
+    return { summaryPath, reason: "summary file is not valid JSON", reasonCode: "summary_invalid_json" };
+  }
+}
+
 export function isCodegraphSpikeBoundedModeEnabled() {
   const legacy = envFlag("MISSION_CONTROL_CODEGRAPH_SPIKE_BOUNDED", false);
   return envFlag("MISSION_CONTROL_CODEGRAPH_BOUNDED_MODE", legacy || true);
@@ -106,18 +127,14 @@ export function collectBoundedCodegraphSummary(
   const fallbackMode = isCodegraphFallbackModeEnabled();
   const deltaTokenBudget = options?.deltaTokenBudget ?? envInt("MISSION_CONTROL_CODEGRAPH_TOKEN_DELTA_BUDGET", 225);
   const allowStale = options?.allowStale ?? envFlag("MISSION_CONTROL_CODEGRAPH_ALLOW_STALE", true);
-  const summaryPath = resolveSummaryJsonPath(project);
-
-  if (!fs.existsSync(summaryPath)) {
-    return { reason: `summary file missing: ${summaryPath}`, reasonCode: "summary_missing" };
+  const summary = readSummaryJson(project);
+  if (!summary.parsed) {
+    return {
+      reason: summary.reason || "summary file is not valid JSON",
+      reasonCode: summary.reasonCode || "summary_invalid_json",
+    };
   }
-
-  let parsed: any;
-  try {
-    parsed = JSON.parse(fs.readFileSync(summaryPath, "utf8"));
-  } catch {
-    return { reason: "summary file is not valid JSON", reasonCode: "summary_invalid_json" };
-  }
+  const parsed = summary.parsed;
 
   const metadata = {
     generatedAt: String(parsed?.metadata?.generatedAt || parsed?.generatedAt || ""),

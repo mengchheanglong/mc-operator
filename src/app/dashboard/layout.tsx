@@ -16,6 +16,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
     isControlPlane: project.isControlPlane,
     hasGit: project.hasGit,
     hasPackageJson: project.hasPackageJson,
+    projectType: project.projectType,
   }));
 
   const initialProjectsPayload: ProjectsPayload = {
@@ -27,6 +28,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
       isControlPlane: activeProject.isControlPlane,
       hasGit: activeProject.hasGit,
       hasPackageJson: activeProject.hasPackageJson,
+      projectType: activeProject.projectType,
     },
     projects,
   };

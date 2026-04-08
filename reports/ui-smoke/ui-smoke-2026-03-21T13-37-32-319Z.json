@@ -1,0 +1,25 @@
+{
+  "suite": "ui-smoke",
+  "ok": false,
+  "generatedAt": "2026-03-21T13:37:32.319Z",
+  "baseUrl": "http://127.0.0.1:3210",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "flows": [
+    {
+      "id": "agents",
+      "path": "/dashboard/agents",
+      "status": "fail",
+      "durationMs": 0,
+      "screenshot": "",
+      "issues": [],
+      "error": "Timed out waiting for app server at http://127.0.0.1:3210"
+    }
+  ],
+  "totals": {
+    "passed": 0,
+    "failed": 1
+  }
+}

@@ -13,13 +13,44 @@ export interface NoteRow {
   updatedAt: string;
 }
 
+const NOTE_LIST_CACHE_TTL_MS = 10000;
+const noteListCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    notes: NoteRow[];
+  }
+>();
+
 export function listNotes(userId: string, projectId: string): NoteRow[] {
-  return db
+  const cacheKey = `${userId}:${projectId}`;
+  const cached = noteListCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.notes;
+  }
+
+  const rows = db
     .select()
     .from(notes)
     .where(and(eq(notes.userId, userId), eq(notes.projectId, projectId)))
     .orderBy(desc(notes.updatedAt))
     .all();
+
+  noteListCache.set(cacheKey, {
+    expiresAt: Date.now() + NOTE_LIST_CACHE_TTL_MS,
+    notes: rows,
+  });
+
+  return rows;
+}
+
+export function clearNoteListCache(userId?: string, projectId?: string) {
+  if (!userId || !projectId) {
+    noteListCache.clear();
+    return;
+  }
+
+  noteListCache.delete(`${userId}:${projectId}`);
 }
 
 export function findNoteById(
@@ -80,6 +111,8 @@ export function createNote(userId: string, projectId: string, content: string): 
     })
     .run();
 
+  clearNoteListCache(userId, projectId);
+
   return {
     id,
     userId,
@@ -118,6 +151,8 @@ export function updateNote(
     )
     .run();
 
+  clearNoteListCache(userId, projectId);
+
   return { ...existing, ...updated };
 }
 
@@ -132,5 +167,8 @@ export function deleteNote(userId: string, projectId: string, id: string): boole
       ),
     )
     .run();
+  if (result.changes > 0) {
+    clearNoteListCache(userId, projectId);
+  }
   return result.changes > 0;
 }

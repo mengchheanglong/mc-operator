@@ -1,20 +1,15 @@
 import { NextResponse } from 'next/server';
 import { resolveProjectFromRequest } from '@/server/context/project-context';
 import { resolveUserContext } from '@/server/context/user-context';
-import {
-  countCompletedQuests,
-  countOpenQuests,
-  countQuests,
-  countQuestsWithFilter,
-  listQuests,
-  createQuest,
-  type QuestStatus,
-  type QuestRow,
-} from '@/server/repositories/quests-repo';
 import { badRequest, serverError } from '@/server/http/api-response';
+import { backendRequiredForWriteResponse } from '@/server/http/backend-write-policy';
+import { proxyBackendRequest } from '@/server/http/directive-backend-proxy';
+import { countQuests, countQuestsWithFilter, listQuests } from '@/server/repositories/quests-repo';
 import { writeDashboardContextFiles, writeQuestContextFile } from '@/server/services/workspace-context-writer';
 
 export const dynamic = 'force-dynamic';
+
+type QuestStatus = 'open' | 'in_progress' | 'blocked' | 'done';
 
 interface CreateQuestPayload {
   goal?: string;
@@ -24,59 +19,69 @@ interface CreateQuestPayload {
   topics?: string[];
 }
 
-function serializeQuest(quest: QuestRow) {
-  return {
-    ...quest,
-    _id: quest.id,
-  };
-}
-
 export async function GET(req: Request) {
   try {
     const user = await resolveUserContext();
     const project = resolveProjectFromRequest(req);
-    const { searchParams } = new URL(req.url);
+    const response = await proxyBackendRequest({
+      req,
+      projectId: project.id,
+      path: '/quests',
+    });
 
-    const paramLimit = parseInt(searchParams.get('limit') || '1000', 10);
-    const limit = isNaN(paramLimit) || paramLimit < 1 ? 1000 : Math.min(paramLimit, 1000);
+    if (response.status !== 502) {
+      return response;
+    }
 
-    const paramSkip = parseInt(searchParams.get('skip') || '0', 10);
-    const skip = isNaN(paramSkip) || paramSkip < 0 ? 0 : paramSkip;
-    const completedParam = searchParams.get('completed');
+    const url = new URL(req.url);
+    const parsedLimit = Number.parseInt(url.searchParams.get('limit') || '1000', 10);
+    const limit = Number.isFinite(parsedLimit)
+      ? Math.max(1, Math.min(parsedLimit, 1000))
+      : 1000;
+    const parsedSkip = Number.parseInt(url.searchParams.get('skip') || '0', 10);
+    const skip = Number.isFinite(parsedSkip) ? Math.max(0, parsedSkip) : 0;
+    const completedRaw = url.searchParams.get('completed');
     const completed =
-      completedParam === 'true' ? true : completedParam === 'false' ? false : undefined;
-    const statusParam = searchParams.get('status');
-    const status = (statusParam && ['open', 'in_progress', 'blocked', 'done'].includes(statusParam)
-      ? statusParam
+      completedRaw === 'true'
+        ? true
+        : completedRaw === 'false'
+          ? false
+          : undefined;
+    const statusRaw = (url.searchParams.get('status') || '').trim();
+    const status = (['open', 'in_progress', 'blocked', 'done'].includes(statusRaw)
+      ? statusRaw
       : undefined) as QuestStatus | undefined;
-    const area = searchParams.get('area') || undefined;
-    const withMeta = searchParams.get('withMeta') === '1';
+    const area = (url.searchParams.get('area') || '').trim() || undefined;
+    const withMeta = url.searchParams.get('withMeta') === '1';
 
-    const quests = listQuests(user.id, project.id, { limit, skip, completed, status, area });
-    const serialized = quests.map((quest) => ({
+    const quests = listQuests(user.id, project.id, {
+      limit,
+      skip,
+      completed,
+      status,
+      area,
+    }).map((quest) => ({
       ...quest,
-      _id: String(quest.id),
+      _id: quest.id,
     }));
 
     if (!withMeta) {
-      return NextResponse.json(serialized);
+      return NextResponse.json(quests);
     }
 
     const total =
       typeof completed === 'boolean' && !status && !area
-        ? completed
-          ? countCompletedQuests(user.id, project.id)
-          : countOpenQuests(user.id, project.id)
-        : !completed && !status && !area
+        ? countQuestsWithFilter(user.id, project.id, { completed })
+        : completed === undefined && !status && !area
           ? countQuests(user.id, project.id)
           : countQuestsWithFilter(user.id, project.id, { completed, status, area });
 
     return NextResponse.json({
-      quests: serialized,
+      quests,
       meta: {
         total,
-        loaded: serialized.length,
-        hasMore: skip + serialized.length < total,
+        loaded: quests.length,
+        hasMore: skip + quests.length < total,
         completed,
         status,
         area,
@@ -95,6 +100,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const reqForProxy = req.clone();
     const user = await resolveUserContext();
     const project = resolveProjectFromRequest(req);
     const body = (await req.json()) as CreateQuestPayload;
@@ -116,18 +122,50 @@ export async function POST(req: Request) {
       return badRequest('Goal must be 100 characters or less.');
     }
 
-    const quest = createQuest(user.id, project.id, goal, difficulty, topics, status, area);
+    const proxiedReq = new Request(reqForProxy.url, {
+      method: 'POST',
+      headers: reqForProxy.headers,
+      body: JSON.stringify({
+        goal,
+        difficulty,
+        topics,
+        status,
+        area,
+      }),
+    });
+
+    const response = await proxyBackendRequest({
+      req: proxiedReq,
+      projectId: project.id,
+      path: '/quests',
+    });
+
+    if (response.status === 502) {
+      return backendRequiredForWriteResponse(
+        "Quest",
+        "Start the backend with `npm run backend:dev` or `npm run backend:start`, then retry quest creation.",
+      );
+    }
+
+    if (!response.ok) {
+      return response;
+    }
+
+    const payload = (await response.json()) as {
+      msg?: string;
+      quest?: { id?: string; _id?: string };
+    };
+
+    const questId = String(payload.quest?._id || payload.quest?.id || '').trim();
 
     // Fire & forget context file updates
-    Promise.all([
-      writeDashboardContextFiles(user.id, project),
-      writeQuestContextFile(user.id, project, quest.id)
-    ]).catch(console.error);
+    const writes: Promise<unknown>[] = [writeDashboardContextFiles(user.id, project)];
+    if (questId) {
+      writes.push(writeQuestContextFile(user.id, project, questId));
+    }
+    Promise.all(writes).catch(console.error);
 
-    return NextResponse.json({
-      msg: 'Quest created.',
-      quest: serializeQuest(quest),
-    });
+    return NextResponse.json(payload, { status: response.status });
   } catch (error) {
     return serverError(error, 'Create quest error');
   }

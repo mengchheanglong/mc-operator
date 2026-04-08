@@ -1,0 +1,61 @@
+{
+  "generatedAt": "2026-04-01T15:33:10.484Z",
+  "ok": false,
+  "sourceGeneratedAt": "2026-04-01T15:33:09.421Z",
+  "alertCount": 4,
+  "bySeverity": {
+    "high": 3,
+    "medium": 1,
+    "low": 0
+  },
+  "alerts": [
+    {
+      "stepId": "ops_health_snapshot",
+      "severity": "high",
+      "reasons": [
+        "failure_rate_exceeded"
+      ],
+      "failureRate": 0.5,
+      "failingStreak": 3,
+      "slowStreak": 0,
+      "latestDurationMs": 606,
+      "lastFailureAt": "2026-04-01T15:30:03.128Z"
+    },
+    {
+      "stepId": "workspace_health_nightly",
+      "severity": "high",
+      "reasons": [
+        "failure_rate_exceeded"
+      ],
+      "failureRate": 0.5,
+      "failingStreak": 3,
+      "slowStreak": 0,
+      "latestDurationMs": 88761,
+      "lastFailureAt": "2026-04-01T15:30:03.128Z"
+    },
+    {
+      "stepId": "orchestrator_nightly",
+      "severity": "high",
+      "reasons": [
+        "failure_rate_exceeded"
+      ],
+      "failureRate": 0.5,
+      "failingStreak": 3,
+      "slowStreak": 0,
+      "latestDurationMs": 76260,
+      "lastFailureAt": "2026-04-01T15:30:03.128Z"
+    },
+    {
+      "stepId": "canary_nightly",
+      "severity": "medium",
+      "reasons": [
+        "failure_rate_exceeded"
+      ],
+      "failureRate": 0.375,
+      "failingStreak": 3,
+      "slowStreak": 0,
+      "latestDurationMs": 7551,
+      "lastFailureAt": "2026-04-01T15:30:03.128Z"
+    }
+  ]
+}

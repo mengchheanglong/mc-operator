@@ -1,8 +1,15 @@
 import { NextResponse } from 'next/server';
 import { resolveProjectFromRequest } from '@/server/context/project-context';
 import { resolveUserContext } from '@/server/context/user-context';
-import { countReports, listReports, createReport, type ReportCategory, type ReportStatus, type ReportRow } from '@/server/repositories/reports-repo';
+import {
+  countReports,
+  listReports,
+  type ReportCategory,
+  type ReportStatus,
+} from '@/server/repositories/reports-repo';
 import { badRequest, serverError } from '@/server/http/api-response';
+import { backendRequiredForWriteResponse } from '@/server/http/backend-write-policy';
+import { proxyBackendRequest } from '@/server/http/directive-backend-proxy';
 import { listDailyReportLogs } from '@/server/services/daily-report-log-service';
 import { writeDashboardContextFiles } from '@/server/services/workspace-context-writer';
 
@@ -20,86 +27,93 @@ interface CreateReportPayload {
   source?: string;
 }
 
-function serializeReport(report: ReportRow) {
-  return {
-    ...report,
-    _id: report.id, // For backward compatibility
-  };
-}
+const REPORT_CATEGORIES: ReportCategory[] = [
+  'system',
+  'task',
+  'chat',
+  'file',
+  'research',
+  'error',
+  'maintenance',
+];
+
+const REPORT_STATUSES: ReportStatus[] = ['info', 'success', 'warning', 'error'];
+const REPORT_AREAS = ['automation', 'context', 'graph', 'ui'] as const;
 
 export async function GET(req: Request) {
   try {
     const user = await resolveUserContext();
     const project = resolveProjectFromRequest(req);
-    const { searchParams } = new URL(req.url);
-    const view = searchParams.get("view");
-
-    if (view === "daily") {
-      return NextResponse.json({
-        days: listDailyReportLogs(user.id, project.id),
-      });
-    }
-
-    const paramLimit = parseInt(searchParams.get('limit') || '50', 10);
-    const limit = isNaN(paramLimit) || paramLimit < 1 ? 50 : Math.min(paramLimit, 100);
-
-    const paramSkip = parseInt(searchParams.get('skip') || '0', 10);
-    const skip = isNaN(paramSkip) || paramSkip < 0 ? 0 : paramSkip;
-    const withMeta = searchParams.get('withMeta') === '1';
-
-    const category = searchParams.get('category') as ReportCategory | null;
-    const status = searchParams.get('status') as ReportStatus | null;
-    const area = searchParams.get('area');
-    const linkedQuestId = searchParams.get('linkedQuestId');
-
-    const reports = listReports(user.id, project.id, {
-      limit,
-      skip,
-      category: category || undefined,
-      status: status || undefined,
-      area: area || undefined,
-      linkedQuestId: linkedQuestId || undefined,
+    const response = await proxyBackendRequest({
+      req,
+      projectId: project.id,
+      path: "/reports",
     });
 
-    const serialized = reports.map(serializeReport);
-
-    if (!withMeta) {
-      return NextResponse.json(serialized);
+    if (response.status !== 502) {
+      return response;
     }
 
+    const url = new URL(req.url);
+    const view = (url.searchParams.get('view') || '').trim().toLowerCase();
+    if (view === 'daily') {
+      const days = listDailyReportLogs(user.id, project.id);
+      return NextResponse.json({ days });
+    }
+
+    const parsedLimit = Number.parseInt(url.searchParams.get('limit') || '50', 10);
+    const limit = Number.isFinite(parsedLimit)
+      ? Math.max(1, Math.min(parsedLimit, 100))
+      : 50;
+    const parsedSkip = Number.parseInt(url.searchParams.get('skip') || '0', 10);
+    const skip = Number.isFinite(parsedSkip) ? Math.max(0, parsedSkip) : 0;
+    const withMeta = url.searchParams.get('withMeta') === '1';
+    const categoryRaw = (url.searchParams.get('category') || '').trim().toLowerCase();
+    const statusRaw = (url.searchParams.get('status') || '').trim().toLowerCase();
+    const area = (url.searchParams.get('area') || '').trim() || undefined;
+    const linkedQuestId = (url.searchParams.get('linkedQuestId') || '').trim() || undefined;
+    const category = REPORT_CATEGORIES.includes(categoryRaw as ReportCategory)
+      ? (categoryRaw as ReportCategory)
+      : undefined;
+    const status = REPORT_STATUSES.includes(statusRaw as ReportStatus)
+      ? (statusRaw as ReportStatus)
+      : undefined;
+
+    const reports = listReports(user.id, project.id, {
+      category,
+      status,
+      area,
+      linkedQuestId,
+      limit,
+      skip,
+    }).map((report) => ({
+      ...report,
+      _id: report.id,
+    }));
+
+    if (!withMeta) {
+      return NextResponse.json(reports);
+    }
+
+    const total = countReports(user.id, project.id, {
+      category,
+      status,
+      area,
+      linkedQuestId,
+    });
+
     return NextResponse.json({
-      reports: serialized,
+      reports,
       meta: {
-        total: countReports(user.id, project.id, {
-          category: category || undefined,
-          status: status || undefined,
-          area: area || undefined,
-          linkedQuestId: linkedQuestId || undefined,
-        }),
-        loaded: serialized.length,
-        hasMore:
-          skip + serialized.length <
-          countReports(user.id, project.id, {
-            category: category || undefined,
-            status: status || undefined,
-            area: area || undefined,
-            linkedQuestId: linkedQuestId || undefined,
-          }),
-        categoryCounts: {
-          system: countReports(user.id, project.id, { category: 'system' }),
-          task: countReports(user.id, project.id, { category: 'task' }),
-          chat: countReports(user.id, project.id, { category: 'chat' }),
-          file: countReports(user.id, project.id, { category: 'file' }),
-          research: countReports(user.id, project.id, { category: 'research' }),
-          error: countReports(user.id, project.id, { category: 'error' }),
-          maintenance: countReports(user.id, project.id, { category: 'maintenance' }),
-        },
-        areaCounts: {
-          automation: countReports(user.id, project.id, { area: 'automation' }),
-          context: countReports(user.id, project.id, { area: 'context' }),
-          graph: countReports(user.id, project.id, { area: 'graph' }),
-          ui: countReports(user.id, project.id, { area: 'ui' }),
-        },
+        total,
+        loaded: reports.length,
+        hasMore: skip + reports.length < total,
+        categoryCounts: Object.fromEntries(
+          REPORT_CATEGORIES.map((item) => [item, countReports(user.id, project.id, { category: item })]),
+        ) as Record<ReportCategory, number>,
+        areaCounts: Object.fromEntries(
+          REPORT_AREAS.map((item) => [item, countReports(user.id, project.id, { area: item })]),
+        ) as Record<(typeof REPORT_AREAS)[number], number>,
       },
     });
   } catch (error) {
@@ -109,6 +123,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const reqForProxy = req.clone();
     const user = await resolveUserContext();
     const project = resolveProjectFromRequest(req);
     const body = (await req.json()) as CreateReportPayload;
@@ -141,24 +156,41 @@ export async function POST(req: Request) {
       return badRequest('Content must be 5000 characters or less.');
     }
 
-    const report = createReport(user.id, project.id, {
-      title,
-      content,
-      category,
-      status,
-      area,
-      linkedQuestId: linkedQuestId || undefined,
-      source,
-      topics,
-      metadata,
+    const proxiedReq = new Request(reqForProxy.url, {
+      method: "POST",
+      headers: reqForProxy.headers,
+      body: JSON.stringify({
+        title,
+        content,
+        category,
+        status,
+        area,
+        linkedQuestId: linkedQuestId || undefined,
+        source,
+        topics,
+        metadata,
+      }),
     });
+
+    const response = await proxyBackendRequest({
+      req: proxiedReq,
+      projectId: project.id,
+      path: "/reports",
+    });
+    if (response.status === 502) {
+      return backendRequiredForWriteResponse(
+        "Report",
+        "Start the backend with `npm run backend:dev` or `npm run backend:start`, then retry report creation.",
+      );
+    }
+
+    if (!response.ok) {
+      return response;
+    }
 
     writeDashboardContextFiles(user.id, project).catch(console.error);
 
-    return NextResponse.json({
-      msg: 'Report created.',
-      report: serializeReport(report),
-    });
+    return response;
   } catch (error) {
     return serverError(error, 'Create report error');
   }

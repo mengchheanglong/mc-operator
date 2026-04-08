@@ -1,0 +1,17 @@
+{
+  "tool": "agent-orchestrator",
+  "baseline": {
+    "quality_score": 0.81,
+    "token_cost_per_run": 11800,
+    "failure_rate": 0.12
+  },
+  "candidate": {
+    "quality_score": 0.86,
+    "token_cost_per_run": 10100,
+    "failure_rate": 0.09
+  },
+  "context": {
+    "sample_runs": 30,
+    "notes": "Bounded spike with workflow chaining enabled."
+  }
+}

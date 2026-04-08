@@ -173,6 +173,29 @@ export interface BootstrapTemplate {
   matchKeywords: string[];
 }
 
+type DependencyMap = Record<string, string>;
+
+type AutoCodeIntelProbe = {
+  language: string;
+  server: string;
+  configSignals: string[];
+  runtimeSignals: string[];
+  suggestionWhenMissing: string;
+  readyDetail: string;
+  partialDetail: string;
+};
+
+type CodeGraphContextCliResult = {
+  ok: boolean;
+  output: string;
+  error: string | null;
+};
+
+type CodeGraphContextCliHealth = {
+  broken: boolean;
+  error: string | null;
+};
+
 function repoPath(project: WorkspaceProject, ...segments: string[]) {
   return path.join(project.rootPath, ...segments);
 }
@@ -191,6 +214,53 @@ const codeGraphContextCache = new Map<
   {
     expiresAt: number;
     snapshot: RepoCodeGraphContextSnapshot;
+  }
+>();
+const repoSnapshotCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    snapshot: RepoSnapshot;
+  }
+>();
+const gitSnapshotCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    snapshot: GitSnapshot;
+  }
+>();
+const codeIntelSnapshotCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    snapshot: RepoCodeIntelSnapshot;
+  }
+>();
+const repoStaticSurfacesCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    staticSurfaces: {
+      pkg: PackageJsonLike;
+      stack: string[];
+      dashboardSurfaces: string[];
+      apiRoutes: string[];
+      scripts: RepoScript[];
+      verificationPresets: RepoVerificationPreset[];
+      workspaceAreas: string[];
+      keyFiles: RepoKeyFile[];
+      hotspots: RepoHotspot[];
+    };
+  }
+>();
+const REPO_SNAPSHOT_CACHE_TTL_MS = 10000;
+const CODE_GRAPH_CONTEXT_CLI_HEALTH_TTL_MS = 5 * 60 * 1000;
+const codeGraphContextCliHealthCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    health: CodeGraphContextCliHealth;
   }
 >();
 
@@ -657,9 +727,48 @@ function buildCodeIntelSummary(
   return { overallStatus, summary };
 }
 
-function runCodeGraphContextCli(args: string[]) {
+function normalizeCodeGraphContextCliError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return "";
+  }
+
+  const stderr =
+    "stderr" in error && typeof error.stderr === "string" ? error.stderr.trim() : "";
+  const stdout =
+    "stdout" in error && typeof error.stdout === "string" ? error.stdout.trim() : "";
+  const message = error.message.trim();
+
+  return [stderr, stdout, message].filter(Boolean).join("\n").trim();
+}
+
+function isBrokenCodeGraphContextCliError(message: string) {
+  const normalized = message.toLowerCase();
+
+  return (
+    normalized.includes("modulenotfounderror") &&
+    normalized.includes("codegraphcontext")
+  );
+}
+
+function getCodeGraphContextCliHealthCache() {
+  const cached = codeGraphContextCliHealthCache.get(process.platform);
+  if (!cached || cached.expiresAt <= Date.now()) {
+    return null;
+  }
+
+  return cached.health;
+}
+
+function setCodeGraphContextCliHealthCache(health: CodeGraphContextCliHealth) {
+  codeGraphContextCliHealthCache.set(process.platform, {
+    expiresAt: Date.now() + CODE_GRAPH_CONTEXT_CLI_HEALTH_TTL_MS,
+    health,
+  });
+}
+
+function runCodeGraphContextCli(args: string[]): CodeGraphContextCliResult {
   try {
-    return execFileSync("cgc", args, {
+    const output = execFileSync("cgc", args, {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
       timeout: 12000,
@@ -668,12 +777,26 @@ function runCodeGraphContextCli(args: string[]) {
         PYTHONIOENCODING: "utf-8",
       },
     }).trim();
+
+    return {
+      ok: true,
+      output,
+      error: null,
+    };
   } catch (error) {
-    if (error instanceof Error) {
-      return error.message.trim();
+    const message = normalizeCodeGraphContextCliError(error);
+    if (isBrokenCodeGraphContextCliError(message)) {
+      setCodeGraphContextCliHealthCache({
+        broken: true,
+        error: message,
+      });
     }
 
-    return "";
+    return {
+      ok: false,
+      output: "",
+      error: message || "CodeGraphContext CLI command failed.",
+    };
   }
 }
 
@@ -684,6 +807,46 @@ export function clearCodeGraphContextSnapshotCache(project?: WorkspaceProject) {
   }
 
   codeGraphContextCache.clear();
+}
+
+export function clearCodeGraphContextCliHealthCache() {
+  codeGraphContextCliHealthCache.clear();
+}
+
+export function clearRepoSnapshotCache(project?: WorkspaceProject) {
+  if (project) {
+    repoSnapshotCache.delete(project.rootPath);
+    return;
+  }
+
+  repoSnapshotCache.clear();
+}
+
+export function clearGitSnapshotCache(project?: WorkspaceProject) {
+  if (project) {
+    gitSnapshotCache.delete(project.rootPath);
+    return;
+  }
+
+  gitSnapshotCache.clear();
+}
+
+export function clearCodeIntelSnapshotCache(project?: WorkspaceProject) {
+  if (project) {
+    codeIntelSnapshotCache.delete(project.rootPath);
+    return;
+  }
+
+  codeIntelSnapshotCache.clear();
+}
+
+export function clearRepoStaticSurfacesCache(project?: WorkspaceProject) {
+  if (project) {
+    repoStaticSurfacesCache.delete(project.rootPath);
+    return;
+  }
+
+  repoStaticSurfacesCache.clear();
 }
 
 export function indexProjectWithCodeGraphContext(project: WorkspaceProject) {
@@ -697,6 +860,7 @@ export function indexProjectWithCodeGraphContext(project: WorkspaceProject) {
   }
 
   try {
+    clearCodeGraphContextCliHealthCache();
     const output = execFileSync("cgc", ["index", project.rootPath], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
@@ -707,6 +871,9 @@ export function indexProjectWithCodeGraphContext(project: WorkspaceProject) {
       },
     }).trim();
     clearCodeGraphContextSnapshotCache(project);
+    clearCodeIntelSnapshotCache(project);
+    clearRepoSnapshotCache(project);
+    clearCodeGraphContextCliHealthCache();
 
     return {
       success: true,
@@ -716,9 +883,11 @@ export function indexProjectWithCodeGraphContext(project: WorkspaceProject) {
   } catch (error) {
     const message =
       error instanceof Error
-        ? error.message
+        ? normalizeCodeGraphContextCliError(error) || error.message
         : "CodeGraphContext indexing failed.";
     clearCodeGraphContextSnapshotCache(project);
+    clearCodeIntelSnapshotCache(project);
+    clearRepoSnapshotCache(project);
 
     return {
       success: false,
@@ -785,7 +954,9 @@ function collectCodeGraphContextSnapshot(
   const hasLocalRepo = pathExists(localRepoAbsolutePath);
   const projectConfigAbsolutePath = repoPath(project, ".cgcignore");
   const hasProjectConfig = pathExists(projectConfigAbsolutePath);
-  const source: RepoCodeGraphContextSnapshot["source"] = cliAvailable
+  const cliHealth = cliAvailable ? getCodeGraphContextCliHealthCache() : null;
+  const cliBroken = Boolean(cliHealth?.broken);
+  const source: RepoCodeGraphContextSnapshot["source"] = cliAvailable && !cliBroken
     ? "cli"
     : hasLocalRepo
       ? "local_repo"
@@ -822,29 +993,94 @@ function collectCodeGraphContextSnapshot(
   };
 
   if (source === "none") {
+    const brokenCliInstallHint = hasLocalRepo
+      ? `python -m pip install -e "${localRepoAbsolutePath}"`
+      : "python -m pip install --force-reinstall codegraphcontext";
+    const brokenCliNotes = cliBroken
+      ? [
+          "Mission Control detected a CodeGraphContext launcher on PATH, but the CLI failed before it could answer repository queries.",
+          "Repair the CodeGraphContext installation before relying on code-graph stats, caller tracing, or chain analysis.",
+        ]
+      : notes;
+
     return finish({
       status,
       source,
-      summary:
-        "CodeGraphContext is not available yet. Install the CLI or keep the local repo in workspace/tools if you want graph-backed code queries.",
+      summary: cliBroken
+        ? "The CodeGraphContext CLI is on PATH but failed to start, so graph-backed code queries are unavailable until the install is repaired."
+        : "CodeGraphContext is not available yet. Install the CLI or keep the local repo in workspace/tools if you want graph-backed code queries.",
       localRepoPath,
       projectConfigPath,
-      installHint: "python -m pip install codegraphcontext",
-      notes,
-      suggestedCommands,
+      installHint: cliBroken
+        ? brokenCliInstallHint
+        : "python -m pip install codegraphcontext",
+      notes: brokenCliNotes,
+      suggestedCommands: cliBroken
+        ? hasLocalRepo
+          ? [
+              {
+                label: "Reinstall local CodeGraphContext repo",
+                command: `python -m pip install -e "${localRepoAbsolutePath}"`,
+              },
+            ]
+          : [
+              {
+                label: "Reinstall CodeGraphContext CLI",
+                command: "python -m pip install --force-reinstall codegraphcontext",
+              },
+            ]
+        : suggestedCommands,
       queryPresets,
       supportedCapabilities,
       indexed: false,
       indexedRepositoryCount: null,
       statsPreview: [],
-      lastError: null,
+      lastError: cliHealth?.error || null,
     });
   }
 
   if (source === "cli") {
-    const listOutput = runCodeGraphContextCli(["list"]);
+    const listResult = runCodeGraphContextCli(["list"]);
+    if (!listResult.ok) {
+      return finish({
+        status: hasProjectConfig && hasLocalRepo ? "configured" : hasLocalRepo ? "available" : "missing",
+        source: hasLocalRepo ? "local_repo" : "none",
+        summary: hasLocalRepo
+          ? "The local CodeGraphContext repo is available, but the CLI on PATH is broken and needs to be repaired before graph-backed queries can run."
+          : "The CodeGraphContext CLI is on PATH but failed to start, so graph-backed code queries are unavailable until the install is repaired.",
+        localRepoPath,
+        projectConfigPath,
+        installHint: hasLocalRepo
+          ? `python -m pip install -e "${localRepoAbsolutePath}"`
+          : "python -m pip install --force-reinstall codegraphcontext",
+        notes: [
+          "Mission Control detected a CodeGraphContext launcher on PATH, but the CLI failed before it could answer repository queries.",
+          "Repair the CodeGraphContext installation before relying on code-graph stats, caller tracing, or chain analysis.",
+        ],
+        suggestedCommands: hasLocalRepo
+          ? [
+              {
+                label: "Reinstall local CodeGraphContext repo",
+                command: `python -m pip install -e "${localRepoAbsolutePath}"`,
+              },
+            ]
+          : [
+              {
+                label: "Reinstall CodeGraphContext CLI",
+                command: "python -m pip install --force-reinstall codegraphcontext",
+              },
+            ],
+        queryPresets,
+        supportedCapabilities,
+        indexed: false,
+        indexedRepositoryCount: null,
+        statsPreview: [],
+        lastError: listResult.error,
+      });
+    }
+
     const normalizedProjectPath = project.rootPath.replace(/\\/g, "/").toLowerCase();
-    const listLines = listOutput
+    const listLines = listResult.output
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter(Boolean);
@@ -854,12 +1090,15 @@ function collectCodeGraphContextSnapshot(
     const indexed = listLines.some((line) =>
       line.replace(/\\/g, "/").toLowerCase().includes(normalizedProjectPath),
     );
-    const statsOutput = indexed ? runCodeGraphContextCli(["stats"]) : "";
-    const statsPreview = statsOutput
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean)
-      .slice(0, 4);
+    const statsResult = indexed ? runCodeGraphContextCli(["stats"]) : null;
+    const statsPreview =
+      statsResult && statsResult.ok
+        ? statsResult.output
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .slice(0, 4)
+        : [];
 
     notes.push(
       "Use CodeGraphContext for deeper code queries like callers, callees, chains, and complexity without adding raw symbol nodes to the Mission Control topic graph.",
@@ -920,7 +1159,7 @@ function collectCodeGraphContextSnapshot(
       indexed,
       indexedRepositoryCount,
       statsPreview,
-      lastError: null,
+      lastError: statsResult && !statsResult.ok ? statsResult.error : null,
     });
   }
 
@@ -958,7 +1197,7 @@ function collectCodeGraphContextSnapshot(
     indexed: false,
     indexedRepositoryCount: null,
     statsPreview: [],
-    lastError: "cgc CLI not installed",
+    lastError: cliHealth?.error || "cgc CLI not installed",
   });
 }
 
@@ -966,159 +1205,22 @@ function collectCodeIntelSnapshot(
   project: WorkspaceProject,
   pkg: PackageJsonLike,
 ): RepoCodeIntelSnapshot {
+  const cached = codeIntelSnapshotCache.get(project.rootPath);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.snapshot;
+  }
+
   const dependencies = collectDependencies(pkg);
-  const tools: RepoCodeIntelTool[] = [];
   const suggestions = new Set<string>();
-
-  const tsConfigSignals = [
-    pathExists(repoPath(project, "tsconfig.json")) ? "tsconfig.json" : null,
-    pathExists(repoPath(project, "jsconfig.json")) ? "jsconfig.json" : null,
-    hasAnyDependency(dependencies, ["typescript"]) ? "typescript dependency" : null,
-    hasAnyDependency(dependencies, ["next", "react"]) ? "package.json app runtime" : null,
-  ].filter(Boolean) as string[];
-
-  if (tsConfigSignals.length > 0) {
-    const runtimeSignals = [
-      hasAnyDependency(dependencies, ["typescript"]) ? "typescript installed in package.json" : null,
-      hasAnyDependency(dependencies, ["typescript-language-server"])
-        ? "typescript-language-server installed in package.json"
-        : null,
-      commandExists("typescript-language-server")
-        ? "typescript-language-server available on PATH"
-        : null,
-      commandExists("tsserver") ? "tsserver available on PATH" : null,
-    ].filter(Boolean) as string[];
-
-    const status: RepoCodeIntelStatus =
-      runtimeSignals.length > 0 ? "ready" : "partial";
-
-    if (status !== "ready") {
-      suggestions.add(
-        "Install TypeScript tooling or expose tsserver-compatible navigation for the active JavaScript/TypeScript project.",
-      );
-    }
-
-    tools.push({
-      language: "TypeScript / JavaScript",
-      server: "tsserver / typescript-language-server",
-      status,
-      source: "auto",
-      configSignals: tsConfigSignals,
-      runtimeSignals,
-      detail:
-        status === "ready"
-          ? "Project config and TypeScript tooling are present for tsserver-compatible navigation and diagnostics."
-          : "Project config exists, but no local TypeScript runtime or standalone language server was detected.",
-    });
-  }
-
-  const pythonConfigSignals = [
-    pathExists(repoPath(project, "pyproject.toml")) ? "pyproject.toml" : null,
-    pathExists(repoPath(project, "requirements.txt")) ? "requirements.txt" : null,
-    pathExists(repoPath(project, "requirements-dev.txt"))
-      ? "requirements-dev.txt"
-      : null,
-    pathExists(repoPath(project, "setup.py")) ? "setup.py" : null,
-  ].filter(Boolean) as string[];
-
-  if (pythonConfigSignals.length > 0) {
-    const pythonDependencyText = [
-      readTextIfExists(repoPath(project, "pyproject.toml")),
-      readTextIfExists(repoPath(project, "requirements.txt")),
-      readTextIfExists(repoPath(project, "requirements-dev.txt")),
-    ]
-      .join("\n")
-      .toLowerCase();
-
-    const runtimeSignals = [
-      pythonDependencyText.includes("pyright") ? "pyright referenced in project config" : null,
-      pythonDependencyText.includes("basedpyright")
-        ? "basedpyright referenced in project config"
-        : null,
-      pythonDependencyText.includes("python-lsp-server") || pythonDependencyText.includes("pylsp")
-        ? "python-lsp-server referenced in project config"
-        : null,
-      commandExists("pyright-langserver") ? "pyright-langserver available on PATH" : null,
-      commandExists("basedpyright-langserver")
-        ? "basedpyright-langserver available on PATH"
-        : null,
-      commandExists("pylsp") ? "pylsp available on PATH" : null,
-    ].filter(Boolean) as string[];
-
-    const status: RepoCodeIntelStatus =
-      runtimeSignals.length > 0 ? "ready" : "partial";
-
-    if (status !== "ready") {
-      suggestions.add(
-        "Install a Python language server such as pyright, basedpyright, or pylsp for semantic navigation.",
-      );
-    }
-
-    tools.push({
-      language: "Python",
-      server: "pyright / basedpyright / pylsp",
-      status,
-      source: "auto",
-      configSignals: pythonConfigSignals,
-      runtimeSignals,
-      detail:
-        status === "ready"
-          ? "Python project config and a language-server runtime were detected."
-          : "Python project config exists, but no supported Python language server was detected.",
-    });
-  }
-
-  const hasGoProject = pathExists(repoPath(project, "go.mod"));
-  if (hasGoProject) {
-    const runtimeSignals = [
-      commandExists("gopls") ? "gopls available on PATH" : null,
-    ].filter(Boolean) as string[];
-    const status: RepoCodeIntelStatus =
-      runtimeSignals.length > 0 ? "ready" : "partial";
-
-    if (status !== "ready") {
-      suggestions.add("Install gopls so Go code can use semantic navigation and references.");
-    }
-
-    tools.push({
-      language: "Go",
-      server: "gopls",
-      status,
-      source: "auto",
-      configSignals: ["go.mod"],
-      runtimeSignals,
-      detail:
-        status === "ready"
-          ? "Go module metadata and gopls were detected."
-          : "Go module metadata exists, but gopls was not detected on this machine.",
-    });
-  }
-
-  const hasRustProject = pathExists(repoPath(project, "Cargo.toml"));
-  if (hasRustProject) {
-    const runtimeSignals = [
-      commandExists("rust-analyzer") ? "rust-analyzer available on PATH" : null,
-    ].filter(Boolean) as string[];
-    const status: RepoCodeIntelStatus =
-      runtimeSignals.length > 0 ? "ready" : "partial";
-
-    if (status !== "ready") {
-      suggestions.add("Install rust-analyzer so Rust code has semantic navigation and diagnostics.");
-    }
-
-    tools.push({
-      language: "Rust",
-      server: "rust-analyzer",
-      status,
-      source: "auto",
-      configSignals: ["Cargo.toml"],
-      runtimeSignals,
-      detail:
-        status === "ready"
-          ? "Rust manifest and rust-analyzer were detected."
-          : "Rust manifest exists, but rust-analyzer was not detected on this machine.",
-    });
-  }
+  const tools = [
+    buildAutoCodeIntelTool(
+      buildTypeScriptCodeIntelProbe(project, dependencies),
+      suggestions,
+    ),
+    buildAutoCodeIntelTool(buildPythonCodeIntelProbe(project), suggestions),
+    buildAutoCodeIntelTool(buildGoCodeIntelProbe(project), suggestions),
+    buildAutoCodeIntelTool(buildRustCodeIntelProbe(project), suggestions),
+  ].filter(Boolean) as RepoCodeIntelTool[];
 
   const overrides = readCodeIntelOverrides(project);
   const overrideLanguages = new Set(
@@ -1143,7 +1245,7 @@ function collectCodeIntelSnapshot(
     suggestions.add(suggestion);
   }
 
-  return {
+  const snapshot = {
     overallStatus: summary.overallStatus,
     summary: overrides.summary || summary.summary,
     tools: mergedTools,
@@ -1154,6 +1256,13 @@ function collectCodeIntelSnapshot(
     overrideError: overrides.overrideError,
     codeGraphContext,
   };
+
+  codeIntelSnapshotCache.set(project.rootPath, {
+    expiresAt: Date.now() + REPO_SNAPSHOT_CACHE_TTL_MS,
+    snapshot,
+  });
+
+  return snapshot;
 }
 
 function runGit(project: WorkspaceProject, args: string[]) {
@@ -1167,10 +1276,37 @@ function runGit(project: WorkspaceProject, args: string[]) {
   }
 }
 
+function parseGitBranchStatus(line: string) {
+  const content = line.replace(/^##\s*/, "").trim();
+  if (!content) {
+    return null;
+  }
+
+  const branch =
+    content.split("...")[0]?.split(" [")[0]?.trim() || content;
+  const aheadMatch = content.match(/\bahead (\d+)/);
+  const behindMatch = content.match(/\bbehind (\d+)/);
+
+  return {
+    branch,
+    aheadCount: Number.parseInt(aheadMatch?.[1] || "0", 10) || 0,
+    behindCount: Number.parseInt(behindMatch?.[1] || "0", 10) || 0,
+  };
+}
+
 function collectGitSnapshot(project: WorkspaceProject): GitSnapshot {
-  const branch = runGit(project, ["rev-parse", "--abbrev-ref", "HEAD"]);
-  if (!branch) {
-    return {
+  const cached = gitSnapshotCache.get(project.rootPath);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.snapshot;
+  }
+
+  const rawStatusWithBranch = runGit(project, [
+    "status",
+    "--porcelain=1",
+    "--branch",
+  ]);
+  if (!rawStatusWithBranch) {
+    const unavailableSnapshot = {
       available: false,
       branch: null,
       summary: "Git metadata unavailable for this project.",
@@ -1183,12 +1319,22 @@ function collectGitSnapshot(project: WorkspaceProject): GitSnapshot {
       aheadCount: 0,
       behindCount: 0,
     };
+    gitSnapshotCache.set(project.rootPath, {
+      expiresAt: Date.now() + REPO_SNAPSHOT_CACHE_TTL_MS,
+      snapshot: unavailableSnapshot,
+    });
+    return unavailableSnapshot;
   }
 
-  const rawStatus = runGit(project, ["status", "--short"]) || "";
-  const changedFiles: GitFileChange[] = rawStatus
-    .split("\n")
-    .filter(Boolean)
+  const statusLines = rawStatusWithBranch.split("\n").filter(Boolean);
+  const branchStatus = statusLines[0]?.startsWith("## ")
+    ? parseGitBranchStatus(statusLines.shift() || "")
+    : null;
+  if (statusLines.length > 0) {
+    statusLines[0] = statusLines[0].trimStart();
+  }
+  const branch = branchStatus?.branch || "HEAD";
+  const changedFiles: GitFileChange[] = statusLines
     .map((line) => {
       const status = line.slice(0, 2).trim() || "??";
       return {
@@ -1201,7 +1347,7 @@ function collectGitSnapshot(project: WorkspaceProject): GitSnapshot {
   let modifiedCount = 0;
   let untrackedCount = 0;
 
-  for (const change of rawStatus.split("\n").filter(Boolean)) {
+  for (const change of statusLines) {
     const staged = change[0];
     const unstaged = change[1];
 
@@ -1230,22 +1376,11 @@ function collectGitSnapshot(project: WorkspaceProject): GitSnapshot {
         hash,
         date,
         subject: subjectParts.join("\t"),
-      };
-    });
+        };
+      });
 
-  let aheadCount = 0;
-  let behindCount = 0;
-  const aheadBehind = runGit(project, [
-    "rev-list",
-    "--left-right",
-    "--count",
-    "@{upstream}...HEAD",
-  ]);
-  if (aheadBehind) {
-    const [behindRaw, aheadRaw] = aheadBehind.split(/\s+/);
-    behindCount = Number.parseInt(behindRaw || "0", 10) || 0;
-    aheadCount = Number.parseInt(aheadRaw || "0", 10) || 0;
-  }
+  const aheadCount = branchStatus?.aheadCount || 0;
+  const behindCount = branchStatus?.behindCount || 0;
 
   const dirtyCount = changedFiles.length;
   const summaryParts = [`Branch ${branch}`];
@@ -1258,7 +1393,7 @@ function collectGitSnapshot(project: WorkspaceProject): GitSnapshot {
     summaryParts.push(`ahead ${aheadCount} / behind ${behindCount}`);
   }
 
-  return {
+  const snapshot = {
     available: true,
     branch,
     summary: summaryParts.join(" - "),
@@ -1271,6 +1406,47 @@ function collectGitSnapshot(project: WorkspaceProject): GitSnapshot {
     aheadCount,
     behindCount,
   };
+  gitSnapshotCache.set(project.rootPath, {
+    expiresAt: Date.now() + REPO_SNAPSHOT_CACHE_TTL_MS,
+    snapshot,
+  });
+  return snapshot;
+}
+
+function collectRepoStaticSurfaces(project: WorkspaceProject) {
+  const cached = repoStaticSurfacesCache.get(project.rootPath);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.staticSurfaces;
+  }
+
+  const pkg = readPackageJson(project);
+  const stack = detectStack(project, pkg);
+  const dashboardSurfaces = collectDashboardSurfaces(project);
+  const apiRoutes = collectApiRoutes(project);
+  const scripts = collectScripts(pkg);
+  const verificationPresets = collectVerificationPresets(project, pkg);
+  const workspaceAreas = collectWorkspaceAreas(project);
+  const keyFiles = collectKeyFiles(project);
+  const hotspots = collectHotspots(project, keyFiles);
+
+  const staticSurfaces = {
+    pkg,
+    stack,
+    dashboardSurfaces,
+    apiRoutes,
+    scripts,
+    verificationPresets,
+    workspaceAreas,
+    keyFiles,
+    hotspots,
+  };
+
+  repoStaticSurfacesCache.set(project.rootPath, {
+    expiresAt: Date.now() + REPO_SNAPSHOT_CACHE_TTL_MS,
+    staticSurfaces,
+  });
+
+  return staticSurfaces;
 }
 
 function titleOrTagsMatch(title: string, tags: string[], keywords: string[]) {
@@ -1301,102 +1477,275 @@ function countConnections(docs: Array<{ id: string; title: string; content: stri
   return connections;
 }
 
-export function buildRepoSnapshot(project: WorkspaceProject): RepoSnapshot {
-  const pkg = readPackageJson(project);
-  const stack = detectStack(project, pkg);
-  const dashboardSurfaces = collectDashboardSurfaces(project);
-  const apiRoutes = collectApiRoutes(project);
-  const scripts = collectScripts(pkg);
-  const verificationPresets = collectVerificationPresets(project, pkg);
-  const workspaceAreas = collectWorkspaceAreas(project);
-  const keyFiles = collectKeyFiles(project);
-  const codeIntel = collectCodeIntelSnapshot(project, pkg);
-  const git = collectGitSnapshot(project);
+function buildAutoCodeIntelTool(
+  probe: AutoCodeIntelProbe | null,
+  suggestions: Set<string>,
+): RepoCodeIntelTool | null {
+  if (!probe || probe.configSignals.length === 0) {
+    return null;
+  }
 
-  const summaryParts = [
-    stack.length > 0 ? stack.join(", ") : "Application stack",
-    verificationPresets.length > 0
-      ? `${verificationPresets.length} verification commands`
-      : null,
-    codeIntel.tools.length > 0 ? codeIntel.summary : null,
-    git.available ? git.summary : "Git unavailable",
-  ].filter(Boolean) as string[];
+  const status: RepoCodeIntelStatus =
+    probe.runtimeSignals.length > 0 ? "ready" : "partial";
+
+  if (status !== "ready") {
+    suggestions.add(probe.suggestionWhenMissing);
+  }
 
   return {
-    project: {
-      id: project.id,
-      name: project.name,
-      relativePath: project.relativePath,
-      category: project.category,
-    },
-    summary: summaryParts.join(" - "),
-    stack,
-    scripts,
-    verificationPresets,
-    dashboardSurfaces,
-    apiRoutes,
-    workspaceAreas,
-    keyFiles,
-    hotspots: collectHotspots(project, keyFiles),
-    codeIntel,
-    git,
+    language: probe.language,
+    server: probe.server,
+    status,
+    source: "auto",
+    configSignals: probe.configSignals,
+    runtimeSignals: probe.runtimeSignals,
+    detail: status === "ready" ? probe.readyDetail : probe.partialDetail,
   };
 }
 
-export function buildWorkspaceReadiness(
-  userId: string,
+function buildTypeScriptCodeIntelProbe(
   project: WorkspaceProject,
-  options: { assumeContextFiles?: boolean } = {},
-): WorkspaceReadiness {
-  const docs = listDocs(userId, project.id);
-  const quests = listQuests(userId, project.id);
-  const reports = listReports(userId, project.id, { limit: 12 });
-  const repoSnapshot = buildRepoSnapshot(project);
-  const openQuestCount = quests.filter((quest) => !quest.completed).length;
-  const recentReport = reports.find((report) => {
+  dependencies: DependencyMap,
+): AutoCodeIntelProbe | null {
+  const configSignals = [
+    pathExists(repoPath(project, "tsconfig.json")) ? "tsconfig.json" : null,
+    pathExists(repoPath(project, "jsconfig.json")) ? "jsconfig.json" : null,
+    hasAnyDependency(dependencies, ["typescript"]) ? "typescript dependency" : null,
+    hasAnyDependency(dependencies, ["next", "react"]) ? "package.json app runtime" : null,
+  ].filter(Boolean) as string[];
+
+  if (configSignals.length === 0) {
+    return null;
+  }
+
+  return {
+    language: "TypeScript / JavaScript",
+    server: "tsserver / typescript-language-server",
+    configSignals,
+    runtimeSignals: [
+      hasAnyDependency(dependencies, ["typescript"])
+        ? "typescript installed in package.json"
+        : null,
+      hasAnyDependency(dependencies, ["typescript-language-server"])
+        ? "typescript-language-server installed in package.json"
+        : null,
+      commandExists("typescript-language-server")
+        ? "typescript-language-server available on PATH"
+        : null,
+      commandExists("tsserver") ? "tsserver available on PATH" : null,
+    ].filter(Boolean) as string[],
+    suggestionWhenMissing:
+      "Install TypeScript tooling or expose tsserver-compatible navigation for the active JavaScript/TypeScript project.",
+    readyDetail:
+      "Project config and TypeScript tooling are present for tsserver-compatible navigation and diagnostics.",
+    partialDetail:
+      "Project config exists, but no local TypeScript runtime or standalone language server was detected.",
+  };
+}
+
+function readPythonDependencyText(project: WorkspaceProject) {
+  return [
+    readTextIfExists(repoPath(project, "pyproject.toml")),
+    readTextIfExists(repoPath(project, "requirements.txt")),
+    readTextIfExists(repoPath(project, "requirements-dev.txt")),
+  ]
+    .join("\n")
+    .toLowerCase();
+}
+
+function buildPythonCodeIntelProbe(project: WorkspaceProject): AutoCodeIntelProbe | null {
+  const configSignals = [
+    pathExists(repoPath(project, "pyproject.toml")) ? "pyproject.toml" : null,
+    pathExists(repoPath(project, "requirements.txt")) ? "requirements.txt" : null,
+    pathExists(repoPath(project, "requirements-dev.txt"))
+      ? "requirements-dev.txt"
+      : null,
+    pathExists(repoPath(project, "setup.py")) ? "setup.py" : null,
+  ].filter(Boolean) as string[];
+
+  if (configSignals.length === 0) {
+    return null;
+  }
+
+  const pythonDependencyText = readPythonDependencyText(project);
+
+  return {
+    language: "Python",
+    server: "pyright / basedpyright / pylsp",
+    configSignals,
+    runtimeSignals: [
+      pythonDependencyText.includes("pyright")
+        ? "pyright referenced in project config"
+        : null,
+      pythonDependencyText.includes("basedpyright")
+        ? "basedpyright referenced in project config"
+        : null,
+      pythonDependencyText.includes("python-lsp-server") ||
+      pythonDependencyText.includes("pylsp")
+        ? "python-lsp-server referenced in project config"
+        : null,
+      commandExists("pyright-langserver") ? "pyright-langserver available on PATH" : null,
+      commandExists("basedpyright-langserver")
+        ? "basedpyright-langserver available on PATH"
+        : null,
+      commandExists("pylsp") ? "pylsp available on PATH" : null,
+    ].filter(Boolean) as string[],
+    suggestionWhenMissing:
+      "Install a Python language server such as pyright, basedpyright, or pylsp for semantic navigation.",
+    readyDetail: "Python project config and a language-server runtime were detected.",
+    partialDetail:
+      "Python project config exists, but no supported Python language server was detected.",
+  };
+}
+
+function buildGoCodeIntelProbe(project: WorkspaceProject): AutoCodeIntelProbe | null {
+  if (!pathExists(repoPath(project, "go.mod"))) {
+    return null;
+  }
+
+  return {
+    language: "Go",
+    server: "gopls",
+    configSignals: ["go.mod"],
+    runtimeSignals: [commandExists("gopls") ? "gopls available on PATH" : null].filter(
+      Boolean,
+    ) as string[],
+    suggestionWhenMissing:
+      "Install gopls so Go code can use semantic navigation and references.",
+    readyDetail: "Go module metadata and gopls were detected.",
+    partialDetail:
+      "Go module metadata exists, but gopls was not detected on this machine.",
+  };
+}
+
+function buildRustCodeIntelProbe(project: WorkspaceProject): AutoCodeIntelProbe | null {
+  if (!pathExists(repoPath(project, "Cargo.toml"))) {
+    return null;
+  }
+
+  return {
+    language: "Rust",
+    server: "rust-analyzer",
+    configSignals: ["Cargo.toml"],
+    runtimeSignals: [
+      commandExists("rust-analyzer") ? "rust-analyzer available on PATH" : null,
+    ].filter(Boolean) as string[],
+    suggestionWhenMissing:
+      "Install rust-analyzer so Rust code has semantic navigation and diagnostics.",
+    readyDetail: "Rust manifest and rust-analyzer were detected.",
+    partialDetail:
+      "Rust manifest exists, but rust-analyzer was not detected on this machine.",
+  };
+}
+
+type WorkspaceDocRecord = ReturnType<typeof listDocs>[number];
+type WorkspaceQuestRecord = ReturnType<typeof listQuests>[number];
+type WorkspaceReportRecord = ReturnType<typeof listReports>[number];
+
+type WorkspaceReadinessDocSignals = {
+  hasProjectCharter: boolean;
+  hasArchitectureMap: boolean;
+  hasWorkflowDoc: boolean;
+  hasDecisionLog: boolean;
+  connections: number;
+};
+
+type WorkspaceReadinessSignals = WorkspaceReadinessDocSignals & {
+  openQuestCount: number;
+  recentReport: WorkspaceReportRecord | undefined;
+  hasContextFiles: boolean;
+};
+
+type WorkspaceReadinessPreloadedData = {
+  docs?: WorkspaceDocRecord[];
+  quests?: WorkspaceQuestRecord[];
+  reports?: WorkspaceReportRecord[];
+  repoSnapshot?: RepoSnapshot;
+};
+
+const REQUIRED_CONTEXT_FILES = [
+  "PROJECT_CONTEXT.md",
+  "COLLABORATION_GUIDE.md",
+  "REPO_MAP.md",
+  "ACTIVE_CONTEXT.md",
+  "MEMORY_BRIEF.md",
+];
+
+function findRecentReport(reports: WorkspaceReportRecord[]) {
+  return reports.find((report) => {
     const ageMs = Date.now() - new Date(report.date).getTime();
     return ageMs <= 7 * 24 * 60 * 60 * 1000;
   });
-  const connections = countConnections(
-    docs.map((doc) => ({
-      id: doc.id,
-      title: doc.title,
-      content: doc.content,
-    })),
-  );
+}
+
+function hasRequiredContextFiles(
+  project: WorkspaceProject,
+  assumeContextFiles = false,
+) {
+  if (assumeContextFiles) {
+    return true;
+  }
+
   const contextDir = getContextDir(project);
-  const requiredContextFiles = [
-    "PROJECT_CONTEXT.md",
-    "COLLABORATION_GUIDE.md",
-    "REPO_MAP.md",
-    "ACTIVE_CONTEXT.md",
-    "MEMORY_BRIEF.md",
-  ];
-  const hasContextFiles = options.assumeContextFiles
-    ? true
-    : requiredContextFiles.every((fileName) =>
-        pathExists(path.join(contextDir, fileName)),
-      );
+  return REQUIRED_CONTEXT_FILES.every((fileName) =>
+    pathExists(path.join(contextDir, fileName)),
+  );
+}
 
-  const hasProjectCharter = docs.some((doc) =>
-    titleOrTagsMatch(doc.title, doc.tags, ["charter", "context", "mission", "brief"]),
-  );
-  const hasArchitectureMap = docs.some((doc) =>
-    titleOrTagsMatch(doc.title, doc.tags, ["architecture", "system", "overview", "map"]),
-  );
-  const hasWorkflowDoc = docs.some((doc) =>
-    titleOrTagsMatch(doc.title, doc.tags, ["workflow", "process", "done", "quality"]),
-  );
-  const hasDecisionLog = docs.some((doc) =>
-    titleOrTagsMatch(doc.title, doc.tags, ["decision", "adr", "architecture decision"]),
-  );
+function collectWorkspaceReadinessDocSignals(
+  docs: WorkspaceDocRecord[],
+): WorkspaceReadinessDocSignals {
+  return {
+    hasProjectCharter: docs.some((doc) =>
+      titleOrTagsMatch(doc.title, doc.tags, ["charter", "context", "mission", "brief"]),
+    ),
+    hasArchitectureMap: docs.some((doc) =>
+      titleOrTagsMatch(doc.title, doc.tags, ["architecture", "system", "overview", "map"]),
+    ),
+    hasWorkflowDoc: docs.some((doc) =>
+      titleOrTagsMatch(doc.title, doc.tags, ["workflow", "process", "done", "quality"]),
+    ),
+    hasDecisionLog: docs.some((doc) =>
+      titleOrTagsMatch(doc.title, doc.tags, ["decision", "adr", "architecture decision"]),
+    ),
+    connections: countConnections(
+      docs.map((doc) => ({
+        id: doc.id,
+        title: doc.title,
+        content: doc.content,
+      })),
+    ),
+  };
+}
 
-  const checks: WorkspaceReadinessCheck[] = [
+function collectWorkspaceReadinessSignals(
+  docs: WorkspaceDocRecord[],
+  quests: WorkspaceQuestRecord[],
+  reports: WorkspaceReportRecord[],
+  project: WorkspaceProject,
+  options: { assumeContextFiles?: boolean } = {},
+): WorkspaceReadinessSignals {
+  return {
+    ...collectWorkspaceReadinessDocSignals(docs),
+    openQuestCount: quests.filter((quest) => !quest.completed).length,
+    recentReport: findRecentReport(reports),
+    hasContextFiles: hasRequiredContextFiles(
+      project,
+      options.assumeContextFiles === true,
+    ),
+  };
+}
+
+function buildWorkspaceReadinessChecks(
+  signals: WorkspaceReadinessSignals,
+  repoSnapshot: RepoSnapshot,
+): WorkspaceReadinessCheck[] {
+  return [
     {
       id: "charter",
       label: "Project charter captured",
-      ready: hasProjectCharter,
-      detail: hasProjectCharter
+      ready: signals.hasProjectCharter,
+      detail: signals.hasProjectCharter
         ? "The active project has a durable charter or context doc."
         : "Add a charter or context doc so session goals remain stable across handoffs.",
       href: "/dashboard/docs",
@@ -1404,8 +1753,8 @@ export function buildWorkspaceReadiness(
     {
       id: "architecture",
       label: "Architecture map available",
-      ready: hasArchitectureMap,
-      detail: hasArchitectureMap
+      ready: signals.hasArchitectureMap,
+      detail: signals.hasArchitectureMap
         ? "The project has at least one system map or architecture overview."
         : "Capture the shape of the system before pushing broader implementation work.",
       href: "/dashboard/docs",
@@ -1413,8 +1762,8 @@ export function buildWorkspaceReadiness(
     {
       id: "workflow",
       label: "Delivery workflow documented",
-      ready: hasWorkflowDoc,
-      detail: hasWorkflowDoc
+      ready: signals.hasWorkflowDoc,
+      detail: signals.hasWorkflowDoc
         ? "The project explains how work should move from brief to validated delivery."
         : "Document how prompts, docs, quests, reports, and verification should work together.",
       href: "/dashboard/docs",
@@ -1422,38 +1771,38 @@ export function buildWorkspaceReadiness(
     {
       id: "decision-log",
       label: "Decision log exists",
-      ready: hasDecisionLog,
-      detail: hasDecisionLog
+      ready: signals.hasDecisionLog,
+      detail: signals.hasDecisionLog
         ? "The project can preserve architecture decisions beyond chat history."
         : "Create at least one decision log or ADR doc for durable technical choices.",
-      href: "/dashboard/decisions",
+      href: "/dashboard/automations",
     },
     {
       id: "quests",
       label: "Active quest queue exists",
-      ready: openQuestCount > 0,
+      ready: signals.openQuestCount > 0,
       detail:
-        openQuestCount > 0
-          ? `${openQuestCount} open quests can drive the next implementation session.`
+        signals.openQuestCount > 0
+          ? `${signals.openQuestCount} open quests can drive the next implementation session.`
           : "Add at least one concrete quest so the next session starts with clear intent.",
       href: "/dashboard/quests",
     },
     {
       id: "reports",
       label: "Recent delivery report exists",
-      ready: Boolean(recentReport),
-      detail: recentReport
-        ? `A report was logged recently: ${recentReport.title}.`
+      ready: Boolean(signals.recentReport),
+      detail: signals.recentReport
+        ? `A report was logged recently: ${signals.recentReport.title}.`
         : "Log a short report after sessions so outcomes and regressions stay visible.",
       href: "/dashboard/report",
     },
     {
       id: "graph",
       label: "Docs are linked together",
-      ready: connections > 0,
+      ready: signals.connections > 0,
       detail:
-        connections > 0
-          ? `${connections} document links connect the project knowledge base.`
+        signals.connections > 0
+          ? `${signals.connections} document links connect the project knowledge base.`
           : "Link related docs so generated agent tasks have usable local context.",
       href: "/dashboard/graph",
     },
@@ -1489,14 +1838,18 @@ export function buildWorkspaceReadiness(
     {
       id: "context-files",
       label: "Context files are generated",
-      ready: hasContextFiles,
-      detail: hasContextFiles
+      ready: signals.hasContextFiles,
+      detail: signals.hasContextFiles
         ? "Project, collaboration, repo, and active context files are available for the IDE."
         : "Generate an agent task or update workspace artifacts to write the context files.",
       href: "/dashboard/automations",
     },
   ];
+}
 
+function summarizeWorkspaceReadiness(
+  checks: WorkspaceReadinessCheck[],
+): Pick<WorkspaceReadiness, "score" | "status" | "summary"> {
   const readyCount = checks.filter((check) => check.ready).length;
   const score = Math.round((readyCount / checks.length) * 100);
   const status = score >= 80 ? "ready" : score >= 45 ? "partial" : "seed";
@@ -1506,6 +1859,89 @@ export function buildWorkspaceReadiness(
       : status === "partial"
         ? "The project is usable, but a few missing artifacts will still slow down handoffs."
         : "The project needs a small collaboration scaffold before it becomes a reliable long-term context layer.";
+
+  return { score, status, summary };
+}
+
+export function buildRepoSnapshot(project: WorkspaceProject): RepoSnapshot {
+  const cached = repoSnapshotCache.get(project.rootPath);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.snapshot;
+  }
+
+  const {
+    pkg,
+    stack,
+    dashboardSurfaces,
+    apiRoutes,
+    scripts,
+    verificationPresets,
+    workspaceAreas,
+    keyFiles,
+    hotspots,
+  } = collectRepoStaticSurfaces(project);
+  const codeIntel = collectCodeIntelSnapshot(project, pkg);
+  const git = collectGitSnapshot(project);
+
+  const summaryParts = [
+    stack.length > 0 ? stack.join(", ") : "Application stack",
+    verificationPresets.length > 0
+      ? `${verificationPresets.length} verification commands`
+      : null,
+    codeIntel.tools.length > 0 ? codeIntel.summary : null,
+    git.available ? git.summary : "Git unavailable",
+  ].filter(Boolean) as string[];
+
+  const snapshot = {
+    project: {
+      id: project.id,
+      name: project.name,
+      relativePath: project.relativePath,
+      category: project.category,
+    },
+    summary: summaryParts.join(" - "),
+    stack,
+    scripts,
+    verificationPresets,
+    dashboardSurfaces,
+    apiRoutes,
+    workspaceAreas,
+    keyFiles,
+    hotspots,
+    codeIntel,
+    git,
+  };
+
+  repoSnapshotCache.set(project.rootPath, {
+    expiresAt: Date.now() + REPO_SNAPSHOT_CACHE_TTL_MS,
+    snapshot,
+  });
+
+  return snapshot;
+}
+
+export function buildWorkspaceReadiness(
+  userId: string,
+  project: WorkspaceProject,
+  options: {
+    assumeContextFiles?: boolean;
+    preloaded?: WorkspaceReadinessPreloadedData;
+  } = {},
+): WorkspaceReadiness {
+  const docs = options.preloaded?.docs || listDocs(userId, project.id);
+  const quests = options.preloaded?.quests || listQuests(userId, project.id);
+  const reports =
+    options.preloaded?.reports || listReports(userId, project.id, { limit: 12 });
+  const repoSnapshot = options.preloaded?.repoSnapshot || buildRepoSnapshot(project);
+  const signals = collectWorkspaceReadinessSignals(
+    docs,
+    quests,
+    reports,
+    project,
+    options,
+  );
+  const checks = buildWorkspaceReadinessChecks(signals, repoSnapshot);
+  const { score, status, summary } = summarizeWorkspaceReadiness(checks);
 
   return {
     score,
@@ -1733,6 +2169,7 @@ export function renderIdeAgentSetupMarkdown({
     "- `.openclaw/context/ACTIVE_CONTEXT.md` for the latest project state.",
     "- `.openclaw/context/PROMPT_PACK.md` for the current focused session brief.",
     "- `.openclaw/context/SESSION_HANDOFF.md` for the current handoff summary.",
+    "- `../AI_EFFICIENCY_RULES.md` for workspace-wide efficiency constraints (token discipline, rename policy, retry rules).",
     "",
     "## Verification Commands",
     ...(snapshot.verificationPresets.length
@@ -1804,6 +2241,11 @@ export function renderIdeAgentSetupMarkdown({
     "",
     "## Workflow Expectations",
     ...guide.workflow.map((item) => `- ${item}`),
+    "",
+    "## Efficiency Constraints (Workspace-wide)",
+    "- Use in-place rename first (`Move-Item` / `git mv`) for same-drive renames.",
+    "- Do not use create-copy-delete unless rename fails for a real blocker.",
+    "- If the same fix attempt fails twice, stop and re-analyze before more changes.",
     "",
     "## Update Rules",
     ...guide.updateRules.map((item) => `- ${item}`),
@@ -2004,6 +2446,11 @@ export function buildBootstrapTemplates(
         "",
         "## CodeGraphContext",
         ...codeGraphContextLines,
+        "",
+        "## Workspace Efficiency Constraints",
+        "- Read `../AI_EFFICIENCY_RULES.md` before non-trivial implementation.",
+        "- Rename first (`Move-Item` / `git mv`), copy-delete only as a documented fallback.",
+        "- If a fix attempt fails twice, stop and re-analyze root cause before additional edits.",
         "",
         "## Editor Notes",
         "- Record any editor-specific settings, extensions, workspace files, or commands here.",

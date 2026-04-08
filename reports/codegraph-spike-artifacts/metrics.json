@@ -1,0 +1,177 @@
+{
+  "generatedAt": "2026-03-15T06:55:26.024Z",
+  "projectId": "mission-control",
+  "projectPath": "C:\\Users\\User\\.openclaw\\workspace\\mission-control",
+  "flags": {
+    "boundedMode": true,
+    "strictGateMode": true,
+    "fallbackMode": true,
+    "diagnosticsMode": false,
+    "tokenDeltaBudget": 225
+  },
+  "baseline": {
+    "chars": 15231,
+    "tokensEstimated": 3808,
+    "hasCodegraphSummary": false
+  },
+  "withCodegraph": {
+    "chars": 16131,
+    "tokensEstimated": 4033,
+    "hasCodegraphSummary": true
+  },
+  "delta": {
+    "chars": 900,
+    "tokensEstimated": 225
+  },
+  "gate": {
+    "injected": false,
+    "reasonCode": "quality_gate_failed",
+    "qualityAllowed": true,
+    "highSignal": true,
+    "withinBudget": true
+  },
+  "metadata": {
+    "generatedAt": "2026-03-15T06:55:13.583Z",
+    "sourceMode": "refresh",
+    "qualityState": "stale",
+    "failureReason": "index_timeout_attempt_3",
+    "failureClass": "index_timeout",
+    "reasonCode": "index_timeout",
+    "retryCount": 2,
+    "indexSucceeded": false,
+    "indexedThisRun": true,
+    "indexAgeMinutes": 0
+  },
+  "codegraphSummaryBudget": {
+    "chars": 814,
+    "maxChars": 900,
+    "tokensEstimated": 204,
+    "maxTokens": 225
+  },
+  "codegraphSummaryCompact": {
+    "indexed": true,
+    "indexedRepositoryCount": 0,
+    "statsPreview": [
+      "Initializing services and database connection...",
+      "Services initialized.",
+      "📊 Statistics for: C:\\Users\\User\\.openclaw\\workspace\\mission-control",
+      "┌──────────────────┬───────┐",
+      "│ Metric │ Count │",
+      "├──────────────────┼───────┤"
+    ],
+    "sections": {
+      "changeImpact": [
+        "Initializing services and database connection...",
+        "Services initialized.",
+        "📊 Statistics for: C:\\Users\\User\\.openclaw\\workspace\\mission-control"
+      ],
+      "callChains": [
+        "Initializing services and database connection...",
+        "Services initialized.",
+        "📊 Statistics for: C:\\Users\\User\\.openclaw\\workspace\\mission-control"
+      ],
+      "hotspots": [
+        "Initializing services and database connection...",
+        "Services initialized.",
+        "📊 Statistics for: C:\\Users\\User\\.openclaw\\workspace\\mission-control"
+      ],
+      "verificationTargets": [
+        "verify Initializing services and database connection...",
+        "verify Services initialized.",
+        "verify 📊 Statistics for: C:\\Users\\User\\.openclaw\\workspace\\mission-control"
+      ]
+    },
+    "usedCommands": [
+      {
+        "command": "cgc list [preflight]",
+        "ok": true
+      },
+      {
+        "command": "cgc list",
+        "ok": true
+      },
+      {
+        "command": "cgc index C:\\Users\\User\\.openclaw\\workspace\\mission-control [attempt 1]",
+        "ok": false
+      },
+      {
+        "command": "cgc index C:\\Users\\User\\.openclaw\\workspace\\mission-control [attempt 2]",
+        "ok": false
+      },
+      {
+        "command": "cgc index C:\\Users\\User\\.openclaw\\workspace\\mission-control [attempt 3]",
+        "ok": false
+      },
+      {
+        "command": "cgc list",
+        "ok": true
+      },
+      {
+        "command": "cgc stats C:\\Users\\User\\.openclaw\\workspace\\mission-control",
+        "ok": true
+      }
+    ],
+    "failures": [
+      {
+        "command": "cgc index C:\\Users\\User\\.openclaw\\workspace\\mission-control [attempt 1]",
+        "output": "Timed out\nspawnSync C:\\Users\\User\\AppData\\Local\\Programs\\Python\\Python313\\Scripts\\cgc.exe ETIMEDOUT"
+      },
+      {
+        "command": "cgc index C:\\Users\\User\\.openclaw\\workspace\\mission-control [attempt 2]",
+        "output": "Timed out\nspawnSync C:\\Users\\User\\AppData\\Local\\Programs\\Python\\Python313\\Scripts\\cgc.exe ETIMEDOUT"
+      },
+      {
+        "command": "cgc index C:\\Users\\User\\.openclaw\\workspace\\mission-control [attempt 3]",
+        "output": "Timed out\nspawnSync C:\\Users\\User\\AppData\\Local\\Programs\\Python\\Python313\\Scripts\\cgc.exe ETIMEDOUT"
+      }
+    ]
+  },
+  "preview": {
+    "baselineHead": [
+      "# Validate template execute bridge end-to-end and record result",
+      "Generated: 2026-03-13T10:29:10.979Z",
+      "Tier: overview",
+      "",
+      "## Active Project",
+      "- mission-control",
+      "- Path: mission-control",
+      "",
+      "## Objective",
+      "Advance the quest: Validate template execute bridge end-to-end and record result",
+      "",
+      "## Suggested Action",
+      "Translate the quest into one concrete code change or document update, then execute it in the IDE.",
+      "",
+      "## Workspace Readiness",
+      "82/100 (ready)",
+      "The active project has enough structure for efficient IDE collaboration.",
+      ""
+    ],
+    "withCodegraphHead": [
+      "# Validate template execute bridge end-to-end and record result",
+      "Generated: 2026-03-13T10:29:10.979Z",
+      "Tier: overview",
+      "",
+      "## Active Project",
+      "- mission-control",
+      "- Path: mission-control",
+      "",
+      "## Objective",
+      "Advance the quest: Validate template execute bridge end-to-end and record result",
+      "",
+      "## Suggested Action",
+      "Translate the quest into one concrete code change or document update, then execute it in the IDE.",
+      "",
+      "## Workspace Readiness",
+      "82/100 (ready)",
+      "The active project has enough structure for efficient IDE collaboration.",
+      "",
+      "## Collaboration Guide",
+      "- Start from Docs, Quests, and recent Reports for mission-control before asking Codex to change code.",
+      "- Use Prompt Pack to create one focused brief for the current task or quest.",
+      "- Implement directly in the active repo, then validate with the smallest useful checks.",
+      "- Update Docs when architecture, naming, or workflow assumptions change.",
+      "- Log a Report after meaningful work so later sessions inherit the outcome."
+    ]
+  }
+}

@@ -11,9 +11,9 @@ import {
   LayoutDashboard,
   FileText,
   ClipboardList,
-  Sparkles,
   ChevronLeft,
   ChevronRight,
+  GitBranch,
 } from "lucide-react";
 import AIBadge from "@/components/AIBadge";
 import ProjectSwitcher from "@/components/ProjectSwitcher";
@@ -30,8 +30,8 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard/notes", label: "Notes", icon: <StickyNote className="h-5 w-5" /> },
   { href: "/dashboard/quests", label: "Quest", icon: <Target className="h-5 w-5" /> },
   { href: "/dashboard/graph", label: "Graph", icon: <Network className="h-5 w-5" /> },
+  { href: "/dashboard/directive-workspace", label: "Directive", icon: <GitBranch className="h-5 w-5" /> },
   { href: "/dashboard/agents", label: "Agents", icon: <Bot className="h-5 w-5" /> },
-  { href: "/dashboard/automations", label: "Automations", icon: <Sparkles className="h-5 w-5" /> },
   { href: "/dashboard/docs", label: "Docs", icon: <FileText className="h-5 w-5" /> },
   { href: "/dashboard/report", label: "Report", icon: <ClipboardList className="h-5 w-5" /> },
 ];
@@ -101,8 +101,8 @@ function SidebarNavItem({
         "group relative flex items-center rounded-xl text-[0.89rem] font-medium transition-all duration-150",
         collapsed ? "justify-center px-3 py-3" : "gap-3 px-3.5 py-3",
         active || pending
-          ? "bg-bg-elevated text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
-          : "text-text-secondary hover:bg-bg-panel/72 hover:text-white",
+          ? "bg-bg-elevated text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_0_1px_rgba(255,255,255,0.04)]"
+          : "text-text-secondary hover:bg-bg-elevated/55 hover:text-white",
       ].join(" ")}
     >
       <span
@@ -203,8 +203,7 @@ export default function Sidebar({
   return (
     <aside
       className={[
-        "fixed z-[1000] flex h-screen flex-col overflow-hidden border-r border-border/80 bg-bg-sidebar/98 backdrop-blur-xl transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
-        "bg-[linear-gradient(180deg,rgba(15,16,19,0.98),rgba(11,12,14,0.98))]",
+        "fixed z-[1000] flex h-screen flex-col overflow-hidden border-r border-border/70 bg-bg-sidebar transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
         "w-[var(--sidebar-width)]",
       ].join(" ")}
     >
@@ -247,7 +246,7 @@ export default function Sidebar({
         >
           <div className="flex w-full items-center justify-between gap-3 px-4">
             <div className="flex min-w-0 items-center gap-2.5">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-border bg-bg-panel/80 text-text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-border/60 bg-bg-elevated/70 text-text-primary">
                 <AIBadge className="text-lg" />
               </div>
               <div className="min-w-0 overflow-hidden">

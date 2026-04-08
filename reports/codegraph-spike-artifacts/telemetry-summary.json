@@ -1,0 +1,9 @@
+{
+  "total": 20,
+  "injected": 17,
+  "byQuality": {
+    "fresh": 17,
+    "stale": 3,
+    "degraded": 0
+  }
+}

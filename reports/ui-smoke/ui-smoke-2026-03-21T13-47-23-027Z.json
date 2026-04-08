@@ -1,0 +1,43 @@
+{
+  "suite": "ui-smoke",
+  "ok": false,
+  "generatedAt": "2026-03-21T13:47:48.608Z",
+  "baseUrl": "http://127.0.0.1:3000",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "flows": [
+    {
+      "id": "agents",
+      "path": "/dashboard/agents",
+      "status": "pass",
+      "durationMs": 1557,
+      "screenshot": "reports/ui-smoke/screenshots/2026-03-21T13-47-23-027Z-agents.png",
+      "issues": [],
+      "error": null
+    },
+    {
+      "id": "automations",
+      "path": "/dashboard/automations",
+      "status": "pass",
+      "durationMs": 15359,
+      "screenshot": "reports/ui-smoke/screenshots/2026-03-21T13-47-23-027Z-automations.png",
+      "issues": [],
+      "error": null
+    },
+    {
+      "id": "report",
+      "path": "/dashboard/report",
+      "status": "fail",
+      "durationMs": 2103,
+      "screenshot": "reports/ui-smoke/screenshots/2026-03-21T13-47-23-027Z-report.png",
+      "issues": [],
+      "error": "net::ERR_ABORTED at http://127.0.0.1:3000/dashboard/report"
+    }
+  ],
+  "totals": {
+    "passed": 2,
+    "failed": 1
+  }
+}

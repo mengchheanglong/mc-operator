@@ -788,34 +788,6 @@ export default function AutomationsPageClient({
     };
   }, [templates.length]);
 
-  useEffect(() => {
-    let cancelled = false;
-    axios
-      .get("/api/workflow/guards", { params: { scope: "automation" } })
-      .then((response) => {
-        if (cancelled) return;
-        const rows = Array.isArray(response.data?.guards) ? response.data.guards : [];
-        const next: Record<string, WorkflowGuardBadgeState> = {};
-        for (const row of rows) {
-          const scopeId = String(row?.scopeId || "").trim();
-          if (!scopeId) continue;
-          next[scopeId] = {
-            scopeId,
-            reanalysisRequired: Boolean(row?.reanalysisRequired),
-            lastCostRiskLabel: String(row?.lastCostRiskLabel || "cost-risk/low"),
-          };
-        }
-        setWorkflowGuards(next);
-      })
-      .catch(() => {
-        if (!cancelled) setWorkflowGuards({});
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [templates.length]);
-
   return (
     <div className="matte-page mx-auto flex h-full w-full max-w-6xl overflow-y-auto px-6 py-8 sm:px-10">
       <div className="flex w-full flex-col gap-4">

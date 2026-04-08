@@ -5,7 +5,15 @@ export type AgentExecutor = "openclaw" | "codex" | "manual";
 export type AgentBackend = "openclaw" | "agent-orchestrator";
 export type AgentStatus = "active" | "paused";
 export type AgentRunStatus = "queued" | "dispatched" | "running" | "success" | "warning" | "error";
-export type AgentSourcePack = "native" | "agency-agents" | "arscontexta";
+export type AgentSourcePack =
+  | "native"
+  | "agency-agents"
+  | "arscontexta"
+  | "superpowers"
+  | "software-design-philosophy-skill"
+  | "skills-manager"
+  | "impeccable"
+  | "celtrix";
 export type AgentChainPolicy = "manual" | "auto_on_success" | "auto_always" | "stop_on_first_failure";
 
 export interface AgentWorkflowProfile {

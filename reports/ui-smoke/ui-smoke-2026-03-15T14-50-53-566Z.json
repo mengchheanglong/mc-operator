@@ -1,0 +1,43 @@
+{
+  "suite": "ui-smoke",
+  "ok": true,
+  "generatedAt": "2026-03-15T14:51:18.739Z",
+  "baseUrl": "http://127.0.0.1:3210",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "flows": [
+    {
+      "id": "agents",
+      "path": "/dashboard/agents",
+      "status": "pass",
+      "durationMs": 1774,
+      "screenshot": "reports/ui-smoke/screenshots/2026-03-15T14-50-53-566Z-agents.png",
+      "issues": [],
+      "error": null
+    },
+    {
+      "id": "automations",
+      "path": "/dashboard/automations",
+      "status": "pass",
+      "durationMs": 7136,
+      "screenshot": "reports/ui-smoke/screenshots/2026-03-15T14-50-53-566Z-automations.png",
+      "issues": [],
+      "error": null
+    },
+    {
+      "id": "report",
+      "path": "/dashboard/report",
+      "status": "pass",
+      "durationMs": 7165,
+      "screenshot": "reports/ui-smoke/screenshots/2026-03-15T14-50-53-566Z-report.png",
+      "issues": [],
+      "error": null
+    }
+  ],
+  "totals": {
+    "passed": 3,
+    "failed": 0
+  }
+}

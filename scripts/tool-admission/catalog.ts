@@ -3,7 +3,7 @@ import type { ToolAdmissionInput } from "./rubric.ts";
 export const TOOL_ADMISSION_CATALOG: ToolAdmissionInput[] = [
   {
     tool: "agent-orchestrator",
-    repoPath: "tooling/agent-orchestrator",
+    repoPath: "directive-workspace/forge/source-packs/agent-orchestrator",
     criteria: {
       workflowFit: { score: 9.2, evidence: "Directly maps to Mission Control multi-agent orchestration loops." },
       integrationComplexity: { score: 7.1, evidence: "Adapters mostly align; moderate glue code needed." },
@@ -15,7 +15,7 @@ export const TOOL_ADMISSION_CATALOG: ToolAdmissionInput[] = [
   },
   {
     tool: "agency-agents",
-    repoPath: "tooling/agency-agents",
+    repoPath: "directive-workspace/forge/source-packs/agency-agents",
     criteria: {
       workflowFit: { score: 8.8, evidence: "Specialist personas fit existing prompt-pack workflows." },
       integrationComplexity: { score: 8.1, evidence: "Low integration friction; mostly profile ingestion." },
@@ -27,7 +27,7 @@ export const TOOL_ADMISSION_CATALOG: ToolAdmissionInput[] = [
   },
   {
     tool: "arscontexta",
-    repoPath: "tooling/arscontexta",
+    repoPath: "directive-workspace/forge/source-packs/arscontexta",
     criteria: {
       workflowFit: { score: 8.2, evidence: "Context modeling patterns transfer well to long-lived missions." },
       integrationComplexity: { score: 6.1, evidence: "Requires careful schema mapping into current memory lanes." },
@@ -39,7 +39,7 @@ export const TOOL_ADMISSION_CATALOG: ToolAdmissionInput[] = [
   },
   {
     tool: "promptfoo",
-    repoPath: "tooling/promptfoo",
+    repoPath: "directive-workspace/forge/source-packs/promptfoo",
     criteria: {
       workflowFit: { score: 8.9, evidence: "Native fit for eval/regression guardrails." },
       integrationComplexity: { score: 7.8, evidence: "Already partially integrated; extension is straightforward." },
@@ -51,7 +51,7 @@ export const TOOL_ADMISSION_CATALOG: ToolAdmissionInput[] = [
   },
   {
     tool: "puppeteer",
-    repoPath: "tooling/puppeteer",
+    repoPath: "directive-workspace/forge/source-packs/puppeteer",
     criteria: {
       workflowFit: { score: 8.5, evidence: "Critical for real-browser automation validation." },
       integrationComplexity: { score: 7.2, evidence: "Infra hooks mostly present in current stack." },
@@ -63,7 +63,7 @@ export const TOOL_ADMISSION_CATALOG: ToolAdmissionInput[] = [
   },
   {
     tool: "software-design-philosophy-skill",
-    repoPath: "tooling/software-design-philosophy-skill",
+    repoPath: "directive-workspace/forge/source-packs/software-design-philosophy-skill",
     criteria: {
       workflowFit: { score: 8.1, evidence: "Supports coding-review and architecture critique tasks." },
       integrationComplexity: { score: 8.4, evidence: "Skill packaging already aligned to OpenClaw format." },
@@ -75,7 +75,7 @@ export const TOOL_ADMISSION_CATALOG: ToolAdmissionInput[] = [
   },
   {
     tool: "superpowers",
-    repoPath: "tooling/superpowers",
+    repoPath: "directive-workspace/forge/source-packs/superpowers",
     criteria: {
       workflowFit: { score: 8.3, evidence: "Reusable planning and verification playbooks map directly." },
       integrationComplexity: { score: 7.8, evidence: "Mostly docs-pattern ingestion with minor script hooks." },
@@ -87,7 +87,7 @@ export const TOOL_ADMISSION_CATALOG: ToolAdmissionInput[] = [
   },
   {
     tool: "scripts",
-    repoPath: "tooling/scripts",
+    repoPath: "directive-workspace/forge/source-packs/scripts",
     criteria: {
       workflowFit: { score: 8.4, evidence: "Direct utility support for inventory and curation loops." },
       integrationComplexity: { score: 8.7, evidence: "Drop-in script usage with minimal adapters." },
@@ -98,8 +98,21 @@ export const TOOL_ADMISSION_CATALOG: ToolAdmissionInput[] = [
     },
   },
   {
+    tool: "skills-manager",
+    repoPath: "directive-workspace/forge/source-packs/skills-manager",
+    criteria: {
+      workflowFit: { score: 7.6, evidence: "Directly supports multi-tool skill lifecycle management for OpenClaw-centric workflows." },
+      integrationComplexity: { score: 7.0, evidence: "Sync boundaries are now clearer with policy-safe export paths and bounded checks." },
+      runtimeReliability: { score: 7.8, evidence: "Core app behavior is stable with improved guardrails around sync semantics." },
+      maintenanceBurden: { score: 6.8, evidence: "Moderate upkeep due to upstream UI/runtime updates and tool-compatibility drift." },
+      costTokenImpact: { score: 7.5, evidence: "Reduces repeated prompt/context setup by making reusable skills easier to maintain." },
+      productivityGain: { score: 8.3, evidence: "High operator leverage for managing shared skills across IDE/OpenClaw surfaces." },
+    },
+  },
+  {
     tool: "hermes-agent",
-    repoPath: "tooling-parked/hermes-agent",
+    repoPath:
+      "directive-workspace/architecture/03-adopted/2026-03-21-hermes-wave-02-adopted.md",
     criteria: {
       workflowFit: { score: 7.1, evidence: "Useful overlaps, but broad platform exceeds current need." },
       integrationComplexity: { score: 4.6, evidence: "Heavy dependency surface and integration blast radius." },
@@ -111,7 +124,8 @@ export const TOOL_ADMISSION_CATALOG: ToolAdmissionInput[] = [
   },
   {
     tool: "autoresearch",
-    repoPath: "tooling-parked/autoresearch",
+    repoPath:
+      "directive-workspace/forge/follow-up/2026-03-20-autoresearch-cutover-closure.md",
     criteria: {
       workflowFit: { score: 6.6, evidence: "Great for bounded experiments, weaker for daily workflows." },
       integrationComplexity: { score: 5.5, evidence: "Extra orchestration layer needed for safe adoption." },
@@ -123,7 +137,8 @@ export const TOOL_ADMISSION_CATALOG: ToolAdmissionInput[] = [
   },
   {
     tool: "CLI-Anything",
-    repoPath: "tooling/CLI-Anything",
+    repoPath:
+      "directive-workspace/forge/follow-up/2026-03-20-cli-anything-forge-follow-up-record.md",
     criteria: {
       workflowFit: { score: 5.6, evidence: "Concept fit is good but governance model is immature." },
       integrationComplexity: { score: 4.8, evidence: "Needs robust command mediation and policy controls." },
@@ -135,7 +150,8 @@ export const TOOL_ADMISSION_CATALOG: ToolAdmissionInput[] = [
   },
   {
     tool: "CodeGraphContext",
-    repoPath: "tooling/CodeGraphContext",
+    repoPath:
+      "directive-workspace/architecture/03-adopted/2026-03-21-codegraphcontext-wave-02-adopted.md",
     criteria: {
       workflowFit: { score: 6.4, evidence: "Strong for deep code intelligence, not core for all tasks." },
       integrationComplexity: { score: 3.9, evidence: "Storage/indexing requirements exceed current budget." },
@@ -147,7 +163,7 @@ export const TOOL_ADMISSION_CATALOG: ToolAdmissionInput[] = [
   },
   {
     tool: "desloppify",
-    repoPath: "tooling/desloppify",
+    repoPath: "directive-workspace/forge/source-packs/desloppify",
     criteria: {
       workflowFit: { score: 5.8, evidence: "Quality loop idea is useful but not yet pipeline-native." },
       integrationComplexity: { score: 5.1, evidence: "Needs command-level integration strategy." },
@@ -158,27 +174,15 @@ export const TOOL_ADMISSION_CATALOG: ToolAdmissionInput[] = [
     },
   },
   {
-    tool: "OpenSpec",
-    repoPath: "tooling/OpenSpec",
+    tool: "Celtrix",
+    repoPath: "directive-workspace/forge/source-packs/celtrix",
     criteria: {
-      workflowFit: { score: 5.2, evidence: "Spec workflow overlaps but route alignment is unresolved." },
-      integrationComplexity: { score: 4.7, evidence: "Requires workflow route and schema alignment." },
-      runtimeReliability: { score: 5.4, evidence: "No hard failures seen, but limited reliability evidence." },
-      maintenanceBurden: { score: 5.1, evidence: "Dual-spec maintenance risk with existing docs flow." },
-      costTokenImpact: { score: 5.7, evidence: "Potentially lower planning churn, not yet demonstrated." },
-      productivityGain: { score: 5.8, evidence: "Mild productivity lift until integration is clear." },
-    },
-  },
-  {
-    tool: "portless",
-    repoPath: "tooling/portless",
-    criteria: {
-      workflowFit: { score: 4.6, evidence: "Niche infrastructure utility with sporadic demand." },
-      integrationComplexity: { score: 6.2, evidence: "Technically easy to integrate when needed." },
-      runtimeReliability: { score: 6.1, evidence: "Runtime behavior is stable in small trials." },
-      maintenanceBurden: { score: 6.5, evidence: "Low ongoing maintenance after setup." },
-      costTokenImpact: { score: 5.4, evidence: "Limited token impact for current workloads." },
-      productivityGain: { score: 4.9, evidence: "Low measurable gain without named-localhost demand." },
+      workflowFit: { score: 6.4, evidence: "Useful for fast agent-first project bootstrapping before feature work." },
+      integrationComplexity: { score: 6.7, evidence: "Pack-style integration is straightforward and bounded." },
+      runtimeReliability: { score: 6.3, evidence: "Scaffolding utility is stable for bounded setup usage." },
+      maintenanceBurden: { score: 6.2, evidence: "Moderate upkeep as template ecosystem evolves." },
+      costTokenImpact: { score: 6.9, evidence: "Reduces setup-token churn by standardizing bootstrap outputs." },
+      productivityGain: { score: 7.2, evidence: "Improves startup speed for new project prototypes." },
     },
   },
 ];

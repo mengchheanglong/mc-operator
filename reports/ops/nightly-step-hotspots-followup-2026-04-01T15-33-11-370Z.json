@@ -1,0 +1,62 @@
+{
+  "generatedAt": "2026-04-01T15:33:11.370Z",
+  "ok": false,
+  "minSeverity": "high",
+  "sourceGeneratedAt": "2026-04-01T15:33:10.484Z",
+  "sourceAlertCount": 4,
+  "selectedAlertCount": 3,
+  "bySeverity": {
+    "high": 3,
+    "medium": 0,
+    "low": 0
+  },
+  "topAlerts": [
+    {
+      "stepId": "ops_health_snapshot",
+      "severity": "high",
+      "reasons": [
+        "failure_rate_exceeded"
+      ],
+      "failureRate": 0.5,
+      "failingStreak": 3,
+      "slowStreak": 0,
+      "latestDurationMs": 606,
+      "lastFailureAt": "2026-04-01T15:30:03.128Z"
+    },
+    {
+      "stepId": "workspace_health_nightly",
+      "severity": "high",
+      "reasons": [
+        "failure_rate_exceeded"
+      ],
+      "failureRate": 0.5,
+      "failingStreak": 3,
+      "slowStreak": 0,
+      "latestDurationMs": 88761,
+      "lastFailureAt": "2026-04-01T15:30:03.128Z"
+    },
+    {
+      "stepId": "orchestrator_nightly",
+      "severity": "high",
+      "reasons": [
+        "failure_rate_exceeded"
+      ],
+      "failureRate": 0.5,
+      "failingStreak": 3,
+      "slowStreak": 0,
+      "latestDurationMs": 76260,
+      "lastFailureAt": "2026-04-01T15:30:03.128Z"
+    }
+  ],
+  "questAction": {
+    "action": "created",
+    "questId": "597a13dd-81e7-4819-a0f1-d12f71681919",
+    "dedupeKey": "nightly-hotspot:a6a82b532e36",
+    "failureClass": "high:ops_health_snapshot:failure_rate_exceeded|high:orchestrator_nightly:failure_rate_exceeded|high:workspace_health_nightly:failure_rate_exceeded",
+    "cooldown": {
+      "onCooldown": false,
+      "minutesRemaining": 0,
+      "lastAlertAt": null
+    }
+  }
+}

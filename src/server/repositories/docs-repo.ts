@@ -32,6 +32,15 @@ interface StoredDocFile extends DocWithTags {
   storageScope: "project" | "shared";
 }
 
+const DOC_LIST_CACHE_TTL_MS = 10000;
+const docListCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    docs: StoredDocFile[];
+  }
+>();
+
 function normTitle(title: string) {
   return normalizeDocumentTitle(title);
 }
@@ -195,6 +204,12 @@ function collectDocsFromDir(
 }
 
 function getAllDocFiles(userId: string, projectId: string): StoredDocFile[] {
+  const cacheKey = `${userId}:${projectId}`;
+  const cached = docListCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.docs;
+  }
+
   const projectDocs = collectDocsFromDir(getProjectKnowledgeDir(projectId, false), "project");
   const sharedDocs = collectDocsFromDir(getSharedKnowledgeDir(false), "shared");
   const visibleDocs = [...projectDocs, ...sharedDocs].filter((doc) => {
@@ -217,10 +232,17 @@ function getAllDocFiles(userId: string, projectId: string): StoredDocFile[] {
     }
   }
 
-  return Array.from(dedupedDocs.values()).sort(
+  const docs = Array.from(dedupedDocs.values()).sort(
     (left, right) =>
       new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
   );
+
+  docListCache.set(cacheKey, {
+    expiresAt: Date.now() + DOC_LIST_CACHE_TTL_MS,
+    docs,
+  });
+
+  return docs;
 }
 
 function findDocFileById(userId: string, projectId: string, id: string) {
@@ -236,6 +258,15 @@ function findDocFileByTitle(userId: string, projectId: string, title: string) {
 
 export function listDocs(userId: string, projectId: string): DocWithTags[] {
   return getAllDocFiles(userId, projectId).map(stripFilePath);
+}
+
+export function clearDocListCache(userId?: string, projectId?: string) {
+  if (!userId || !projectId) {
+    docListCache.clear();
+    return;
+  }
+
+  docListCache.delete(`${userId}:${projectId}`);
 }
 
 export function findDocById(
@@ -341,6 +372,7 @@ export function createDoc(
   };
 
   writeDocFile(newDoc);
+  clearDocListCache(userId, projectId);
   return newDoc;
 }
 
@@ -378,6 +410,7 @@ export function updateDoc(
   };
 
   writeDocFile(updatedDoc, existing.filePath);
+  clearDocListCache(userId, projectId);
   return updatedDoc;
 }
 
@@ -386,5 +419,6 @@ export function deleteDoc(userId: string, projectId: string, id: string): boolea
   if (!existing) return false;
 
   deleteDocFile(existing.filePath);
+  clearDocListCache(userId, projectId);
   return true;
 }

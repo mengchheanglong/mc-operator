@@ -368,6 +368,7 @@ export default function AgentsPageClient({
   const canDispatch =
     Boolean(currentPayload && selectedAgent) &&
     draft.executor === "openclaw" &&
+    draft.backend !== "agent-orchestrator" &&
     draft.status === "active" &&
     Boolean(taskInput.trim());
 
@@ -1070,8 +1071,11 @@ export default function AgentsPageClient({
                   className="input-discord"
                 >
                   <option value="openclaw">openclaw</option>
-                  <option value="agent-orchestrator">agent-orchestrator</option>
+                  <option value="agent-orchestrator" disabled>agent-orchestrator (follow-up only)</option>
                 </select>
+                <div className="mt-2 text-[11px] text-text-muted">
+                  `agent-orchestrator` is verified only as a bounded CLI follow-up lane right now. Live host backend selection stays blocked until a narrower promotion is approved.
+                </div>
               </div>
               <div>
                 <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.16em] text-text-muted">
@@ -1329,7 +1333,7 @@ export default function AgentsPageClient({
                 ) : (
                   <Send className="h-4 w-4" />
                 )}
-                {selectedAgent?.backend === "agent-orchestrator" ? "Spawn via AO" : "Send to OpenClaw"}
+                {selectedAgent?.backend === "agent-orchestrator" ? "AO Follow-up Only" : "Send to OpenClaw"}
               </button>
             </div>
           </div>
@@ -1346,23 +1350,9 @@ export default function AgentsPageClient({
               <span>{taskInput.length} chars</span>
             </div>
             {selectedAgent?.backend === "agent-orchestrator" ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button type="button" onClick={() => void refreshBackendStatus()} className="matte-action-secondary" disabled={backendStatusLoading || busyMode !== null}>
-                  {backendStatusLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                  AO Status
-                </button>
-                <button type="button" onClick={() => void sendFollowUpToSession()} className="matte-action-secondary" disabled={busyMode !== null || !selectedAgent?.sessionId || !taskInput.trim()}>
-                  <Send className="h-4 w-4" />
-                  Send Follow-up
-                </button>
-                <button type="button" onClick={() => void restoreBackendSession()} className="matte-action-secondary" disabled={busyMode !== null || !selectedAgent?.sessionId}>
-                  <RotateCcw className="h-4 w-4" />
-                  Restore Session
-                </button>
-                <button type="button" onClick={() => void clearBackendSession()} className="matte-action-secondary" disabled={busyMode !== null || !selectedAgent?.sessionId}>
-                  <Trash2 className="h-4 w-4" />
-                  Clear Session
-                </button>
+              <div className="mt-3 rounded-2xl border border-status-warning/25 bg-status-warning/10 p-3 text-xs text-status-warning">
+                `agent-orchestrator` remains `follow_up_only`.
+                The bounded CLI smoke is proven, but interactive host dispatch/session controls stay blocked until a narrower AO host surface is explicitly promoted.
               </div>
             ) : null}
           </div>
@@ -1384,17 +1374,12 @@ export default function AgentsPageClient({
             ) : null}
           </div>
 
-          {selectedAgent?.backend === "agent-orchestrator" && backendStatus ? (
-            <div className="mt-4 rounded-2xl border border-border bg-bg-card/50 p-4 text-sm text-text-secondary">
-              <div className="font-semibold text-white">AO Session Status</div>
-              <div className="mt-1">Session: {backendStatus.sessionId || selectedAgent.sessionId || "none"}</div>
-              <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-xs leading-6 text-text-muted">{backendStatus.body || "(no status output)"}</pre>
-              {backendSessions?.body ? (
-                <details className="mt-3 rounded-xl border border-border/70 bg-bg-panel/50 p-2">
-                  <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">Session List</summary>
-                  <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-xs leading-6 text-text-muted">{backendSessions.body}</pre>
-                </details>
-              ) : null}
+          {selectedAgent?.backend === "agent-orchestrator" ? (
+            <div className="mt-4 rounded-2xl border border-status-warning/25 bg-status-warning/10 p-4 text-sm text-status-warning">
+              <div className="font-semibold text-white">AO Host Adapter Blocked</div>
+              <div className="mt-1">
+                This agent backend is not live in Mission Control. Keep AO as a verified CLI follow-up lane until Forge promotes one narrower host adapter surface.
+              </div>
             </div>
           ) : null}
 

@@ -1,0 +1,27 @@
+{
+  "suite": "superpowers-import-smoke",
+  "ok": true,
+  "generatedAt": "2026-03-21T16:21:13.288Z",
+  "workspaceRoot": "C:\\Users\\User\\.openclaw\\workspace",
+  "backendBaseUrl": "http://127.0.0.1:3933/api/v1",
+  "sourcePack": "superpowers",
+  "defaultImportSuperpowersCount": 0,
+  "importedCount": 1,
+  "updatedCount": 1,
+  "importedAgent": {
+    "name": "Superpowers Workflow Operator",
+    "sourcePack": "superpowers",
+    "sourceRef": "superpowers/workflow-operator",
+    "workflowMode": "execution",
+    "packAssetLabels": [
+      "README.md",
+      "skills",
+      "commands",
+      "docs",
+      "agents"
+    ],
+    "packAssetCount": 5
+  },
+  "latestPath": "C:\\Users\\User\\.openclaw\\workspace\\mission-control\\reports\\agent-pack-imports\\superpowers-latest.json",
+  "archivePath": "C:\\Users\\User\\.openclaw\\workspace\\mission-control\\reports\\agent-pack-imports\\superpowers-2026-03-21T16-21-13-290Z.json"
+}

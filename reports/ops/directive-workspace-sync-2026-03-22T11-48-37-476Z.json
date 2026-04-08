@@ -1,0 +1,616 @@
+{
+  "generatedAt": "2026-03-22T11:48:37.476Z",
+  "timezone": "Asia/Bangkok",
+  "dayKey": "2026-03-22",
+  "latestArtifactAt": "2026-03-22T11:48:19.131Z",
+  "artifactCount": 96,
+  "artifactsByTrack": {
+    "architecture": 39,
+    "discovery": 7,
+    "forge": 22,
+    "shared": 28
+  },
+  "artifacts": [
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\CHANGELOG.md",
+      "relativePath": "CHANGELOG.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-22T11:48:19.131Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\schemas\\README.md",
+      "relativePath": "shared/schemas/README.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-22T11:24:34.616Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\lib\\README.md",
+      "relativePath": "shared/lib/README.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-22T11:24:34.616Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\OWNERSHIP.md",
+      "relativePath": "OWNERSHIP.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-22T11:18:18.111Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\knowledge\\doctrine.md",
+      "relativePath": "knowledge/doctrine.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-22T11:18:18.111Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\README.md",
+      "relativePath": "README.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-22T11:18:18.110Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\host-integration-boundary.md",
+      "relativePath": "shared/contracts/host-integration-boundary.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-22T11:18:18.110Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\openclaw-to-discovery.md",
+      "relativePath": "shared/contracts/openclaw-to-discovery.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-22T10:37:57.311Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\discovery-intake-queue.md",
+      "relativePath": "shared/contracts/discovery-intake-queue.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-22T10:29:19.329Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\discovery-gap-worklist.md",
+      "relativePath": "shared/contracts/discovery-gap-worklist.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-22T07:00:09.887Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\records\\2026-03-22-context-pack-async-latency-transformation-record.md",
+      "relativePath": "forge/records/2026-03-22-context-pack-async-latency-transformation-record.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-22T06:03:04.240Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\records\\2026-03-22-code-intel-snapshot-transformation-record.md",
+      "relativePath": "forge/records/2026-03-22-code-intel-snapshot-transformation-record.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-22T05:53:29.628Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\records\\2026-03-22-workspace-readiness-check-transformation-record.md",
+      "relativePath": "forge/records/2026-03-22-workspace-readiness-check-transformation-record.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-22T05:31:21.307Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\records\\2026-03-22-context-pack-focus-resolution-transformation-record.md",
+      "relativePath": "forge/records/2026-03-22-context-pack-focus-resolution-transformation-record.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-22T05:12:23.486Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\04-deferred-or-rejected\\README.md",
+      "relativePath": "architecture/04-deferred-or-rejected/README.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:04:51.000Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\knowledge\\execution-plan.md",
+      "relativePath": "knowledge/execution-plan.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-22T05:04:50.998Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\README.md",
+      "relativePath": "architecture/README.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:04:50.997Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\04-deferred-or-rejected\\2026-03-19-swe-agent-slice-8-deferred.md",
+      "relativePath": "architecture/04-deferred-or-rejected/2026-03-19-swe-agent-slice-8-deferred.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:02:14.352Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\04-deferred-or-rejected\\2026-03-19-openhands-slice-11-deferred.md",
+      "relativePath": "architecture/04-deferred-or-rejected/2026-03-19-openhands-slice-11-deferred.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:02:14.351Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\04-deferred-or-rejected\\2026-03-19-autogen-slice-10-deferred.md",
+      "relativePath": "architecture/04-deferred-or-rejected/2026-03-19-autogen-slice-10-deferred.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:02:14.350Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\04-deferred-or-rejected\\2026-03-19-autoresearchclaw-slice-9-deferred.md",
+      "relativePath": "architecture/04-deferred-or-rejected/2026-03-19-autoresearchclaw-slice-9-deferred.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:02:14.350Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-19-swe-agent-slice-8-execution.md",
+      "relativePath": "architecture/02-experiments/2026-03-19-swe-agent-slice-8-execution.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:02:13.866Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-19-openhands-slice-11-execution.md",
+      "relativePath": "architecture/02-experiments/2026-03-19-openhands-slice-11-execution.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:02:13.865Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-19-autoresearchclaw-slice-9-execution.md",
+      "relativePath": "architecture/02-experiments/2026-03-19-autoresearchclaw-slice-9-execution.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:02:13.862Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-19-autogen-slice-10-execution.md",
+      "relativePath": "architecture/02-experiments/2026-03-19-autogen-slice-10-execution.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:02:13.860Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\04-deferred-or-rejected\\2026-03-19-gpt-researcher-deferred.md",
+      "relativePath": "architecture/04-deferred-or-rejected/2026-03-19-gpt-researcher-deferred.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:00:46.072Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-19-scientify-slice-6-adopted-planned-next.md",
+      "relativePath": "architecture/03-adopted/2026-03-19-scientify-slice-6-adopted-planned-next.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:00:46.070Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-19-openmoss-slice-5-adopted-planned-next.md",
+      "relativePath": "architecture/03-adopted/2026-03-19-openmoss-slice-5-adopted-planned-next.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:00:46.068Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-19-paper2code-directive-architecture-adopted-planned-next.md",
+      "relativePath": "architecture/03-adopted/2026-03-19-paper2code-directive-architecture-adopted-planned-next.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:00:46.068Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-19-gpt-researcher-directive-architecture-adopted-planned-next.md",
+      "relativePath": "architecture/03-adopted/2026-03-19-gpt-researcher-directive-architecture-adopted-planned-next.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:00:46.067Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-19-metaclaw-slice-7-adopted-planned-next.md",
+      "relativePath": "architecture/03-adopted/2026-03-19-metaclaw-slice-7-adopted-planned-next.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:00:46.067Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-19-mini-swe-agent-slice-3-adopted-planned-next.md",
+      "relativePath": "architecture/03-adopted/2026-03-19-mini-swe-agent-slice-3-adopted-planned-next.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:00:46.067Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-19-autoresearch-slice-1-adopted-planned-next.md",
+      "relativePath": "architecture/03-adopted/2026-03-19-autoresearch-slice-1-adopted-planned-next.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:00:46.065Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-19-gh-aw-slice-4-adopted-planned-next.md",
+      "relativePath": "architecture/03-adopted/2026-03-19-gh-aw-slice-4-adopted-planned-next.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:00:46.065Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-19-agentics-slice-2-adopted-planned-next.md",
+      "relativePath": "architecture/03-adopted/2026-03-19-agentics-slice-2-adopted-planned-next.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:00:46.064Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-19-paper2code-directive-architecture-slice.md",
+      "relativePath": "architecture/02-experiments/2026-03-19-paper2code-directive-architecture-slice.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:00:45.517Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-19-scientify-slice-6-execution.md",
+      "relativePath": "architecture/02-experiments/2026-03-19-scientify-slice-6-execution.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:00:45.517Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-19-openmoss-slice-5-execution.md",
+      "relativePath": "architecture/02-experiments/2026-03-19-openmoss-slice-5-execution.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:00:45.516Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-19-mini-swe-agent-slice-3-execution.md",
+      "relativePath": "architecture/02-experiments/2026-03-19-mini-swe-agent-slice-3-execution.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:00:45.515Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-19-gh-aw-slice-4-execution.md",
+      "relativePath": "architecture/02-experiments/2026-03-19-gh-aw-slice-4-execution.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:00:45.513Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-19-gpt-researcher-directive-architecture-slice.md",
+      "relativePath": "architecture/02-experiments/2026-03-19-gpt-researcher-directive-architecture-slice.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:00:45.513Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-19-gpt-researcher-experiment.md",
+      "relativePath": "architecture/02-experiments/2026-03-19-gpt-researcher-experiment.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:00:45.513Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-19-metaclaw-slice-7-execution.md",
+      "relativePath": "architecture/02-experiments/2026-03-19-metaclaw-slice-7-execution.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:00:45.513Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-19-autoresearch-experiment.md",
+      "relativePath": "architecture/02-experiments/2026-03-19-autoresearch-experiment.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T05:00:45.510Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\knowledge\\active-mission.md",
+      "relativePath": "knowledge/active-mission.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-22T04:25:50.913Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\discovery\\README.md",
+      "relativePath": "discovery/README.md",
+      "track": "discovery",
+      "mtimeIso": "2026-03-22T04:25:50.913Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\discovery\\routing-log\\2026-03-22-accepted-implementation-bundle-57-openclaw-maintenance-watchdog-signal-lane.md",
+      "relativePath": "discovery/routing-log/2026-03-22-accepted-implementation-bundle-57-openclaw-maintenance-watchdog-signal-lane.md",
+      "track": "discovery",
+      "mtimeIso": "2026-03-22T04:25:04.422Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-22-openclaw-maintenance-watchdog-signal-lane-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-22-openclaw-maintenance-watchdog-signal-lane-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T04:25:04.422Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-22-openclaw-maintenance-watchdog-signal-lane-slice-01.md",
+      "relativePath": "architecture/02-experiments/2026-03-22-openclaw-maintenance-watchdog-signal-lane-slice-01.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T04:25:04.422Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\openclaw-maintenance-watchdog-signal.md",
+      "relativePath": "shared/contracts/openclaw-maintenance-watchdog-signal.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-22T04:24:16.164Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\discovery\\routing-log\\2026-03-22-accepted-implementation-bundle-56-openclaw-runtime-verification-freshness.md",
+      "relativePath": "discovery/routing-log/2026-03-22-accepted-implementation-bundle-56-openclaw-runtime-verification-freshness.md",
+      "track": "discovery",
+      "mtimeIso": "2026-03-22T04:04:44.150Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-22-openclaw-runtime-verification-freshness-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-22-openclaw-runtime-verification-freshness-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T04:04:44.150Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-22-openclaw-runtime-verification-freshness-slice-01.md",
+      "relativePath": "architecture/02-experiments/2026-03-22-openclaw-runtime-verification-freshness-slice-01.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T04:04:44.150Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\openclaw-runtime-verification-signal.md",
+      "relativePath": "shared/contracts/openclaw-runtime-verification-signal.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-22T04:02:45.106Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\discovery\\routing-log\\2026-03-22-accepted-implementation-bundle-55-openclaw-discovery-submission-flow.md",
+      "relativePath": "discovery/routing-log/2026-03-22-accepted-implementation-bundle-55-openclaw-discovery-submission-flow.md",
+      "track": "discovery",
+      "mtimeIso": "2026-03-22T03:48:34.069Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-22-openclaw-discovery-submission-flow-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-22-openclaw-discovery-submission-flow-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T03:48:34.069Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-22-openclaw-discovery-submission-flow-slice-01.md",
+      "relativePath": "architecture/02-experiments/2026-03-22-openclaw-discovery-submission-flow-slice-01.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T03:48:34.069Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\templates\\discovery-fast-path-record.md",
+      "relativePath": "shared/templates/discovery-fast-path-record.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-22T03:33:23.344Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\knowledge\\workflow.md",
+      "relativePath": "knowledge/workflow.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-22T03:32:09.613Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\discovery\\routing-log\\2026-03-22-accepted-implementation-bundle-54-discovery-gap-priority-loop-slice-01.md",
+      "relativePath": "discovery/routing-log/2026-03-22-accepted-implementation-bundle-54-discovery-gap-priority-loop-slice-01.md",
+      "track": "discovery",
+      "mtimeIso": "2026-03-22T03:30:06.298Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\05-reference-patterns\\2026-03-22-discovery-gap-priority-worklist-policy.md",
+      "relativePath": "architecture/05-reference-patterns/2026-03-22-discovery-gap-priority-worklist-policy.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T03:30:06.298Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\03-adopted\\2026-03-22-discovery-gap-priority-worklist-adopted.md",
+      "relativePath": "architecture/03-adopted/2026-03-22-discovery-gap-priority-worklist-adopted.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T03:30:06.298Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\02-experiments\\2026-03-22-discovery-gap-driven-priority-loop-slice-01.md",
+      "relativePath": "architecture/02-experiments/2026-03-22-discovery-gap-driven-priority-loop-slice-01.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T03:30:06.297Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\forge-external-run-envelope.md",
+      "relativePath": "shared/contracts/forge-external-run-envelope.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-22T03:07:51.123Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\knowledge\\knowledge-duplication-inventory.md",
+      "relativePath": "knowledge/knowledge-duplication-inventory.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-22T03:07:51.123Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\PUBLISH_READINESS.md",
+      "relativePath": "PUBLISH_READINESS.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-22T02:15:14.167Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\knowledge\\charter.md",
+      "relativePath": "knowledge/charter.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-22T02:14:22.555Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\promotion-records\\2026-03-22-remaining-backend-test-boilerplate-transformation-promotion-record.md",
+      "relativePath": "forge/promotion-records/2026-03-22-remaining-backend-test-boilerplate-transformation-promotion-record.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-22T01:57:56.103Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\records\\2026-03-22-remaining-backend-test-boilerplate-transformation-record.md",
+      "relativePath": "forge/records/2026-03-22-remaining-backend-test-boilerplate-transformation-record.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-22T01:57:49.218Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\promotion-records\\2026-03-22-automation-test-boilerplate-transformation-promotion-record.md",
+      "relativePath": "forge/promotion-records/2026-03-22-automation-test-boilerplate-transformation-promotion-record.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-22T01:34:08.644Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\records\\2026-03-22-automation-test-boilerplate-transformation-record.md",
+      "relativePath": "forge/records/2026-03-22-automation-test-boilerplate-transformation-record.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-22T01:33:55.526Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\architecture\\ARCHITECTURE_EXPLORATION.md",
+      "relativePath": "architecture/ARCHITECTURE_EXPLORATION.md",
+      "track": "architecture",
+      "mtimeIso": "2026-03-22T01:18:35.578Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\README.md",
+      "relativePath": "forge/README.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-22T01:16:30.834Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\ROUTING_MATRIX.md",
+      "relativePath": "shared/ROUTING_MATRIX.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-22T01:15:25.436Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\knowledge\\architecture-map.md",
+      "relativePath": "knowledge/architecture-map.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-22T01:14:58.286Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\knowledge\\project-plan.md",
+      "relativePath": "knowledge/project-plan.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-22T00:54:35.947Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\knowledge\\delivery-plan.md",
+      "relativePath": "knowledge/delivery-plan.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-22T00:54:26.546Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\promotion-records\\2026-03-22-backend-test-boilerplate-transformation-promotion-record.md",
+      "relativePath": "forge/promotion-records/2026-03-22-backend-test-boilerplate-transformation-promotion-record.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-22T00:42:06.657Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\records\\2026-03-22-backend-test-boilerplate-transformation-record.md",
+      "relativePath": "forge/records/2026-03-22-backend-test-boilerplate-transformation-record.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-22T00:41:13.122Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\records\\2026-03-22-v0-normalizer-transformation-record.md",
+      "relativePath": "forge/records/2026-03-22-v0-normalizer-transformation-record.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-21T19:10:38.578Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\promotion-records\\2026-03-22-v0-normalizer-transformation-promotion-record.md",
+      "relativePath": "forge/promotion-records/2026-03-22-v0-normalizer-transformation-promotion-record.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-21T19:10:32.414Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\templates\\transformation-record.md",
+      "relativePath": "shared/templates/transformation-record.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-21T18:51:16.546Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\evaluator-contract.md",
+      "relativePath": "shared/contracts/evaluator-contract.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-21T17:58:24.795Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\follow-up\\2026-03-22-forge-wave-04-shortlist.md",
+      "relativePath": "forge/follow-up/2026-03-22-forge-wave-04-shortlist.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-21T17:23:18.312Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\follow-up\\2026-03-20-cli-anything-forge-follow-up-record.md",
+      "relativePath": "forge/follow-up/2026-03-20-cli-anything-forge-follow-up-record.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-21T17:23:18.311Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\follow-up\\2026-03-20-cli-anything-reentry-contract.md",
+      "relativePath": "forge/follow-up/2026-03-20-cli-anything-reentry-contract.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-21T17:23:18.311Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\discovery\\routing-log\\2026-03-22-accepted-implementation-bundle-53-cli-anything-reentry-preconditions-slice-01.md",
+      "relativePath": "discovery/routing-log/2026-03-22-accepted-implementation-bundle-53-cli-anything-reentry-preconditions-slice-01.md",
+      "track": "discovery",
+      "mtimeIso": "2026-03-21T17:23:18.311Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\command-class-approval-policy.md",
+      "relativePath": "shared/contracts/command-class-approval-policy.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-21T17:23:18.310Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\records\\2026-03-22-cli-anything-reentry-preconditions-slice-01.md",
+      "relativePath": "forge/records/2026-03-22-cli-anything-reentry-preconditions-slice-01.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-21T17:23:18.310Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\shared\\contracts\\command-mediation-contract.md",
+      "relativePath": "shared/contracts/command-mediation-contract.md",
+      "track": "shared",
+      "mtimeIso": "2026-03-21T17:23:18.292Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\follow-up\\2026-03-20-desloppify-quality-utility-followup.md",
+      "relativePath": "forge/follow-up/2026-03-20-desloppify-quality-utility-followup.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-21T17:20:03.529Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\follow-up\\2026-03-20-hermes-agent-utility-cutover.md",
+      "relativePath": "forge/follow-up/2026-03-20-hermes-agent-utility-cutover.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-21T17:20:03.529Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\discovery\\routing-log\\2026-03-22-accepted-implementation-bundle-52-forge-wave-04-shortlist.md",
+      "relativePath": "discovery/routing-log/2026-03-22-accepted-implementation-bundle-52-forge-wave-04-shortlist.md",
+      "track": "discovery",
+      "mtimeIso": "2026-03-21T17:20:03.529Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\follow-up\\2026-03-20-software-design-philosophy-skill-cutover.md",
+      "relativePath": "forge/follow-up/2026-03-20-software-design-philosophy-skill-cutover.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-21T17:20:03.528Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\follow-up\\2026-03-21-arscontexta-context-operator-cutover.md",
+      "relativePath": "forge/follow-up/2026-03-21-arscontexta-context-operator-cutover.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-21T17:20:03.528Z"
+    },
+    {
+      "absolutePath": "C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\records\\2026-03-21-agent-orchestrator-host-adapter-decision.md",
+      "relativePath": "forge/records/2026-03-21-agent-orchestrator-host-adapter-decision.md",
+      "track": "forge",
+      "mtimeIso": "2026-03-21T17:01:23.740Z"
+    }
+  ],
+  "graphChanges": [
+    "docs/operations/CODEGRAPH_PROD_GUARDRAILS.md",
+    "reports/codegraph-spike-artifacts/",
+    "reports/codegraph-spike-report.md",
+    "scripts/check-codegraph-rollback-threshold.ts",
+    "scripts/check-codegraph-spike.ts",
+    "scripts/check-directive-codegraphcontext-contracts.ts",
+    "scripts/run-codegraph-spike.ts",
+    "scripts/summarize-codegraph-telemetry.ts",
+    "src/app/api/code-graph/index/route.ts",
+    "src/app/api/projects/graph/route.ts",
+    "src/app/dashboard/graph/GraphPageClient.tsx",
+    "src/components/graph/GraphView.tsx",
+    "src/server/services/codegraph-summary-service.ts"
+  ],
+  "signature": "41cd3f317b00b6a0",
+  "reportId": "bea621c7-e8a8-493b-abc5-a34906ac79b8",
+  "graphReportId": "71896f43-1330-431a-8fcd-18d982f91a6d",
+  "reusedReportId": "bea621c7-e8a8-493b-abc5-a34906ac79b8",
+  "reportPaths": {
+    "timestampedMarkdown": "C:\\Users\\User\\.openclaw\\workspace\\mission-control\\reports\\ops\\directive-workspace-sync-2026-03-22T11-48-37-476Z.md",
+    "latestMarkdown": "C:\\Users\\User\\.openclaw\\workspace\\mission-control\\reports\\ops\\directive-workspace-sync-latest.md",
+    "timestampedJson": "C:\\Users\\User\\.openclaw\\workspace\\mission-control\\reports\\ops\\directive-workspace-sync-2026-03-22T11-48-37-476Z.json",
+    "latestJson": "C:\\Users\\User\\.openclaw\\workspace\\mission-control\\reports\\ops\\directive-workspace-sync-latest.json"
+  }
+}

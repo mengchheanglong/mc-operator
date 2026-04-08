@@ -148,3 +148,24 @@ data/*.db-shm
 .openclaw/context/
 .openclaw/workspace-state.json
 !.openclaw/project-intel.json
+
+# Volatile ops/nightly artifacts
+reports/ops/repo-sync-*.json
+reports/ops/repo-sync-latest.json
+reports/ops/repo-sources-nightly-*.json
+reports/ops/repo-sources-nightly-latest.json
+reports/ops/repo-sources-nightly-state.json
+reports/ops/workspace-global-health-*.json
+reports/ops/workspace-global-health-latest.json
+reports/ops/nightly-ops-bundle-*.json
+reports/ops/nightly-ops-bundle-latest.json
+reports/ops/ops-health-*.json
+reports/ops/ops-health-latest.json
+reports/ops/canary-*.json
+!reports/ops/canary-latest.json
+reports/ops/directive-integration-proof-*.md
+reports/ops/directive-lifecycle-proof-*.md
+reports/ops/desloppify-prototype-*.md
+reports/ops/tooling-audit-*.md
+reports/ops/agency-agents-*.md
+reports/ops/agency-agents-snapshots/

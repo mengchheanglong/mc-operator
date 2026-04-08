@@ -1,14 +1,28 @@
 import { NextResponse } from "next/server";
+import { resolveProjectFromRequest } from "@/server/context/project-context";
 import { serverError } from "@/server/http/api-response";
-import { probeOpenClawAgent } from "@/server/services/openclaw-delivery-service";
+import { proxyBackendRequest } from "@/server/http/directive-backend-proxy";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const result = await probeOpenClawAgent({ timeoutSeconds: 12 });
-    return NextResponse.json(result, { status: result.ok ? 200 : 503 });
+    const project = resolveProjectFromRequest(req);
+    const response = await proxyBackendRequest({
+      req,
+      projectId: project.id,
+      path: "/automation/openclaw/health",
+    });
+    if (!response.ok) {
+      return response;
+    }
+    const payload = await response.json();
+    return NextResponse.json(payload, { status: response.status });
   } catch (error) {
-    return serverError(error, "OpenClaw health check error", "Failed to check OpenClaw availability.");
+    return serverError(
+      error,
+      "OpenClaw health check error",
+      "Failed to check OpenClaw availability.",
+    );
   }
 }
