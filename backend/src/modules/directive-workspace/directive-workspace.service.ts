@@ -294,7 +294,7 @@ export class DirectiveWorkspaceService {
   }
 
   private projectId(v?: unknown) {
-    return this.s(v) || "mission-control";
+    return this.s(v) || "mc-operator";
   }
 
   private operator() {
@@ -825,7 +825,7 @@ export class DirectiveWorkspaceService {
                 "npm run check:directive-integration-proof",
                 "npm run check:ops-stack",
               ],
-        dependencyNotes: "Depends on mission-control directive lifecycle APIs and run/report repositories.",
+        dependencyNotes: "Depends on mc-operator directive lifecycle APIs and run/report repositories.",
         rollbackNotes: "Set integration status to parked and add decision note before removing dependent workflows.",
         rollbackPlan:
           this.s(body.rollbackPlan) ||
@@ -916,7 +916,7 @@ export class DirectiveWorkspaceService {
   private resolveDirectiveForgeHandoffPath() {
     return path.resolve(
       this.resolveWorkspaceRoot(),
-      "mission-control",
+      "mc-operator",
       "docs",
       "operations",
       "DIRECTIVE_FORGE_HANDOFF_FROM_V1_RECHECK_2026-03-19.md",
@@ -1706,7 +1706,7 @@ export class DirectiveWorkspaceService {
 
     const architecture = this.getArchitectureOverview();
     const lifecycleArtifactCoverage = this.buildLifecycleArtifactCoverage(
-      "mission-control",
+      "mc-operator",
     );
 
     return {

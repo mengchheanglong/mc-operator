@@ -5,7 +5,7 @@ import path from "node:path";
 @Injectable()
 export class SqliteService implements OnModuleDestroy {
   private readonly defaultProjectId =
-    process.env.MISSION_CONTROL_DEFAULT_PROJECT_ID || "mission-control";
+    process.env.MISSION_CONTROL_DEFAULT_PROJECT_ID || "mc-operator";
 
   private readonly dbPath =
     process.env.SQLITE_PATH ||

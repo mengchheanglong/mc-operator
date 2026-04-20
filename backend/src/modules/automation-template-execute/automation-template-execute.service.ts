@@ -8,7 +8,7 @@ import { promisify } from "node:util";
 import { SqliteService } from "../../infra/sqlite/sqlite.service";
 
 const execFileAsync = promisify(execFile);
-const DEFAULT_PROJECT_ID = "mission-control";
+const DEFAULT_PROJECT_ID = "mc-operator";
 const MAX_STORED_DISPATCH_BODY = 12_000;
 const WORKFLOW = [
   "objective",
@@ -298,7 +298,7 @@ export class AutomationTemplateExecuteService {
     const executor = this.resolveExecutor(input.body.executor);
     const webhookPath =
       this.normalizeWebhookPath(input.body.webhookPath) ||
-      (executor === "n8n" ? "/webhook/mission-control/openclaw-router" : null);
+      (executor === "n8n" ? "/webhook/mc-operator/openclaw-router" : null);
     const row = {
       id: randomUUID(),
       user_id: input.userId,
@@ -398,7 +398,7 @@ export class AutomationTemplateExecuteService {
       !existing.webhookPath
     ) {
       assignments.push("webhook_path = ?");
-      params.push("/webhook/mission-control/openclaw-router");
+      params.push("/webhook/mc-operator/openclaw-router");
     }
 
     params.push(input.userId, input.projectId, input.templateId);

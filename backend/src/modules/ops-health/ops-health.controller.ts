@@ -11,7 +11,7 @@ export class OpsHealthController {
     @Query("view") view?: string,
   ) {
     const snapshot = this.opsHealthService.readSnapshot(
-      String(projectId || "").trim() || "mission-control",
+      String(projectId || "").trim() || "mc-operator",
       30,
     );
 

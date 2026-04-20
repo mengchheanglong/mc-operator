@@ -28,7 +28,7 @@ export class NotesService {
       CREATE TABLE IF NOT EXISTS notes (
         id text PRIMARY KEY NOT NULL,
         user_id text NOT NULL REFERENCES users(id),
-        project_id text NOT NULL DEFAULT 'mission-control',
+        project_id text NOT NULL DEFAULT 'mc-operator',
         content text NOT NULL,
         completed integer NOT NULL DEFAULT 0,
         created_at text NOT NULL,

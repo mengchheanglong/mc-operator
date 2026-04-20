@@ -45,7 +45,7 @@ function main() {
         candidate_id: "dryrun-discovery-transition-check",
         candidate_name: "Dry Run Discovery Transition Check",
         source_type: "internal-signal",
-        source_reference: "mission-control/scripts/check-discovery-intake-transition.ts",
+        source_reference: "mc-operator/scripts/check-discovery-intake-transition.ts",
         received_at: "2026-03-22",
         status: "processing",
         routing_target: null,

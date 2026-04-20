@@ -9,7 +9,7 @@ import { SqliteService } from "../../infra/sqlite/sqlite.service";
 import { getForgeSourcePackCatalogEntryFromBackendCwd } from "../../infra/paths/directive-source-packs";
 
 const execFileAsync = promisify(execFile);
-const DEFAULT_PROJECT_ID = "mission-control";
+const DEFAULT_PROJECT_ID = "mc-operator";
 const WORKFLOW = ["objective", "constraints", "execution", "verification", "report"] as const;
 const inFlightAgentRuns = new Set<string>();
 const inFlightRunDispatches = new Set<string>();

@@ -12,9 +12,8 @@
     "incremental": true,
     "module": "esnext",
     "target": "es2020",
-    "downlevelIteration": true,
     "esModuleInterop": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
@@ -27,7 +26,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": [
-        "./src/*"
+        "src/*"
       ]
     }
   },
@@ -40,7 +39,10 @@
   ],
   "exclude": [
     "node_modules",
-    "**/*.test.ts",
-    "src/**/*.test.ts"
+    "backend",
+    "scripts",
+    "tests",
+    "drizzle.config.ts",
+    "**/*.test.ts"
   ]
 }

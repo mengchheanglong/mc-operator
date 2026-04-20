@@ -21,10 +21,10 @@ It prevents agent dispatch when tracked repos are stale/blocked and gives operat
   - `npm run ops:repo-sources:nightly`
 
 ## Reports and State
-- Latest sync: `C:\Users\User\.openclaw\workspace\mission-control\reports\ops\repo-sync-latest.json`
-- Nightly latest: `C:\Users\User\.openclaw\workspace\mission-control\reports\ops\repo-sources-nightly-latest.json`
-- Nightly dedupe state: `C:\Users\User\.openclaw\workspace\mission-control\reports\ops\repo-sources-nightly-state.json`
-- Operation lock: `C:\Users\User\.openclaw\workspace\mission-control\reports\ops\repo-sources-op.lock`
+- Latest sync: `C:\Users\User\.openclaw\workspace\mc-operator\reports\ops\repo-sync-latest.json`
+- Nightly latest: `C:\Users\User\.openclaw\workspace\mc-operator\reports\ops\repo-sources-nightly-latest.json`
+- Nightly dedupe state: `C:\Users\User\.openclaw\workspace\mc-operator\reports\ops\repo-sources-nightly-state.json`
+- Operation lock: `C:\Users\User\.openclaw\workspace\mc-operator\reports\ops\repo-sources-op.lock`
 
 ## Dispatch Gate Behavior
 Agent dispatch blocks when:

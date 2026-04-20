@@ -8,7 +8,10 @@
   "exclude": [
     "node_modules",
     ".next",
-    "**/*.test.ts",
-    "src/**/*.test.ts"
+    "backend",
+    "scripts",
+    "tests",
+    "drizzle.config.ts",
+    "**/*.test.ts"
   ]
 }

@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { SqliteService } from "../../infra/sqlite/sqlite.service";
 
 const DEFAULT_TIMEZONE = "Asia/Bangkok";
-const DEFAULT_PROJECT_ID = "mission-control";
+const DEFAULT_PROJECT_ID = "mc-operator";
 
 const REPORT_CATEGORIES = [
   "system",

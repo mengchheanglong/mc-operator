@@ -1,43 +1,124 @@
 {
   "suite": "ui-smoke",
   "ok": true,
-  "generatedAt": "2026-03-21T13:49:49.599Z",
-  "baseUrl": "http://127.0.0.1:3000",
+  "generatedAt": "2026-04-20T13:09:58.974Z",
+  "baseUrl": "http://127.0.0.1:3210",
   "viewport": {
     "width": 1440,
     "height": 900
   },
   "flows": [
     {
+      "id": "health",
+      "path": "/health",
+      "status": "pass",
+      "durationMs": 911,
+      "screenshot": "reports/ui-smoke/screenshots/2026-04-20T13-09-15-042Z-health.png",
+      "issues": [],
+      "error": null
+    },
+    {
+      "id": "quests",
+      "path": "/quests",
+      "status": "pass",
+      "durationMs": 998,
+      "screenshot": "reports/ui-smoke/screenshots/2026-04-20T13-09-15-042Z-quests.png",
+      "issues": [],
+      "error": null
+    },
+    {
+      "id": "reports",
+      "path": "/reports",
+      "status": "pass",
+      "durationMs": 927,
+      "screenshot": "reports/ui-smoke/screenshots/2026-04-20T13-09-15-042Z-reports.png",
+      "issues": [],
+      "error": null
+    },
+    {
+      "id": "docs",
+      "path": "/docs",
+      "status": "pass",
+      "durationMs": 895,
+      "screenshot": "reports/ui-smoke/screenshots/2026-04-20T13-09-15-042Z-docs.png",
+      "issues": [],
+      "error": null
+    },
+    {
+      "id": "notes",
+      "path": "/notes",
+      "status": "pass",
+      "durationMs": 938,
+      "screenshot": "reports/ui-smoke/screenshots/2026-04-20T13-09-15-042Z-notes.png",
+      "issues": [],
+      "error": null
+    },
+    {
+      "id": "projects",
+      "path": "/projects",
+      "status": "pass",
+      "durationMs": 937,
+      "screenshot": "reports/ui-smoke/screenshots/2026-04-20T13-09-15-042Z-projects.png",
+      "issues": [],
+      "error": null
+    },
+    {
+      "id": "views",
+      "path": "/views",
+      "status": "pass",
+      "durationMs": 912,
+      "screenshot": "reports/ui-smoke/screenshots/2026-04-20T13-09-15-042Z-views.png",
+      "issues": [],
+      "error": null
+    },
+    {
       "id": "agents",
-      "path": "/dashboard/agents",
+      "path": "/agents",
       "status": "pass",
-      "durationMs": 1624,
-      "screenshot": "reports/ui-smoke/screenshots/2026-03-21T13-49-38-981Z-agents.png",
+      "durationMs": 905,
+      "screenshot": "reports/ui-smoke/screenshots/2026-04-20T13-09-15-042Z-agents.png",
       "issues": [],
       "error": null
     },
     {
-      "id": "automations",
-      "path": "/dashboard/automations",
+      "id": "automation",
+      "path": "/automation",
       "status": "pass",
-      "durationMs": 1725,
-      "screenshot": "reports/ui-smoke/screenshots/2026-03-21T13-49-38-981Z-automations.png",
+      "durationMs": 909,
+      "screenshot": "reports/ui-smoke/screenshots/2026-04-20T13-09-15-042Z-automation.png",
       "issues": [],
       "error": null
     },
     {
-      "id": "report",
-      "path": "/dashboard/report",
+      "id": "ops",
+      "path": "/ops",
       "status": "pass",
-      "durationMs": 6220,
-      "screenshot": "reports/ui-smoke/screenshots/2026-03-21T13-49-38-981Z-report.png",
+      "durationMs": 977,
+      "screenshot": "reports/ui-smoke/screenshots/2026-04-20T13-09-15-042Z-ops.png",
+      "issues": [],
+      "error": null
+    },
+    {
+      "id": "workspace-bootstrap",
+      "path": "/workspace/bootstrap",
+      "status": "pass",
+      "durationMs": 898,
+      "screenshot": "reports/ui-smoke/screenshots/2026-04-20T13-09-15-042Z-workspace-bootstrap.png",
+      "issues": [],
+      "error": null
+    },
+    {
+      "id": "directive",
+      "path": "/directive",
+      "status": "pass",
+      "durationMs": 938,
+      "screenshot": "reports/ui-smoke/screenshots/2026-04-20T13-09-15-042Z-directive.png",
       "issues": [],
       "error": null
     }
   ],
   "totals": {
-    "passed": 3,
+    "passed": 12,
     "failed": 0
   }
 }

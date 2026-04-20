@@ -41,7 +41,7 @@ export class AutomationRunsController {
     @Query("projectId") projectId?: string,
   ) {
     const branch = String(body.branch || "").trim();
-    const lockKey = `${projectId || "mission-control"}:${branch}`;
+    const lockKey = `${projectId || "mc-operator"}:${branch}`;
 
     if (inFlightCreateLocks.has(lockKey)) {
       throw new HttpException(
@@ -90,7 +90,7 @@ export class AutomationRunsController {
     @Body() body: Record<string, unknown>,
     @Query("projectId") projectId?: string,
   ) {
-    const lockKey = `${projectId || "mission-control"}:${id}`;
+    const lockKey = `${projectId || "mc-operator"}:${id}`;
     if (inFlightCloseLocks.has(lockKey)) {
       throw new HttpException(
         {

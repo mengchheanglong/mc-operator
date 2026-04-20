@@ -8,7 +8,7 @@ import path from "node:path";
 import { SqliteService } from "../../infra/sqlite/sqlite.service";
 
 const execFileAsync = promisify(execFile);
-const DEFAULT_PROJECT_ID = "mission-control";
+const DEFAULT_PROJECT_ID = "mc-operator";
 
 export type WorkspaceRunStatus =
   | "active"

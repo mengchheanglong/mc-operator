@@ -89,7 +89,7 @@ export class OpsHealthService {
 
   private projectRoot(projectId: string) {
     const workspaceRoot = this.workspaceRoot();
-    const normalizedId = String(projectId || "").trim() || "mission-control";
+    const normalizedId = String(projectId || "").trim() || "mc-operator";
     const candidate = path.resolve(workspaceRoot, normalizedId);
     if (fs.existsSync(candidate)) return candidate;
     return path.resolve(process.cwd(), "..");

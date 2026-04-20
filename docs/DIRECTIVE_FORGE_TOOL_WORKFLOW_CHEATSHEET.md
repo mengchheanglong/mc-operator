@@ -8,7 +8,7 @@ This is the practical runtime map for Directive Forge source packs inside Missio
 
 ```mermaid
 flowchart TD
-  A["Tool admission (promote / park / defer)"] --> B["Integration wiring in mission-control"]
+  A["Tool admission (promote / park / defer)"] --> B["Integration wiring in mc-operator"]
   B --> C["Catalog visibility (Agents page)"]
   B --> D["Import packs API (creates agents)"]
   D --> E["Agent dispatch API"]
@@ -43,14 +43,14 @@ flowchart TD
 ## Core routes and files
 
 - Import packs route:
-  - `C:/Users/User/.openclaw/workspace/mission-control/src/app/api/agents/import-packs/route.ts`
+  - `C:/Users/User/.openclaw/workspace/mc-operator/src/app/api/agents/import-packs/route.ts`
 - Dispatch route:
-  - `C:/Users/User/.openclaw/workspace/mission-control/src/app/api/agents/[id]/dispatch/route.ts`
+  - `C:/Users/User/.openclaw/workspace/mc-operator/src/app/api/agents/[id]/dispatch/route.ts`
 - Tooling catalog:
-  - `C:/Users/User/.openclaw/workspace/mission-control/src/server/services/tooling-catalog-service.ts`
+  - `C:/Users/User/.openclaw/workspace/mc-operator/src/server/services/tooling-catalog-service.ts`
 - Agent source-pack typing and normalization:
-  - `C:/Users/User/.openclaw/workspace/mission-control/src/types/agents.ts`
-  - `C:/Users/User/.openclaw/workspace/mission-control/src/server/repositories/agents-repo.ts`
+  - `C:/Users/User/.openclaw/workspace/mc-operator/src/types/agents.ts`
+  - `C:/Users/User/.openclaw/workspace/mc-operator/src/server/repositories/agents-repo.ts`
 
 ## Practical commands
 

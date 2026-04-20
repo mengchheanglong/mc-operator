@@ -5,34 +5,12 @@ import path from "node:path";
 const MANIFEST_PATH = path.join(process.cwd(), "reports", "ops", "contract-freeze-manifest.json");
 
 const PROTECTED_ROUTES = [
-  // Directive workspace
-  "src/app/api/directive-workspace/capabilities/route.ts",
-  "src/app/api/directive-workspace/capabilities/[id]/route.ts",
-  "src/app/api/directive-workspace/capabilities/[id]/analysis/route.ts",
-  "src/app/api/directive-workspace/capabilities/[id]/decision/route.ts",
-  "src/app/api/directive-workspace/capabilities/[id]/evaluations/route.ts",
-  "src/app/api/directive-workspace/capabilities/[id]/experiments/route.ts",
-  "src/app/api/directive-workspace/capabilities/[id]/lifecycle/route.ts",
-  "src/app/api/directive-workspace/capabilities/[id]/proof/route.ts",
-  "src/app/api/directive-workspace/registry/route.ts",
-  // Quests
-  "src/app/api/quests/route.ts",
-  "src/app/api/quests/[id]/route.ts",
-  "src/app/api/quests/[id]/complete/route.ts",
-  // Docs
-  "src/app/api/docs/route.ts",
-  "src/app/api/docs/[id]/route.ts",
-  // Reports
-  "src/app/api/reports/route.ts",
-  "src/app/api/reports/[id]/route.ts",
-  // Core automation
-  "src/app/api/automation/runs/route.ts",
-  "src/app/api/automation/runs/create/route.ts",
-  "src/app/api/automation/templates/route.ts",
-  "src/app/api/automation/templates/[id]/route.ts",
-  // Backend write policy
-  "src/server/http/backend-write-policy.ts",
-  "src/server/http/directive-backend-proxy.ts",
+  // Catch-all frontend backend boundary
+  "src/app/api/[...path]/route.ts",
+  "src/platform/http/backend-proxy.ts",
+  // Shared frontend request/store layer
+  "src/features/shared/api-client.ts",
+  "src/state/app-store.ts",
 ];
 
 type ManifestEntry = { file: string; hash: string };

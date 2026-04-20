@@ -43,7 +43,7 @@ function main() {
         candidate_id: "dryrun-discovery-case-record-check",
         candidate_name: "Dry Run Discovery Case Record Check",
         source_type: "internal-signal",
-        source_reference: "mission-control/scripts/check-discovery-case-record-writer.ts",
+        source_reference: "mc-operator/scripts/check-discovery-case-record-writer.ts",
         received_at: "2026-03-22",
         status: "pending",
         routing_target: null,
@@ -67,7 +67,7 @@ function main() {
     intake: {
       intake_date: "2026-03-22",
       source_type: "internal-signal",
-      source_reference: "mission-control/scripts/check-discovery-case-record-writer.ts",
+      source_reference: "mc-operator/scripts/check-discovery-case-record-writer.ts",
       submitted_by: "codex",
       why_it_entered_the_system: "Need one canonical split-case writer for Discovery front-door operation.",
       claimed_value: "Generates the human-readable split record set from one validated payload.",

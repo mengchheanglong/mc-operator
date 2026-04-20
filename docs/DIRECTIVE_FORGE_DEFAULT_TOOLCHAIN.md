@@ -3,7 +3,7 @@
 This document defines the default Directive Forge runtime toolchain that Mission Control should prefer as the active host.
 
 Detailed runtime workflow map:
-- `C:/Users/User/.openclaw/workspace/mission-control/docs/DIRECTIVE_FORGE_TOOL_WORKFLOW_CHEATSHEET.md`
+- `C:/Users/User/.openclaw/workspace/mc-operator/docs/DIRECTIVE_FORGE_TOOL_WORKFLOW_CHEATSHEET.md`
 
 ## Default: Use integrated Directive Forge stack automatically
 

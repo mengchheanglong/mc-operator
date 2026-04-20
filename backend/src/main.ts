@@ -12,7 +12,7 @@ async function bootstrap() {
 
   await app.listen(port, host);
   process.stdout.write(
-    `mission-control-backend listening on http://${host}:${port}\n`,
+    `mc-operator-backend listening on http://${host}:${port}\n`,
   );
 }
 

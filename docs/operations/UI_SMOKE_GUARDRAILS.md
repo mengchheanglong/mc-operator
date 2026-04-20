@@ -1,51 +1,61 @@
 # UI Smoke Guardrails
 
-Deterministic smoke verification for critical dashboard workflows.
+Mission Control uses an isolated UI smoke runner to prove that the active operator surface renders against a live backend.
 
 ## Commands
 
 - `npm run ui:smoke`
-  - Boots Next dev server on `127.0.0.1:3210` (override with `UI_SMOKE_HOST`, `UI_SMOKE_PORT`, `UI_SMOKE_BASE_URL`)
-  - Runs end-to-end smoke flows with fixed viewport and strict selectors
-  - Writes machine-readable reports and screenshots
-  - Exits non-zero on any regression
+  - starts an isolated backend
+  - builds the web app
+  - starts the production server on a temporary local port
+  - runs browser smoke checks with Puppeteer
+  - writes screenshots and a machine-readable report
 - `npm run check:ui-smoke`
-  - Reads `reports/ui-smoke/latest.json`
-  - Fails if suite is unhealthy, any flow failed, any runtime issues were captured, or screenshots are missing
+  - reads `reports/ui-smoke/latest.json`
+  - fails if the report is unhealthy, any flow failed, runtime issues were captured, or screenshots are missing
 
-## Covered flows
+## Covered Routes
 
-1. `/dashboard/agents`
-2. `/dashboard/automations`
-3. `/dashboard/report`
-   - Includes deterministic entry switching validation (must have at least 2 report entries)
+The smoke currently covers:
+
+1. `/health`
+2. `/quests`
+3. `/reports`
+4. `/docs`
+5. `/notes`
+6. `/projects`
+7. `/views`
+8. `/agents`
+9. `/automation`
+10. `/ops`
+11. `/workspace/bootstrap`
+12. `/directive`
 
 ## Artifacts
+
+Generated output is written to:
 
 - `reports/ui-smoke/latest.json`
 - `reports/ui-smoke/ui-smoke-<timestamp>.json`
 - `reports/ui-smoke/screenshots/<timestamp>-*.png`
 
-Each flow records:
+These are runtime artifacts and are intentionally ignored by Git.
 
-- pass/fail
-- screenshot path
-- console warnings/errors
-- page errors and unhandled rejections
-- network request failures
+## Guardrail Intent
 
-## Determinism rules
+This smoke is not deep interaction coverage. Its job is to catch:
 
-- Fixed viewport: `1440x900`
-- Fixed post-navigation wait: `400ms`
-- Strict selectors via `data-testid`
-- Stable per-flow JSON schema for machine checks
+- broken route boot
+- obvious frontend/backend surface mismatches
+- rendering failures
+- missing critical controls
+- console/page/network failures during initial operator load
 
-## CI/runtime blocking
+## Release Usage
 
-Use this sequence as a guardrail gate:
+Treat the following as the UI release gate:
 
 1. `npm run ui:smoke`
 2. `npm run check:ui-smoke`
 
-The second command is intended to be the blocking gate. If either command exits non-zero, treat as regression.
+Both commands are included in `npm run verify:product`.

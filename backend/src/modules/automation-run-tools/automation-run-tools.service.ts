@@ -31,7 +31,7 @@ import {
   resolveDesloppifySourceRootFromBackendCwd,
 } from "../../infra/paths/directive-source-packs";
 
-const DEFAULT_PROJECT_ID = "mission-control";
+const DEFAULT_PROJECT_ID = "mc-operator";
 
 type WorkspaceRunStatus =
   | "active"

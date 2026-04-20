@@ -74,7 +74,7 @@ async function ensureBackend() {
 
 async function run() {
   const candidate = String(process.argv[2] || "agency-agents").trim();
-  const projectId = String(process.argv[3] || "mission-control").trim();
+  const projectId = String(process.argv[3] || "mc-operator").trim();
   const { baseUrl, backendProcess } = await ensureBackend();
 
   try {

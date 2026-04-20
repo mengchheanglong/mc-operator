@@ -45,7 +45,7 @@ const GENERIC_PROJECT_FOLDER_NAMES = new Set([
 ]);
 
 const DEFAULT_PERSONAL_PROJECT_NAMES = [
-  "mission-control",
+  "mc-operator",
   "studyspace",
   "venturespace",
   "freshhaul-kh",

@@ -243,7 +243,7 @@ export class OpsNightlyService {
     minSeverity?: string;
     limit?: string;
   }) {
-    const projectId = input.projectId || "mission-control";
+    const projectId = input.projectId || "mc-operator";
     const view = String(input.view || "").trim();
     const stepFilter = String(input.step || "").trim();
     const flaggedOnly = String(input.flaggedOnly || "").trim().toLowerCase() === "true";

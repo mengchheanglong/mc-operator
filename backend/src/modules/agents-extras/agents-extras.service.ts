@@ -12,7 +12,7 @@ import {
 } from "../../infra/paths/directive-source-packs";
 
 const execFileAsync = promisify(execFile);
-const DEFAULT_PROJECT_ID = "mission-control";
+const DEFAULT_PROJECT_ID = "mc-operator";
 const AO_CLI_ENTRY = path.join("packages", "cli", "dist", "index.js");
 
 type AgentBackend = "openclaw" | "agent-orchestrator";

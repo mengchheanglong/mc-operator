@@ -25,18 +25,18 @@ Note:
 - Nightly also writes markdown summary (`ops:nightly:summary`) and prunes old ops artifacts (`ops:report:prune`).
 
 It writes:
-- `C:\Users\User\.openclaw\workspace\mission-control\reports\ops\nightly-ops-bundle-latest.json`
-- `C:\Users\User\.openclaw\workspace\mission-control\reports\ops\nightly-ops-bundle-<timestamp>.json`
-- `C:\Users\User\.openclaw\workspace\mission-control\reports\ops\nightly-ops-summary-latest.md`
-- `C:\Users\User\.openclaw\workspace\mission-control\reports\ops\nightly-ops-summary-<timestamp>.md`
-- `C:\Users\User\.openclaw\workspace\mission-control\reports\ops\nightly-step-hotspots-latest.json`
-- `C:\Users\User\.openclaw\workspace\mission-control\reports\ops\nightly-step-hotspots-<timestamp>.json`
-- `C:\Users\User\.openclaw\workspace\mission-control\reports\ops\nightly-step-hotspots-summary-latest.md`
-- `C:\Users\User\.openclaw\workspace\mission-control\reports\ops\nightly-step-hotspots-summary-<timestamp>.md`
-- `C:\Users\User\.openclaw\workspace\mission-control\reports\ops\nightly-step-hotspots-alerts-latest.json`
-- `C:\Users\User\.openclaw\workspace\mission-control\reports\ops\nightly-step-hotspots-alerts-<timestamp>.json`
-- `C:\Users\User\.openclaw\workspace\mission-control\reports\ops\nightly-step-hotspots-followup-latest.json`
-- `C:\Users\User\.openclaw\workspace\mission-control\reports\ops\nightly-step-hotspots-followup-<timestamp>.json`
+- `C:\Users\User\.openclaw\workspace\mc-operator\reports\ops\nightly-ops-bundle-latest.json`
+- `C:\Users\User\.openclaw\workspace\mc-operator\reports\ops\nightly-ops-bundle-<timestamp>.json`
+- `C:\Users\User\.openclaw\workspace\mc-operator\reports\ops\nightly-ops-summary-latest.md`
+- `C:\Users\User\.openclaw\workspace\mc-operator\reports\ops\nightly-ops-summary-<timestamp>.md`
+- `C:\Users\User\.openclaw\workspace\mc-operator\reports\ops\nightly-step-hotspots-latest.json`
+- `C:\Users\User\.openclaw\workspace\mc-operator\reports\ops\nightly-step-hotspots-<timestamp>.json`
+- `C:\Users\User\.openclaw\workspace\mc-operator\reports\ops\nightly-step-hotspots-summary-latest.md`
+- `C:\Users\User\.openclaw\workspace\mc-operator\reports\ops\nightly-step-hotspots-summary-<timestamp>.md`
+- `C:\Users\User\.openclaw\workspace\mc-operator\reports\ops\nightly-step-hotspots-alerts-latest.json`
+- `C:\Users\User\.openclaw\workspace\mc-operator\reports\ops\nightly-step-hotspots-alerts-<timestamp>.json`
+- `C:\Users\User\.openclaw\workspace\mc-operator\reports\ops\nightly-step-hotspots-followup-latest.json`
+- `C:\Users\User\.openclaw\workspace\mc-operator\reports\ops\nightly-step-hotspots-followup-<timestamp>.json`
 
 Concurrency guard:
 - `ops:nightly` uses `reports/ops/nightly-ops-bundle.lock` and skips duplicate overlapping runs.

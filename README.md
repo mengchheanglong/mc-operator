@@ -1,54 +1,81 @@
 # Mission Control
 
-Mission Control is a local-first Next.js workspace for supporting AI-assisted development across multiple projects.
+Mission Control is a local-first operator control plane for AI-assisted software work. It provides a single workspace for project selection, quests, reports, docs, notes, saved views, agent operations, automation runs, directive capability intake, and ops health.
 
-It is designed to work as a persistent control room for:
+For the current local-first phase, the project is treated as product-complete: the active frontend routes, backend APIs, smoke coverage, and release docs now describe the same system.
 
-- project docs and decisions
-- quests, notes, and reports
-- prompt-pack generation for IDE agents
-- repo intelligence, verification commands, and code-intel readiness
+## Architecture
 
-## Stack
+- Next.js App Router frontend under `src/app`
+- Feature-local clients under `src/features`
+- Single browser-to-backend proxy under `src/app/api/[...path]/route.ts`
+- Nest backend under `backend/src`
+- SQLite-backed state for operational records
+- Filesystem-backed docs, reports, workspace runs, and generated artifacts
 
-- Next.js 16
-- React 18
-- TypeScript
-- SQLite with Drizzle
-- Tailwind CSS
+The UI is intentionally thin. Most business logic and persistence live in the backend modules.
 
-## Core Commands
+## Main Surfaces
+
+- `/health`
+- `/quests`
+- `/reports`
+- `/docs`
+- `/notes`
+- `/projects`
+- `/views`
+- `/agents`
+- `/automation`
+- `/directive`
+- `/ops`
+- `/workspace/bootstrap`
+
+## Local Run
 
 ```bash
 npm install
 npm run dev
-npm run verify
+```
+
+Backend-only development:
+
+```bash
+npm run backend:dev
 ```
 
 ## Verification
 
-`npm run verify` runs:
+Fast checks:
 
-- lint
-- typecheck
-- production build
+```bash
+npm run typecheck
+npm run build
+npm test
+```
 
-## Notes
+Product gate:
 
-- Generated workspace context files under `.openclaw/context/` are ignored by Git.
-- `.env` is not committed. Use `.env.example` as the template.
-- Project docs now live with each repo under `.openclaw/knowledge`; the shared global knowledge directory is only a fallback/source for shared docs.
-- Current production dependency audit is clean; remaining audit findings are limited to the `drizzle-kit` dev toolchain.
-- See [SECURITY.md](SECURITY.md) for the project security baseline.
+```bash
+npm run verify:product
+```
 
-## Automation
+`verify:product` runs:
 
-Mission Control exposes a small automation surface for local tools like n8n.
+- current regression tests
+- frontend typecheck
+- backend API suite coverage check
+- isolated UI smoke
+- smoke report integrity check
 
-- Use `OPENCLAW_AUTOMATION_TOKEN` to protect automation endpoints.
-- Use `MISSION_CONTROL_BASE_URL` so local automation tools can call Mission Control with absolute URLs.
-- Use `N8N_BASE_URL`, `N8N_WEBHOOK_BASE_URL`, and optional `N8N_API_KEY` to let Mission Control inspect the local n8n instance.
-- Build Codex/OpenClaw session briefs from `/api/automation/session-brief`.
-- Write workflow outcomes back into Mission Control through `/api/automation/reports`.
-- Inspect n8n connection status from `/api/automation/n8n/status`.
-- See [docs/N8N_WORKFLOWS.md](docs/N8N_WORKFLOWS.md) for the recommended local workflow shape.
+## Runtime Notes
+
+- `.env` is not committed. Start from `.env.example`.
+- Project knowledge lives inside each repo under `.openclaw/knowledge`.
+- Generated context under `.openclaw/context/` is ignored.
+- UI smoke artifacts under `reports/ui-smoke/` are generated runtime output and are ignored.
+
+## Release Docs
+
+- [Project completion status](./docs/PROJECT_COMPLETION_PLAN.md)
+- [Release checklist](./docs/RELEASE_CHECKLIST.md)
+- [UI smoke guardrails](./docs/operations/UI_SMOKE_GUARDRAILS.md)

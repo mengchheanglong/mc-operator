@@ -2,7 +2,7 @@
 
 ## Overview
 
-NestJS backend serving as the data layer for mission-control.
+NestJS backend serving as the data layer for mc-operator.
 Listens on `http://127.0.0.1:3201` by default (configurable via `MISSION_CONTROL_BACKEND_PORT`).
 
 ## Directory Structure
@@ -88,22 +88,15 @@ All modules are registered flat in `app.module.ts`.
 
 ## Proxy Architecture (Next.js -> Nest)
 
-All frontend API routes proxy to the backend via `proxyBackendRequest()` in
-`src/server/http/directive-backend-proxy.ts`.
+The frontend uses a single catch-all proxy route at:
 
-**Write policy**: When the backend is unreachable and the request is a write
-(POST/PUT/DELETE/PATCH), the proxy returns:
-```json
-{
-  "msg": "This write operation requires the backend to be running.",
-  "code": "backend_required_for_write",
-  "detail": "Start backend with `npm run backend:dev`..."
-}
-```
-Status: **502**
+- `src/app/api/[...path]/route.ts`
+- `src/platform/http/backend-proxy.ts`
 
-**Read fallback**: Quests, docs, and reports have local SQLite fallback when
-the backend is down (GET only).
+Browser requests go through the Next.js app, then forward to the Nest backend.
+
+When the backend is unavailable, write requests fail explicitly with a backend-required
+error. There is no generic local read-fallback layer in the current proxy path.
 
 ## Conventions for New Modules
 
@@ -111,9 +104,9 @@ the backend is down (GET only).
 2. Register both in `app.module.ts` (controllers + providers)
 3. Inject `SqliteService` for data access
 4. Use `infra/service-utils.ts` for common patterns (normalizeString, resolveOperator, etc.)
-5. Add corresponding Next.js API route in `src/app/api/<name>/route.ts`
-6. Write operations must produce `backend_required_for_write` on 502
-7. Add a `check:<name>-api-backend` script for integration testing
+5. Ensure the route is reachable through the catch-all proxy surface
+6. Write operations must fail explicitly when the backend is unavailable
+7. Extend the current backend/API verification surface where needed
 
 ## Environment Variables
 
@@ -122,14 +115,13 @@ the backend is down (GET only).
 | `MISSION_CONTROL_BACKEND_PORT` | `3201` | main.ts |
 | `MISSION_CONTROL_BACKEND_HOST` | `127.0.0.1` | main.ts |
 | `SQLITE_PATH` | `../data/openclaw.db` | SqliteService |
-| `MISSION_CONTROL_DEFAULT_PROJECT_ID` | `mission-control` | SqliteService |
+| `MISSION_CONTROL_DEFAULT_PROJECT_ID` | `mc-operator` | SqliteService |
 | `OPENCLAW_WORKSPACE_ROOT` | auto-detected | ProjectPathsService |
 | `MISSION_CONTROL_PERSONAL_PROJECTS` | (none) | ProjectsService |
 
 ## Known Architecture Debt
 
-- No DTO/class-validator integration (validation is in services)
-- No repository layer (raw SQL in services)
-- Duplicated path resolution across DocsService, AutomationRunsService, AgentsRuntimeService
-- Inconsistent response envelopes across modules
-- No test infrastructure (no spec files)
+- DTO/class-validator coverage is still partial
+- Some modules still have inconsistent response envelopes
+- There is still room to factor more shared helpers across services
+- UI smoke is broad, but interaction-level end-to-end coverage is still lighter than route coverage

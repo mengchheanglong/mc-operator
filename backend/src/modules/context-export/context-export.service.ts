@@ -59,7 +59,7 @@ type ContextPackLite = {
 
 function inferCategory(relativePath: string): ContextPackLite["project"]["category"] {
   const normalized = relativePath.replace(/\\/g, "/").toLowerCase();
-  if (!normalized || normalized === "." || normalized === "mission-control") {
+  if (!normalized || normalized === "." || normalized === "mc-operator") {
     return "root";
   }
   if (normalized.startsWith("studyspace")) return "studyspace";

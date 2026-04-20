@@ -1,10 +1,10 @@
 # Agent Eval Summary
 
-- Generated: 2026-03-21T10:46:05.581Z
-- Total: 7
-- Passed: 6
+- Generated: 2026-04-20T07:44:01.000Z
+- Total: 9
+- Passed: 8
 - Failed: 1
-- Score: 0.857
-- Failure rate: 0.143
+- Score: 0.889
+- Failure rate: 0.111
 - Cost USD: 0
-- Raw output: C:\Users\User\.openclaw\workspace\mission-control\reports\evals\promptfoo-raw.json
+- Raw output: reports/evals/promptfoo-raw.json

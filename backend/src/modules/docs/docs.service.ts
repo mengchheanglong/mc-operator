@@ -28,7 +28,7 @@ interface StoredDocRecord extends DocRecord {
   storageScope: DocScope;
 }
 
-const DEFAULT_PROJECT_ID = "mission-control";
+const DEFAULT_PROJECT_ID = "mc-operator";
 
 function normalizeDocumentTitle(value: string) {
   return String(value || "")

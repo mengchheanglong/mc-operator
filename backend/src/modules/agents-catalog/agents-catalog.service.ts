@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { SqliteService } from "../../infra/sqlite/sqlite.service";
 import { getForgeSourcePackCatalogEntryFromBackendCwd } from "../../infra/paths/directive-source-packs";
 
-const DEFAULT_PROJECT_ID = "mission-control";
+const DEFAULT_PROJECT_ID = "mc-operator";
 
 type AgentRole = "planner" | "builder" | "reviewer" | "researcher" | "custom";
 type AgentExecutor = "openclaw" | "codex" | "manual";

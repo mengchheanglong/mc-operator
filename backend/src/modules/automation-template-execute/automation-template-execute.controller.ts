@@ -140,7 +140,7 @@ export class AutomationTemplateExecuteController {
     @Body() body: Record<string, unknown>,
     @Query("projectId") projectId: string | undefined,
   ) {
-    const lockKey = `${projectId || "mission-control"}:${id}`;
+    const lockKey = `${projectId || "mc-operator"}:${id}`;
     if (inFlightTemplateRuns.has(lockKey)) {
       throw new HttpException(
         {
@@ -185,7 +185,7 @@ export class AutomationTemplateExecuteController {
     @Param("id") id: string,
     @Query("projectId") projectId: string | undefined,
   ) {
-    const lockKey = `${projectId || "mission-control"}:${id}`;
+    const lockKey = `${projectId || "mc-operator"}:${id}`;
     if (inFlightTemplateRuns.has(lockKey)) {
       throw new HttpException(
         {
@@ -229,7 +229,7 @@ export class AutomationTemplateExecuteController {
     @Param("id") id: string,
     @Query("projectId") projectId: string | undefined,
   ) {
-    const lockKey = `${projectId || "mission-control"}:${id}`;
+    const lockKey = `${projectId || "mc-operator"}:${id}`;
     if (inFlightTemplateRuns.has(lockKey)) {
       throw new HttpException(
         {

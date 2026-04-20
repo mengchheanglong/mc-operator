@@ -13,7 +13,7 @@ export class HealthController {
 
     return {
       ok: true,
-      service: "mission-control-backend",
+      service: "mc-operator-backend",
       dbPath: this.sqlite.resolvedDbPath,
       users: users.total,
       timestamp: new Date().toISOString(),

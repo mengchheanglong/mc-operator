@@ -9,7 +9,7 @@
 import { randomUUID } from "node:crypto";
 import type Database from "better-sqlite3";
 
-const DEFAULT_PROJECT_ID = "mission-control";
+const DEFAULT_PROJECT_ID = "mc-operator";
 
 /** Trim + coerce unknown to string. Drop-in replacement for per-service `s()`. */
 export function normalizeString(value: unknown): string {

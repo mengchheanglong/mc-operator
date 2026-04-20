@@ -103,7 +103,7 @@ Goal: let OpenClaw send one local payload to n8n and have n8n route it into Miss
 Live workflow:
 
 - n8n workflow name: `Mission Control - OpenClaw Router`
-- webhook path: `POST /webhook/mission-control/openclaw-router`
+- webhook path: `POST /webhook/mc-operator/openclaw-router`
 - patch script: `C:\Users\User\.openclaw\workspace\patch_n8n.ps1`
 
 Payload shape:
@@ -111,7 +111,7 @@ Payload shape:
 ```json
 {
   "text": "quest: wire the first OpenClaw to n8n workflow",
-  "projectId": "mission-control",
+  "projectId": "mc-operator",
   "source": "openclaw",
   "topics": ["n8n", "automation"]
 }
@@ -120,7 +120,7 @@ Payload shape:
 Supported fields:
 
 - `text`: required input text
-- `projectId`: optional, defaults to `mission-control`
+- `projectId`: optional, defaults to `mc-operator`
 - `source`: optional, defaults to `openclaw`
 - `action`: optional explicit route, one of `quest` or `report`
 - `title`: optional title override for report mode
@@ -148,7 +148,7 @@ Goal: fetch a fresh prompt pack for Codex/OpenClaw before implementation starts.
 Flow:
 
 1. Trigger: manual webhook or chat command
-2. HTTP Request: `GET /api/automation/session-brief?projectId=mission-control&focusType=workspace&format=markdown`
+2. HTTP Request: `GET /api/automation/session-brief?projectId=mc-operator&focusType=workspace&format=markdown`
 3. Output: send markdown back to the operator or save it to a temporary note
 
 ### 2. Daily Workspace Review
@@ -158,7 +158,7 @@ Goal: create a durable report summarizing project health once per day.
 Flow:
 
 1. Trigger: Cron
-2. HTTP Request: `GET /api/automation/session-brief?projectId=mission-control`
+2. HTTP Request: `GET /api/automation/session-brief?projectId=mc-operator`
 3. Optional transform in n8n
 4. HTTP Request: `POST /api/automation/reports`
 

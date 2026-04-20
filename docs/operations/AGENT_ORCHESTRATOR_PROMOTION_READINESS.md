@@ -33,7 +33,7 @@ Rollback to non-run-scoped/default dispatch mode when any are true:
 
 ## Manual recovery commands
 
-Run from `C:\Users\User\.openclaw\workspace\mission-control`.
+Run from `C:\Users\User\.openclaw\workspace\mc-operator`.
 
 ```powershell
 # 1) Generate reliability snapshot
@@ -46,7 +46,7 @@ npm run check:orchestrator-readiness
 npx tsx scripts/fix-running-dispatch.ts <runId>
 
 # 4) Close stale run with explicit reason
-Invoke-RestMethod -Method Post -Uri "http://localhost:3000/api/automation/runs/<runId>/close?projectId=mission-control" -ContentType 'application/json' -Body '{"archive":false,"reason":"stale"}'
+Invoke-RestMethod -Method Post -Uri "http://localhost:3000/api/automation/runs/<runId>/close?projectId=mc-operator" -ContentType 'application/json' -Body '{"archive":false,"reason":"stale"}'
 
 # 5) Run nightly flow manually
 npm run ops:orchestrator-nightly

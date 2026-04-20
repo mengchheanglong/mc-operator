@@ -31,7 +31,7 @@ interface QuestRow {
   completedDate: string | null;
 }
 
-const DEFAULT_PROJECT_ID = "mission-control";
+const DEFAULT_PROJECT_ID = "mc-operator";
 
 const DIFFICULTY_SET = new Set<QuestDifficulty>([
   "easy",

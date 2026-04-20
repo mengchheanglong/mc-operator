@@ -6,7 +6,7 @@ import {
 } from "@nestjs/common";
 import { AutomationHealthService } from "./automation-health.service";
 
-const DEFAULT_PROJECT_ID = "mission-control";
+const DEFAULT_PROJECT_ID = "mc-operator";
 
 @Controller("api/v1/automation")
 export class AutomationHealthController {

@@ -148,7 +148,7 @@ Verified commands:
 - `npm run check:directive-intake-api`
 - `npm run check:directive-workspace-v0`
 - `npm run check:directive-integration-proof`
-- `npm run directive:lifecycle -- agency-agents mission-control`
+- `npm run directive:lifecycle -- agency-agents mc-operator`
 - `npm run check:reports-api-backend`
 - `npm run check:projects-api-backend`
 - `npm run check:notes-api-backend`

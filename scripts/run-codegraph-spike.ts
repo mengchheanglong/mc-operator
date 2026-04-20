@@ -136,7 +136,7 @@ function aggregateTelemetry(telemetryPath: string, lastN = 20) {
 }
 
 function main() {
-  const projectId = process.argv[2] || "mission-control";
+  const projectId = process.argv[2] || "mc-operator";
   const projectPath = process.cwd();
   const workspaceRoot = path.resolve(projectPath, "..");
 

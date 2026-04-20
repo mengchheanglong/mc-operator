@@ -215,7 +215,7 @@ async function recordAnalysis(baseUrl: string, projectId: string, capabilityId: 
 }
 
 async function run() {
-  const projectId = String(process.argv[2] || "mission-control").trim();
+  const projectId = String(process.argv[2] || "mc-operator").trim();
   const scored = TOOL_ADMISSION_CATALOG.map(scoreTool).sort((a, b) =>
     a.tool.localeCompare(b.tool),
   );

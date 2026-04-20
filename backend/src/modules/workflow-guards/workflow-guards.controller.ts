@@ -12,7 +12,7 @@ export class WorkflowGuardsController {
   ) {
     const scopeType: WorkflowGuardScopeType =
       String(scope || "").trim() === "automation" ? "automation" : "agent";
-    const resolvedProjectId = String(projectId || "").trim() || "mission-control";
+    const resolvedProjectId = String(projectId || "").trim() || "mc-operator";
     const guards = this.workflowGuardsService.list({
       projectId: resolvedProjectId,
       scopeType,

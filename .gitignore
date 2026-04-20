@@ -145,7 +145,11 @@ data/*.db-wal
 data/*.db-shm
 
 # Mission Control generated workspace state
+.openclaw/cache/
 .openclaw/context/
+.openclaw/lessons/
+.openclaw/runs/
+.openclaw/runs-archive/
 .openclaw/workspace-state.json
 !.openclaw/project-intel.json
 
@@ -169,3 +173,4 @@ reports/ops/desloppify-prototype-*.md
 reports/ops/tooling-audit-*.md
 reports/ops/agency-agents-*.md
 reports/ops/agency-agents-snapshots/
+reports/ui-smoke/

@@ -1,15 +1,28 @@
-import "./globals.css";
-import "katex/dist/katex.min.css";
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import './globals.css';
+import { Providers } from './providers';
+import { AppShell } from '@/components/layout/AppShell';
 
-export const metadata = {
-  title: "Mission Control",
-  description: "Your IDE support and workspace context layer",
+const inter = Inter({ subsets: ['latin'] });
+
+export const metadata: Metadata = {
+  title: 'Mission Control',
+  description: 'AI Agent Orchestration & Project Management',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className={inter.className}>
+        <Providers>
+          <AppShell>{children}</AppShell>
+        </Providers>
+      </body>
     </html>
   );
 }
