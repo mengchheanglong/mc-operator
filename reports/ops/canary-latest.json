@@ -1,76 +1,35 @@
 {
-  "generatedAt": "2026-04-07T15:30:14.290Z",
-  "ok": false,
+  "generatedAt": "2026-04-21T03:28:23.649Z",
+  "ok": true,
   "checks": [
     {
-      "id": "eval-guard",
-      "command": "npm run check:agent-evals",
+      "id": "repo_sources_sync",
+      "command": "npm run ops:repo-sources:check",
       "critical": true,
       "ok": true,
       "exitCode": 0,
-      "stdout": "{\n  \"minScore\": 0.8,\n  \"maxCostUsd\": 0.5,\n  \"maxFailureRate\": 0.15,\n  \"score\": 0.857,\n  \"costUsd\": 0,\n  \"failureRate\": 0.143,\n  \"scoreOk\": true,\n  \"costOk\": true,\n  \"failureRateOk\": true,\n  \"total\": 7\n}",
-      "stderr": ""
+      "detail": "blocked=0"
     },
     {
-      "id": "directive-proof-integrity",
-      "command": "npm run check:directive-integration-proof",
+      "id": "backend_api_suite",
+      "command": "npm run check:backend-api-suite",
       "critical": true,
       "ok": true,
       "exitCode": 0,
-      "stdout": "{\n  \"ok\": true,\n  \"projectId\": \"mission-control\",\n  \"totals\": {\n    \"integrated\": 5,\n    \"missingProof\": 0\n  },\n  \"missing\": []\n}",
-      "stderr": ""
+      "detail": "backend route coverage checks passed"
     },
     {
-      "id": "agency-agents",
-      "command": "npm run check:agency-agents",
-      "critical": true,
-      "ok": false,
-      "exitCode": 1,
-      "stdout": "",
-      "stderr": "node:fs:440\r\n    return binding.readFileUtf8(path, stringToFlags(options.flag));\r\n                   ^\r\n\r\nError: ENOENT: no such file or directory, open 'C:\\Users\\User\\.openclaw\\workspace\\directive-workspace\\forge\\source-packs\\CATALOG.json'\r\n    at readFileSync (node:fs:440:20)\r\n    at loadForgeSourcePackCatalog (C:\\Users\\User\\.openclaw\\workspace\\mission-control\\src\\server\\paths\\directive-source-packs.ts:86:5)\r\n    at listForgeSourcePackCatalogEntries (C:\\Users\\User\\.openclaw\\workspace\\mission-control\\src\\server\\paths\\directive-source-packs.ts:97:10)\r\n    at getForgeSourcePackCatalogEntry (C:\\Users\\User\\.openclaw\\workspace\\mission-control\\src\\server\\paths\\directive-source-packs.ts:102:5)\r\n    at <anonymous> (C:\\Users\\User\\.openclaw\\workspace\\mission-control\\src\\server\\paths\\directive-source-packs.ts:140:24)\r\n    at Array.map (<anonymous>)\r\n    at requireLiveRuntimeForgePackRoot (C:\\Users\\User\\.openclaw\\workspace\\mission-control\\src\\server\\paths\\directive-source-packs.ts:140:6)\r\n    at resolveAgencyAgentsSourceRoot (C:\\Users\\User\\.openclaw\\workspace\\mission-control\\src\\server\\paths\\directive-source-packs.ts:175:10)\r\n    at invokeAgencyAgentsForRun (C:\\Users\\User\\.openclaw\\workspace\\mission-control\\src\\server\\services\\run-scoped-agency-agents-service.ts:185:29)\r\n    at invokeRunScopedToolForRun (C:\\Users\\User\\.openclaw\\workspace\\mission-control\\src\\server\\services\\run-scoped-tools-service.ts:62:22) {\r\n  errno: -4058,\r\n  code: 'ENOENT',\r\n  syscall: 'open',\r\n  path: 'C:\\\\Users\\\\User\\\\.openclaw\\\\workspace\\\\directive-workspace\\\\forge\\\\source-packs\\\\CATALOG.json'\r\n}\r\n\r\nNode.js v24.14.0"
-    },
-    {
-      "id": "adapters",
-      "command": "npm run check:adapters",
-      "critical": true,
+      "id": "ui_smoke_latest",
+      "command": "reports/ui-smoke/latest.json",
+      "critical": false,
       "ok": true,
       "exitCode": 0,
-      "stdout": "{\n  \"check\": \"adapters\",\n  \"passed\": 5,\n  \"failed\": 0,\n  \"checks\": [\n    {\n      \"name\": \"n8n-valid\",\n      \"ok\": true\n    },\n    {\n      \"name\": \"n8n-invalid-input\",\n      \"ok\": true\n    },\n    {\n      \"name\": \"codegraph-valid\",\n      \"ok\": true\n    },\n    {\n      \"name\": \"external-runner-timeout\",\n      \"ok\": true\n    },\n    {\n      \"name\": \"external-runner-retry-exhausted\",\n      \"ok\": true\n    }\n  ]\n}",
-      "stderr": ""
-    },
-    {
-      "id": "ui-smoke",
-      "command": "npm run check:ui-smoke",
-      "critical": true,
-      "ok": true,
-      "exitCode": 0,
-      "stdout": "UI smoke check passed.\nGenerated: 2026-03-21T13:49:49.599Z\nFlows: 3 (passed=3, failed=0)",
-      "stderr": ""
-    },
-    {
-      "id": "reliability-thresholds",
-      "command": "npm run check:reliability",
-      "critical": true,
-      "ok": true,
-      "exitCode": 0,
-      "stdout": "{\n  \"ok\": false,\n  \"reason\": \"insufficient_data\",\n  \"reasons\": [\n    \"insufficient_data\"\n  ],\n  \"total\": 1,\n  \"required\": 20,\n  \"timeout_rate\": 0,\n  \"failover_rate\": 0,\n  \"tool_error_rate\": 0,\n  \"avg_duration_ms\": 0,\n  \"thresholds\": {\n    \"minSamples\": 20,\n    \"maxTimeoutRate\": 0.2,\n    \"maxFailoverRate\": 0.5,\n    \"maxToolErrorRate\": 0.1,\n    \"maxAvgDurationMs\": 120000\n  },\n  \"top_failure_classes\": [\n    {\n      \"name\": \"execution_failed\",\n      \"count\": 1\n    }\n  ],\n  \"recent_failures\": [\n    {\n      \"id\": \"5ecc7dad-58e4-4286-8224-0e4dad0418c8\",\n      \"timestamp\": \"2026-03-20T16:11:57.274Z\",\n      \"failureClass\": \"execution_failed\"\n    }\n  ],\n  \"status\": \"insufficient_data\",\n  \"quest_payload\": {\n    \"title\": \"Investigate Mission Control runtime reliability regression\",\n    \"area\": \"runtime-reliability\",\n    \"topics\": [\n      \"reliability\",\n      \"openclaw\",\n      \"telemetry\"\n    ],\n    \"summary\": \"insufficient_data\",\n    \"reason\": \"insufficient_data\",\n    \"top_failure_classes\": [\n      {\n        \"name\": \"execution_failed\",\n        \"count\": 1\n      }\n    ],\n    \"sample_size\": 1,\n    \"recent_failures\": [\n      {\n        \"id\": \"5ecc7dad-58e4-4286-8224-0e4dad0418c8\",\n        \"timestamp\": \"2026-03-20T16:11:57.274Z\",\n        \"failureClass\": \"execution_failed\"\n      }\n    ],\n    \"suggested_next_action\": \"Inspect failing runs and tune model route policy/fallback thresholds.\",\n    \"failure_window\": \"reliability-window:2026-04-07T15:insufficient_data\"\n  },\n  \"quest_auto_created\": true,\n  \"quest_id\": \"b9485a81-38b9-4d51-800e-46825637fe47\",\n  \"soft_mode\": true\n}",
-      "stderr": ""
+      "detail": "ok=true generatedAt=2026-04-21T02:19:35.066Z"
     }
   ],
-  "failedCriticalCount": 1,
+  "failedCriticalCount": 0,
   "guardrails": {
-    "cooldownMinutes": 180,
-    "windowMinutes": 360
-  },
-  "questAction": {
-    "action": "created",
-    "questId": "09606d7c-6d48-4bc2-8e14-5da3ececc320",
-    "dedupeKey": "nightly-canary:851ab03d9ff8",
-    "failureClass": "agency-agents",
-    "cooldown": {
-      "onCooldown": false,
-      "minutesRemaining": 0,
-      "lastAlertAt": "2026-04-06T15:30:20.882Z"
-    }
+    "cooldownMinutes": 30,
+    "windowMinutes": 240
   }
 }

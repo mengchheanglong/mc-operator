@@ -374,6 +374,23 @@ export class AutomationRunsService {
     });
   }
 
+  private formatGitError(error: unknown) {
+    if (error && typeof error === "object") {
+      const maybeError = error as {
+        stderr?: string;
+        stdout?: string;
+        message?: string;
+      };
+      return (
+        this.s(maybeError.stderr) ||
+        this.s(maybeError.stdout) ||
+        this.s(maybeError.message) ||
+        "git command failed"
+      );
+    }
+    return this.s(error) || "git command failed";
+  }
+
   private extractCleanupAttempts(metadata: Record<string, unknown>) {
     const value = metadata.cleanupAttempts;
     if (typeof value === "number" && Number.isFinite(value)) {
@@ -607,25 +624,56 @@ export class AutomationRunsService {
     await mkdir(worktreeRoot, { recursive: true });
 
     try {
-      await this.runGit(projectRoot, ["worktree", "add", worktreePath, branch]);
+      await this.runGit(projectRoot, ["check-ref-format", "--branch", branch]);
     } catch {
+      throw new WorkspaceRunError({
+        message: "Branch name is invalid.",
+        reason: "invalid_branch",
+        nextCommand:
+          "Use a valid git branch name and retry create (example: feature/manual-test-probe).",
+        artifactPath: worktreeRoot,
+        status: 422,
+      });
+    }
+
+    const createAttempts = [
+      {
+        args: ["worktree", "add", worktreePath, branch],
+        nextCommand: `git -C "${projectRoot}" worktree add "${worktreePath}" "${branch}"`,
+      },
+      {
+        args: ["worktree", "add", "-b", branch, worktreePath, "HEAD"],
+        nextCommand: `git -C "${projectRoot}" worktree add -b "${branch}" "${worktreePath}" HEAD`,
+      },
+      {
+        args: ["worktree", "add", "--detach", worktreePath, branch],
+        nextCommand: `git -C "${projectRoot}" worktree add --detach "${worktreePath}" "${branch}"`,
+      },
+    ] as const;
+
+    let createOk = false;
+    let lastNextCommand = createAttempts[createAttempts.length - 1].nextCommand;
+    let lastErrorText = "";
+
+    for (const attempt of createAttempts) {
       try {
-        await this.runGit(projectRoot, [
-          "worktree",
-          "add",
-          "--detach",
-          worktreePath,
-          branch,
-        ]);
-      } catch {
-        throw new WorkspaceRunError({
-          message: "Failed to create worktree.",
-          reason: "git_worktree_add_failed",
-          nextCommand: `git -C "${projectRoot}" worktree add --detach "${worktreePath}" "${branch}"`,
-          artifactPath: worktreePath,
-          status: 502,
-        });
+        await this.runGit(projectRoot, [...attempt.args]);
+        createOk = true;
+        break;
+      } catch (error) {
+        lastNextCommand = attempt.nextCommand;
+        lastErrorText = this.formatGitError(error);
       }
+    }
+
+    if (!createOk) {
+      throw new WorkspaceRunError({
+        message: `Failed to create worktree. ${lastErrorText}`,
+        reason: "git_worktree_add_failed",
+        nextCommand: lastNextCommand,
+        artifactPath: worktreePath,
+        status: 502,
+      });
     }
 
     return this.createWorkspaceRun({

@@ -3,6 +3,9 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAppState } from '@/state/app-store';
+import { projects } from '@/features/projects/api';
+import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import {
   Activity,
   Bot,
@@ -34,6 +37,20 @@ const navigation = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { activeProject, backendConnected } = useAppState();
+  const { setActiveProject } = useAppState();
+
+  const { data: activeProjectPayload, isLoading: isLoadingActiveProject } = useQuery({
+    queryKey: ['projects', 'active'],
+    queryFn: projects.active,
+    retry: false,
+  });
+
+  useEffect(() => {
+    const backendActiveProjectId = activeProjectPayload?.activeProject?.id;
+    if (typeof backendActiveProjectId === 'string' && backendActiveProjectId !== activeProject) {
+      setActiveProject(backendActiveProjectId);
+    }
+  }, [activeProject, activeProjectPayload?.activeProject?.id, setActiveProject]);
 
   return (
     <div className="min-h-screen bg-[#090a0d] text-gray-50">
@@ -93,7 +110,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
         </aside>
 
-        <main className="flex-1 px-6 py-6">{children}</main>
+        <main className="flex-1 px-6 py-6">
+          {isLoadingActiveProject ? (
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+              Loading workspace state...
+            </div>
+          ) : (
+            children
+          )}
+        </main>
       </div>
     </div>
   );

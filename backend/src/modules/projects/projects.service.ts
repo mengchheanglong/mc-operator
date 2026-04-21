@@ -1,6 +1,8 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import fs from "node:fs";
 import path from "node:path";
+import { SqliteService } from "../../infra/sqlite/sqlite.service";
+import { normalizeString, resolveOperator } from "../../infra/service-utils";
 
 type WorkspaceProjectType = "personal" | "github" | "external";
 
@@ -54,6 +56,16 @@ const DEFAULT_PERSONAL_PROJECT_NAMES = [
 
 @Injectable()
 export class ProjectsService {
+  constructor(private readonly sqlite: SqliteService) {}
+
+  private s(value: unknown) {
+    return normalizeString(value);
+  }
+
+  private operator() {
+    return resolveOperator(this.sqlite.connection);
+  }
+
   private pathExists(targetPath: string) {
     return fs.existsSync(targetPath);
   }
@@ -518,13 +530,48 @@ export class ProjectsService {
     return this.listWorkspaceProjects();
   }
 
-  private resolveActiveProject(projectId?: string | null) {
+  private readActiveProjectId(userId: string) {
+    const row = this.sqlite.connection
+      .prepare("SELECT project_id FROM active_projects WHERE user_id = ? LIMIT 1")
+      .get(userId) as Record<string, unknown> | undefined;
+    if (!row) {
+      return null;
+    }
+
+    const projectId = this.normalizeRelativePath(this.s(row.project_id));
+    return projectId || null;
+  }
+
+  private setActiveProjectId(userId: string, projectId: string) {
+    const now = new Date().toISOString();
+    this.sqlite.connection
+      .prepare(
+        "INSERT INTO active_projects (user_id, project_id, updated_at) VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET project_id = excluded.project_id, updated_at = excluded.updated_at",
+      )
+      .run(userId, projectId, now);
+  }
+
+  private resolveActiveProject(input?: {
+    projectId?: string | null;
+    persistedProjectId?: string | null;
+  }) {
     const availableProjects = this.listAvailableProjects();
     if (availableProjects.length === 0) {
       return null;
     }
-    const normalizedProjectId = this.normalizeRelativePath(projectId || "");
+
+    const normalizedProjectId = this.normalizeRelativePath(input?.projectId || "");
     const matched = availableProjects.find((project) => project.id === normalizedProjectId);
+    if (matched) {
+      return matched;
+    }
+
+    const persistedProjectId = this.normalizeRelativePath(input?.persistedProjectId || "");
+    const persisted = availableProjects.find((project) => project.id === persistedProjectId);
+    if (persisted) {
+      return persisted;
+    }
+
     return matched || availableProjects[0];
   }
 
@@ -542,10 +589,15 @@ export class ProjectsService {
   }
 
   list(projectId?: string | null) {
+    const user = this.operator();
+    const persistedProjectId = this.readActiveProjectId(user.id);
     const projects = this.listAvailableProjects().map((project) =>
       this.serializeProject(project),
     );
-    const active = this.resolveActiveProject(projectId);
+    const active = this.resolveActiveProject({
+      projectId,
+      persistedProjectId,
+    });
     if (!active) return null;
 
     return {
@@ -555,7 +607,12 @@ export class ProjectsService {
   }
 
   graph(projectId?: string | null) {
-    const active = this.resolveActiveProject(projectId);
+    const user = this.operator();
+    const persistedProjectId = this.readActiveProjectId(user.id);
+    const active = this.resolveActiveProject({
+      projectId,
+      persistedProjectId,
+    });
     const projects = this.listWorkspaceGraphProjects()
       .filter((project) => !project.isControlPlane)
       .map((project) => this.serializeProject(project));
@@ -570,6 +627,43 @@ export class ProjectsService {
         projectType: active.projectType,
       },
       projects,
+    };
+  }
+
+  active() {
+    const user = this.operator();
+    const persistedProjectId = this.readActiveProjectId(user.id);
+    const active = this.resolveActiveProject({ persistedProjectId });
+    if (!active) {
+      return null;
+    }
+
+    if (active.id !== persistedProjectId) {
+      this.setActiveProjectId(user.id, active.id);
+    }
+
+    return {
+      activeProject: this.serializeProject(active),
+    };
+  }
+
+  activate(projectId?: unknown) {
+    const normalizedProjectId = this.normalizeRelativePath(this.s(projectId));
+    if (!normalizedProjectId) {
+      throw new BadRequestException("projectId is required.");
+    }
+
+    const availableProjects = this.listAvailableProjects();
+    const active = availableProjects.find((project) => project.id === normalizedProjectId);
+    if (!active) {
+      throw new BadRequestException("Project is not available in this workspace.");
+    }
+
+    const user = this.operator();
+    this.setActiveProjectId(user.id, active.id);
+
+    return {
+      activeProject: this.serializeProject(active),
     };
   }
 }

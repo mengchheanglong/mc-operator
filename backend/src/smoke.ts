@@ -21,7 +21,7 @@ async function run() {
     }));
 
     const automationProjectId = `backend-smoke-automation-runs-${Date.now()}`;
-    const automationBranch = "main";
+    const automationBranch = `manual-test-probe-${Date.now()}`;
 
     const automationRunCreate = await fetch(`${baseUrl}/automation/runs?projectId=${automationProjectId}`, {
       method: "POST",
@@ -355,6 +355,72 @@ async function run() {
     ).then(async (response) => ({ status: response.status, body: await response.json() }));
     assert.equal(docUpdate.status, 200, "docs update route should return 200");
 
+    const projectsBeforeActivation = await fetch(`${baseUrl}/projects`).then(async (response) => ({
+      status: response.status,
+      body: await response.json(),
+    }));
+    assert.equal(
+      projectsBeforeActivation.status,
+      200,
+      "projects list without query should return 200",
+    );
+
+    const projectsBeforeActivationList = Array.isArray(projectsBeforeActivation.body?.projects)
+      ? (projectsBeforeActivation.body.projects as Array<Record<string, unknown>>)
+      : [];
+    assert.ok(
+      projectsBeforeActivationList.length > 0,
+      "projects list without query should include at least one project",
+    );
+
+    const firstProject = projectsBeforeActivationList[0];
+    const secondProject = projectsBeforeActivationList[1];
+    const targetActiveProjectId = String(
+      secondProject?.id || firstProject?.id || "",
+    );
+    assert.ok(
+      targetActiveProjectId,
+      "projects list should expose at least one valid project id",
+    );
+
+    const setActiveProject = await fetch(`${baseUrl}/projects/active`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ projectId: targetActiveProjectId }),
+    }).then(async (response) => ({ status: response.status, body: await response.json() }));
+    assert.equal(setActiveProject.status, 200, "projects active put route should return 200");
+    assert.equal(
+      String(setActiveProject.body?.activeProject?.id || ""),
+      targetActiveProjectId,
+      "projects active put route should return selected project",
+    );
+
+    const activeProjectResponse = await fetch(`${baseUrl}/projects/active`).then(async (response) => ({
+      status: response.status,
+      body: await response.json(),
+    }));
+    assert.equal(activeProjectResponse.status, 200, "projects active get route should return 200");
+    assert.equal(
+      String(activeProjectResponse.body?.activeProject?.id || ""),
+      targetActiveProjectId,
+      "projects active get route should return persisted selection",
+    );
+
+    const projectsAfterActivation = await fetch(`${baseUrl}/projects`).then(async (response) => ({
+      status: response.status,
+      body: await response.json(),
+    }));
+    assert.equal(
+      projectsAfterActivation.status,
+      200,
+      "projects list after activation should return 200",
+    );
+    assert.equal(
+      String(projectsAfterActivation.body?.activeProject?.id || ""),
+      targetActiveProjectId,
+      "projects list without query should respect persisted active project",
+    );
+
     const [capabilities, registry, lifecycle, reports, projects, graph, notes, views, quests, docs] = await Promise.all([
       fetch(
         `${baseUrl}/directive-workspace/capabilities?projectId=${projectId}`,
@@ -522,6 +588,9 @@ async function run() {
           projects: Array.isArray(projects.body.projects)
             ? projects.body.projects.length
             : 0,
+          activeProjectSetStatus: setActiveProject.status,
+          activeProjectGetStatus: activeProjectResponse.status,
+          activeProjectId: String(activeProjectResponse.body?.activeProject?.id || ""),
           projectGraph: Array.isArray(graph.body.projects)
             ? graph.body.projects.length
             : 0,

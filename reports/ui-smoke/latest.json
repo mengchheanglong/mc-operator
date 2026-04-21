@@ -1,7 +1,7 @@
 {
   "suite": "ui-smoke",
   "ok": true,
-  "generatedAt": "2026-04-20T13:09:58.974Z",
+  "generatedAt": "2026-04-21T02:19:35.066Z",
   "baseUrl": "http://127.0.0.1:3210",
   "viewport": {
     "width": 1440,
@@ -12,8 +12,8 @@
       "id": "health",
       "path": "/health",
       "status": "pass",
-      "durationMs": 911,
-      "screenshot": "reports/ui-smoke/screenshots/2026-04-20T13-09-15-042Z-health.png",
+      "durationMs": 1049,
+      "screenshot": "reports/ui-smoke/screenshots/2026-04-21T02-18-59-563Z-health.png",
       "issues": [],
       "error": null
     },
@@ -21,8 +21,8 @@
       "id": "quests",
       "path": "/quests",
       "status": "pass",
-      "durationMs": 998,
-      "screenshot": "reports/ui-smoke/screenshots/2026-04-20T13-09-15-042Z-quests.png",
+      "durationMs": 968,
+      "screenshot": "reports/ui-smoke/screenshots/2026-04-21T02-18-59-563Z-quests.png",
       "issues": [],
       "error": null
     },
@@ -30,8 +30,8 @@
       "id": "reports",
       "path": "/reports",
       "status": "pass",
-      "durationMs": 927,
-      "screenshot": "reports/ui-smoke/screenshots/2026-04-20T13-09-15-042Z-reports.png",
+      "durationMs": 902,
+      "screenshot": "reports/ui-smoke/screenshots/2026-04-21T02-18-59-563Z-reports.png",
       "issues": [],
       "error": null
     },
@@ -39,8 +39,8 @@
       "id": "docs",
       "path": "/docs",
       "status": "pass",
-      "durationMs": 895,
-      "screenshot": "reports/ui-smoke/screenshots/2026-04-20T13-09-15-042Z-docs.png",
+      "durationMs": 911,
+      "screenshot": "reports/ui-smoke/screenshots/2026-04-21T02-18-59-563Z-docs.png",
       "issues": [],
       "error": null
     },
@@ -48,8 +48,8 @@
       "id": "notes",
       "path": "/notes",
       "status": "pass",
-      "durationMs": 938,
-      "screenshot": "reports/ui-smoke/screenshots/2026-04-20T13-09-15-042Z-notes.png",
+      "durationMs": 903,
+      "screenshot": "reports/ui-smoke/screenshots/2026-04-21T02-18-59-563Z-notes.png",
       "issues": [],
       "error": null
     },
@@ -57,8 +57,8 @@
       "id": "projects",
       "path": "/projects",
       "status": "pass",
-      "durationMs": 937,
-      "screenshot": "reports/ui-smoke/screenshots/2026-04-20T13-09-15-042Z-projects.png",
+      "durationMs": 889,
+      "screenshot": "reports/ui-smoke/screenshots/2026-04-21T02-18-59-563Z-projects.png",
       "issues": [],
       "error": null
     },
@@ -66,8 +66,8 @@
       "id": "views",
       "path": "/views",
       "status": "pass",
-      "durationMs": 912,
-      "screenshot": "reports/ui-smoke/screenshots/2026-04-20T13-09-15-042Z-views.png",
+      "durationMs": 886,
+      "screenshot": "reports/ui-smoke/screenshots/2026-04-21T02-18-59-563Z-views.png",
       "issues": [],
       "error": null
     },
@@ -75,8 +75,8 @@
       "id": "agents",
       "path": "/agents",
       "status": "pass",
-      "durationMs": 905,
-      "screenshot": "reports/ui-smoke/screenshots/2026-04-20T13-09-15-042Z-agents.png",
+      "durationMs": 903,
+      "screenshot": "reports/ui-smoke/screenshots/2026-04-21T02-18-59-563Z-agents.png",
       "issues": [],
       "error": null
     },
@@ -84,8 +84,8 @@
       "id": "automation",
       "path": "/automation",
       "status": "pass",
-      "durationMs": 909,
-      "screenshot": "reports/ui-smoke/screenshots/2026-04-20T13-09-15-042Z-automation.png",
+      "durationMs": 892,
+      "screenshot": "reports/ui-smoke/screenshots/2026-04-21T02-18-59-563Z-automation.png",
       "issues": [],
       "error": null
     },
@@ -93,8 +93,8 @@
       "id": "ops",
       "path": "/ops",
       "status": "pass",
-      "durationMs": 977,
-      "screenshot": "reports/ui-smoke/screenshots/2026-04-20T13-09-15-042Z-ops.png",
+      "durationMs": 958,
+      "screenshot": "reports/ui-smoke/screenshots/2026-04-21T02-18-59-563Z-ops.png",
       "issues": [],
       "error": null
     },
@@ -102,8 +102,8 @@
       "id": "workspace-bootstrap",
       "path": "/workspace/bootstrap",
       "status": "pass",
-      "durationMs": 898,
-      "screenshot": "reports/ui-smoke/screenshots/2026-04-20T13-09-15-042Z-workspace-bootstrap.png",
+      "durationMs": 896,
+      "screenshot": "reports/ui-smoke/screenshots/2026-04-21T02-18-59-563Z-workspace-bootstrap.png",
       "issues": [],
       "error": null
     },
@@ -111,8 +111,8 @@
       "id": "directive",
       "path": "/directive",
       "status": "pass",
-      "durationMs": 938,
-      "screenshot": "reports/ui-smoke/screenshots/2026-04-20T13-09-15-042Z-directive.png",
+      "durationMs": 899,
+      "screenshot": "reports/ui-smoke/screenshots/2026-04-21T02-18-59-563Z-directive.png",
       "issues": [],
       "error": null
     }

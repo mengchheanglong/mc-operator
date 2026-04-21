@@ -52,6 +52,10 @@ The following work remains, but it is no longer blocking completion for this pha
 - normal post-release cleanup of stale historical docs and operational residue
 - deeper product polish on non-critical surfaces
 
+Track and execute this work using the dedicated Phase 2 checklist:
+
+- [Phase 2 finish checklist](./PHASE2_FINISH_CHECKLIST.md)
+
 ## Interpretation
 
 Treat Mission Control as a finished product for the current scoped phase.

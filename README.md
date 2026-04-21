@@ -37,6 +37,13 @@ npm install
 npm run dev
 ```
 
+If local startup collides with stale ports or Next.js lock files:
+
+```bash
+npm run dev:doctor
+npm run dev:doctor:fix
+```
+
 Backend-only development:
 
 ```bash
@@ -78,4 +85,5 @@ npm run verify:product
 
 - [Project completion status](./docs/PROJECT_COMPLETION_PLAN.md)
 - [Release checklist](./docs/RELEASE_CHECKLIST.md)
+- [Phase 2 finish checklist](./docs/PHASE2_FINISH_CHECKLIST.md)
 - [UI smoke guardrails](./docs/operations/UI_SMOKE_GUARDRAILS.md)

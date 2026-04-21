@@ -6,6 +6,12 @@ export interface ApiError {
   detail?: string;
 }
 
+type ProjectScopeMode = 'auto' | 'none';
+
+export interface ApiRequestOptions extends RequestInit {
+  projectScope?: ProjectScopeMode;
+}
+
 const API_PREFIX = '/api';
 const API_VERSION_PREFIX = '/api/v1';
 
@@ -39,24 +45,31 @@ function shouldAttachProjectId(pathname: string): boolean {
   return pathname !== `${API_PREFIX}/health`;
 }
 
-export async function apiRequest(path: string, options?: RequestInit): Promise<any> {
+export async function apiRequest(path: string, options?: ApiRequestOptions): Promise<any> {
+  const requestOptions = options;
+  const projectScope = requestOptions?.projectScope ?? 'auto';
   const { activeProject } = useAppState.getState();
 
   const requestPath = normalizeApiPath(path);
   const url = new URL(requestPath, window.location.origin);
 
-  if (!url.searchParams.has('projectId') && shouldAttachProjectId(url.pathname)) {
+  if (
+    projectScope !== 'none' &&
+    !url.searchParams.has('projectId') &&
+    shouldAttachProjectId(url.pathname)
+  ) {
     url.searchParams.set('projectId', activeProject);
   }
 
-  const headers = new Headers(options?.headers);
-  if (options?.body && !headers.has('Content-Type')) {
+  const headers = new Headers(requestOptions?.headers);
+  if (requestOptions?.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
 
-  let body = options?.body;
+  let body = requestOptions?.body;
   const jsonBody = typeof body === 'string' ? body : null;
   const isJsonBody =
+    projectScope !== 'none' &&
     jsonBody !== null &&
     headers.get('Content-Type')?.includes('application/json') &&
     shouldAttachProjectId(url.pathname);
@@ -81,7 +94,7 @@ export async function apiRequest(path: string, options?: RequestInit): Promise<a
   }
 
   const response = await fetch(url.toString(), {
-    ...options,
+    ...requestOptions,
     body,
     headers,
   });

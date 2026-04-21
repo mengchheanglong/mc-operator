@@ -57,6 +57,15 @@ export class SqliteService implements OnModuleDestroy {
     );
 
     this.ensureTable(
+      "active_projects",
+      `CREATE TABLE active_projects (
+        user_id text PRIMARY KEY NOT NULL REFERENCES users(id),
+        project_id text NOT NULL DEFAULT '${escapedProject}',
+        updated_at text NOT NULL
+      )`,
+    );
+
+    this.ensureTable(
       "reports",
       `CREATE TABLE reports (
         id text PRIMARY KEY NOT NULL,

@@ -9,9 +9,11 @@ test("backend smoke exercises the current workflow surface", () => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mc-operator-backend-smoke-"));
   const workspaceRoot = path.join(tempRoot, "workspace");
   const sampleProjectRoot = path.join(workspaceRoot, "sample-project");
+  const sampleProjectAltRoot = path.join(workspaceRoot, "sample-project-alt");
   const dataRoot = path.join(tempRoot, "data");
 
   fs.mkdirSync(sampleProjectRoot, { recursive: true });
+  fs.mkdirSync(sampleProjectAltRoot, { recursive: true });
   fs.mkdirSync(dataRoot, { recursive: true });
 
   fs.writeFileSync(
@@ -19,7 +21,13 @@ test("backend smoke exercises the current workflow surface", () => {
     JSON.stringify({ name: "sample-project", private: true }, null, 2),
     "utf8",
   );
+  fs.writeFileSync(
+    path.join(sampleProjectAltRoot, "package.json"),
+    JSON.stringify({ name: "sample-project-alt", private: true }, null, 2),
+    "utf8",
+  );
   fs.mkdirSync(path.join(sampleProjectRoot, ".git"), { recursive: true });
+  fs.mkdirSync(path.join(sampleProjectAltRoot, ".git"), { recursive: true });
 
   const sharedOptions = {
     cwd: process.cwd(),
@@ -49,6 +57,9 @@ test("backend smoke exercises the current workflow surface", () => {
     questCompleteStatus?: number;
     docUpdateStatus?: number;
     automationRunCloseStatus?: number;
+    activeProjectSetStatus?: number;
+    activeProjectGetStatus?: number;
+    activeProjectId?: string;
     lifecycleStatus?: string | null;
   };
 
@@ -57,5 +68,8 @@ test("backend smoke exercises the current workflow surface", () => {
   assert.equal(summary.questCompleteStatus, 200);
   assert.equal(summary.docUpdateStatus, 200);
   assert.equal(summary.automationRunCloseStatus, 200);
+  assert.equal(summary.activeProjectSetStatus, 200);
+  assert.equal(summary.activeProjectGetStatus, 200);
+  assert.equal(typeof summary.activeProjectId, "string");
   assert.equal(typeof summary.lifecycleStatus, "string");
 });

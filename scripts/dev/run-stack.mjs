@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import net from "node:net";
 
 const BACKEND_HEALTH_URL =
   process.env.MISSION_CONTROL_BACKEND_HEALTH_URL?.trim() ||
@@ -13,6 +14,33 @@ const BACKEND_READY_POLL_MS = Number.parseInt(
 );
 
 const isWindows = process.platform === "win32";
+const WEB_PORT = Number.parseInt(process.env.PORT || "3000", 10);
+
+function parsePortFromUrl(urlValue) {
+  try {
+    const parsed = new URL(urlValue);
+    if (parsed.port) {
+      const port = Number.parseInt(parsed.port, 10);
+      if (Number.isFinite(port)) return port;
+    }
+
+    if (parsed.protocol === "https:") return 443;
+    return 80;
+  } catch {
+    return 3201;
+  }
+}
+
+function isPortFree(port) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.once("error", () => resolve(false));
+    server.once("listening", () => {
+      server.close(() => resolve(true));
+    });
+    server.listen(port, "127.0.0.1");
+  });
+}
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -67,6 +95,23 @@ async function main() {
 
   process.on("SIGINT", () => shutdown("SIGINT", 0));
   process.on("SIGTERM", () => shutdown("SIGTERM", 0));
+
+  const backendPort = parsePortFromUrl(BACKEND_HEALTH_URL);
+  const [backendPortFree, webPortFree] = await Promise.all([
+    isPortFree(backendPort),
+    isPortFree(WEB_PORT),
+  ]);
+
+  if (!backendPortFree || !webPortFree) {
+    process.stderr.write(
+      `[dev:stack] preflight failed: occupied ports detected (backend:${backendPortFree ? "free" : "busy"}, web:${webPortFree ? "free" : "busy"}).\n`,
+    );
+    process.stderr.write(
+      `[dev:stack] run \"npm run dev:doctor\" for details or \"npm run dev:doctor:fix\" to auto-clean local collisions.\n`,
+    );
+    process.exit(1);
+    return;
+  }
 
   process.stdout.write(
     `[dev:stack] starting backend: npm --prefix ./backend run dev\n`,

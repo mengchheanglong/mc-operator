@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { projects } from '@/features/projects/api';
 import { useAppState } from '@/state/app-store';
 import { FolderOpen, Check } from 'lucide-react';
+import { useEffect } from 'react';
 
 export default function ProjectsPage() {
   const queryClient = useQueryClient();
@@ -14,10 +15,20 @@ export default function ProjectsPage() {
     queryFn: projects.list,
   });
 
+  useEffect(() => {
+    const backendActiveProjectId = data?.activeProject?.id;
+    if (typeof backendActiveProjectId === 'string' && backendActiveProjectId !== activeProject) {
+      setActiveProject(backendActiveProjectId);
+    }
+  }, [activeProject, data?.activeProject?.id, setActiveProject]);
+
   const activateMutation = useMutation({
     mutationFn: (id: string) => projects.activate(id),
-    onSuccess: (_, id) => {
-      setActiveProject(id);
+    onSuccess: (payload: { activeProject?: { id?: string } }) => {
+      const backendActiveProjectId = payload?.activeProject?.id;
+      if (typeof backendActiveProjectId === 'string' && backendActiveProjectId) {
+        setActiveProject(backendActiveProjectId);
+      }
       queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
   });
