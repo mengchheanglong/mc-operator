@@ -3,40 +3,75 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { views } from '@/features/views/api';
 import { useState } from 'react';
-import { Eye, Plus, Trash2 } from 'lucide-react';
+import { Eye, Plus, ScrollText, FileText, Trash2 } from 'lucide-react';
+import {
+  Badge,
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  EmptyState,
+  ErrorState,
+  IconButton,
+  LabeledField,
+  LoadingState,
+  PageContainer,
+  PageHeader,
+  Select,
+  Surface,
+  Tabs,
+  cn,
+  inputClassName,
+  textareaClassName,
+} from '@/components/ui/primitives';
+import { toast } from '@/components/ui/toast';
+
+type Surface = 'quests' | 'reports';
+
+interface SavedView {
+  id: string;
+  name: string;
+  surface: Surface;
+  filters?: Record<string, unknown>;
+}
 
 export default function ViewsPage() {
   const queryClient = useQueryClient();
+  const [surface, setSurface] = useState<Surface>('quests');
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [surface, setSurface] = useState<'quests' | 'reports'>('quests');
   const [newView, setNewView] = useState({
     name: '',
-    type: 'quests' as 'quests' | 'reports',
+    type: 'quests' as Surface,
     filters: '',
   });
   const [formError, setFormError] = useState('');
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['views', surface],
     queryFn: () => views.list(surface),
     staleTime: 5 * 60 * 1000,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => views.create(data),
+    mutationFn: (payload: { name: string; surface: Surface; filters: Record<string, unknown> }) =>
+      views.create(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['views'] });
       setShowCreateForm(false);
-      setNewView({ name: '', type: 'quests', filters: '' });
+      setNewView({ name: '', type: surface, filters: '' });
       setFormError('');
+      toast.success('View saved');
     },
+    onError: () => toast.error('Failed to save view'),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => views.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['views'] });
+      toast.success('View deleted');
     },
+    onError: () => toast.error('Failed to delete view'),
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -53,143 +88,171 @@ export default function ViewsPage() {
     }
     setFormError('');
     createMutation.mutate({
-      name: newView.name,
+      name: newView.name.trim(),
       surface: newView.type,
       filters: parsedFilters,
     });
   };
 
+  const viewList = (data?.views ?? []) as SavedView[];
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500 animate-pulse">Loading views...</div>
-      </div>
+      <PageContainer>
+        <LoadingState label="Loading views..." />
+      </PageContainer>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-        <h3 className="text-red-800 font-semibold mb-2">Failed to load views</h3>
-        <p className="text-red-600 text-sm">{error.message}</p>
-      </div>
+      <PageContainer>
+        <ErrorState
+          title="Failed to load views"
+          message={error.message}
+          onRetry={() => refetch()}
+        />
+      </PageContainer>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Saved Views</h2>
-          <div className="flex gap-2">
-            <select
-              value={surface}
-              onChange={(e) => setSurface(e.target.value as 'quests' | 'reports')}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="quests">Quests</option>
-              <option value="reports">Reports</option>
-            </select>
-            <button
-              onClick={() => setShowCreateForm(!showCreateForm)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              New View
-            </button>
-          </div>
-        </div>
+    <PageContainer>
+      <PageHeader
+        eyebrow="Workspace"
+        title="Saved Views"
+        description="Persist filter sets for quests or reports and jump back to them quickly."
+        actions={
+          <Button
+            icon={Plus}
+            onClick={() => setShowCreateForm((v) => !v)}
+            tone={showCreateForm ? 'secondary' : 'primary'}
+          >
+            {showCreateForm ? 'Close' : 'New View'}
+          </Button>
+        }
+      />
 
-        {/* Create Form */}
-        {showCreateForm && (
-          <form onSubmit={handleSubmit} className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
-            <div className="space-y-3">
-              <input
-                type="text"
-                placeholder="View name"
-                value={newView.name}
-                onChange={(e) => setNewView({ ...newView, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                required
-              />
-              <select
-                value={newView.type}
-                onChange={(e) =>
-                  setNewView({
-                    ...newView,
-                    type: e.target.value as 'quests' | 'reports',
-                  })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+      <Tabs<Surface>
+        value={surface}
+        onChange={(v) => {
+          setSurface(v);
+          setNewView((prev) => ({ ...prev, type: v }));
+        }}
+        tabs={[
+          { value: 'quests', label: 'Quests', icon: ScrollText },
+          { value: 'reports', label: 'Reports', icon: FileText },
+        ]}
+      />
+
+      {showCreateForm && (
+        <Surface>
+          <CardHeader title="New saved view" icon={Plus} />
+          <CardBody>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <LabeledField label="Name" required htmlFor="view-name">
+                <input
+                  id="view-name"
+                  type="text"
+                  value={newView.name}
+                  onChange={(e) => setNewView({ ...newView, name: e.target.value })}
+                  placeholder="e.g. Blocked hard quests"
+                  className={inputClassName}
+                  required
+                />
+              </LabeledField>
+              <LabeledField label="Surface" htmlFor="view-surface">
+                <Select
+                  id="view-surface"
+                  value={newView.type}
+                  onChange={(e) => setNewView({ ...newView, type: e.target.value as Surface })}
+                >
+                  <option value="quests">Quests</option>
+                  <option value="reports">Reports</option>
+                </Select>
+              </LabeledField>
+              <LabeledField
+                label="Filters (JSON)"
+                hint="Optional. e.g. {&quot;status&quot;:&quot;blocked&quot;}"
+                htmlFor="view-filters"
               >
-                <option value="quests">Quests</option>
-                <option value="reports">Reports</option>
-              </select>
-              <textarea
-                placeholder="Filters (JSON format, optional)"
-                value={newView.filters}
-                onChange={(e) => {
-                  setNewView({ ...newView, filters: e.target.value });
-                  if (formError) {
-                    setFormError('');
-                  }
-                }}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm"
-              />
-              {formError && <p className="text-sm text-red-600">{formError}</p>}
+                <textarea
+                  id="view-filters"
+                  value={newView.filters}
+                  onChange={(e) => {
+                    setNewView({ ...newView, filters: e.target.value });
+                    if (formError) setFormError('');
+                  }}
+                  rows={4}
+                  placeholder='{"status":"blocked","difficulty":"hard"}'
+                  className={cn(textareaClassName, 'font-mono text-[13px]')}
+                />
+              </LabeledField>
+              {formError && <p className="text-sm text-rose-300">{formError}</p>}
               <div className="flex gap-2">
-                <button
+                <Button
                   type="submit"
-                  disabled={createMutation.isPending}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  icon={Plus}
+                  disabled={createMutation.isPending || !newView.name.trim()}
                 >
-                  {createMutation.isPending ? 'Creating...' : 'Create View'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowCreateForm(false)}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-                >
+                  {createMutation.isPending ? 'Saving...' : 'Save View'}
+                </Button>
+                <Button type="button" onClick={() => setShowCreateForm(false)} tone="secondary">
                   Cancel
-                </button>
+                </Button>
               </div>
-            </div>
-          </form>
-        )}
+            </form>
+          </CardBody>
+        </Surface>
+      )}
 
-        {/* Views List */}
-        <div className="space-y-3">
-          {data?.views?.map((view: any) => (
-            <div
-              key={view.id}
-              className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors flex items-center justify-between"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Eye className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">{view.name}</h3>
-                  <p className="text-sm text-gray-600 capitalize">{view.surface} view</p>
+      <div className="space-y-3 mc-stagger">
+        {viewList.map((view) => (
+          <Card key={view.id} as="article" interactive>
+            <div className="flex items-center justify-between gap-4 p-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.05] text-blue-200">
+                  <Eye className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <h3 className="truncate text-sm font-semibold text-slate-100">{view.name}</h3>
+                  <div className="mt-1 flex items-center gap-2">
+                    <Badge tone={view.surface === 'quests' ? 'blue' : 'green'}>
+                      {view.surface}
+                    </Badge>
+                    {view.filters && Object.keys(view.filters).length > 0 && (
+                      <span className="text-xs text-slate-500">
+                        {Object.keys(view.filters).length} filter{Object.keys(view.filters).length === 1 ? '' : 's'}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-              <button
+              <IconButton
                 onClick={() => deleteMutation.mutate(view.id)}
-                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+                icon={Trash2}
+                tone="danger"
+                aria-label="Delete view"
+              />
             </div>
-          ))}
+          </Card>
+        ))}
 
-          {data?.views?.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              No saved views. Create one to get started!
-            </div>
-          )}
-        </div>
+        {viewList.length === 0 && (
+          <EmptyState
+            icon={Eye}
+            title="No saved views"
+            description="Save a filter set to quickly return to a specific slice of quests or reports."
+            action={
+              !showCreateForm ? (
+                <Button icon={Plus} onClick={() => setShowCreateForm(true)}>
+                  Create view
+                </Button>
+              ) : undefined
+            }
+          />
+        )}
       </div>
-    </div>
+    </PageContainer>
   );
 }

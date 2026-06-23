@@ -3,14 +3,52 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { agents } from '@/features/agents/api';
 import { useState } from 'react';
-import { Bot, Play, Pause, RefreshCw, Terminal } from 'lucide-react';
+import { Bot, Play, Pause, RefreshCw, Send, Terminal } from 'lucide-react';
+import {
+  Badge,
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  DescriptionList,
+  EmptyState,
+  ErrorState,
+  IconButton,
+  KeyValue,
+  LabeledField,
+  LoadingState,
+  PageContainer,
+  PageHeader,
+  StatusBadge,
+  StatusDot,
+  cn,
+  inputClassName,
+  textareaClassName,
+  type Tone,
+} from '@/components/ui/primitives';
+import { toast } from '@/components/ui/toast';
+
+interface Agent {
+  id: string;
+  name: string;
+  description?: string;
+  status?: string;
+  role?: string;
+  executor?: string;
+  backend?: string;
+  model?: string;
+  sessionId?: string;
+  lastRunStatus?: string;
+}
 
 export default function AgentsPage() {
   const queryClient = useQueryClient();
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
-  const [task, setTask] = useState('Review the current project state and report the next concrete step.');
+  const [task, setTask] = useState(
+    'Review the current project state and report the next concrete step.',
+  );
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['agents'],
     queryFn: () => agents.list(),
     staleTime: 2 * 60 * 1000,
@@ -29,7 +67,9 @@ export default function AgentsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agents'] });
       queryClient.invalidateQueries({ queryKey: ['agent-status'] });
+      toast.success('Task dispatched');
     },
+    onError: () => toast.error('Failed to dispatch task'),
   });
 
   const killMutation = useMutation({
@@ -37,7 +77,9 @@ export default function AgentsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agents'] });
       queryClient.invalidateQueries({ queryKey: ['agent-status'] });
+      toast.success('Agent stopped');
     },
+    onError: () => toast.error('Failed to stop agent'),
   });
 
   const restoreMutation = useMutation({
@@ -45,172 +87,193 @@ export default function AgentsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['agents'] });
       queryClient.invalidateQueries({ queryKey: ['agent-status'] });
+      toast.success('Agent restored');
     },
+    onError: () => toast.error('Failed to restore agent'),
   });
 
-  const handleDispatch = (agentId: string) => {
-    dispatchMutation.mutate({ agentId });
-  };
+  const agentList = (data?.agents ?? []) as Agent[];
+  const selectedAgentRecord = agentList.find((a) => a.id === selectedAgent) ?? null;
 
-  const selectedAgentRecord =
-    data?.agents?.find((agent: any) => agent.id === selectedAgent) ?? null;
+  const statusTone = (status: string | undefined): Tone => {
+    const s = String(status ?? '').toLowerCase();
+    if (s === 'running' || s === 'active') return 'green';
+    if (s === 'stopped' || s === 'killed' || s === 'error') return 'red';
+    return 'slate';
+  };
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500 animate-pulse">Loading agents...</div>
-      </div>
+      <PageContainer>
+        <LoadingState label="Loading agents..." />
+      </PageContainer>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-        <h3 className="text-red-800 font-semibold mb-2">Failed to load agents</h3>
-        <p className="text-red-600 text-sm">{error.message}</p>
-      </div>
+      <PageContainer>
+        <ErrorState
+          title="Failed to load agents"
+          message={error.message}
+          onRetry={() => refetch()}
+        />
+      </PageContainer>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Agent Catalog</h2>
-          <p className="text-sm text-gray-600 mt-1">
-            Manage configured agents, inspect runtime session status, and dispatch bounded tasks.
-          </p>
-        </div>
+    <PageContainer>
+      <PageHeader
+        eyebrow="Automation"
+        title="Agent Catalog"
+        description="Manage configured agents, inspect runtime session status, and dispatch bounded tasks."
+        actions={
+          <StatusBadge tone="purple">
+            {agentList.length} agent{agentList.length === 1 ? '' : 's'}
+          </StatusBadge>
+        }
+      />
 
-        <div className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Dispatch task
-          </label>
-          <textarea
-            value={task}
-            onChange={(e) => setTask(e.target.value)}
-            rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-            placeholder="Describe the task to dispatch to the selected agent"
-          />
-          <p className="text-xs text-gray-500 mt-2">
-            Dispatch sends `task` to the backend. The old placeholder `command: &quot;run&quot;` shape has been removed.
-          </p>
-        </div>
+      <Card>
+        <CardHeader
+          title="Dispatch task"
+          icon={Send}
+          description="Send a bounded task to a selected agent. Deep mode is off by default."
+        />
+        <CardBody>
+          <LabeledField label="Task" htmlFor="dispatch-task" hint="Dispatches to the agent you click Run on.">
+            <textarea
+              id="dispatch-task"
+              value={task}
+              onChange={(e) => setTask(e.target.value)}
+              rows={3}
+              placeholder="Describe the task to dispatch..."
+              className={textareaClassName}
+            />
+          </LabeledField>
+        </CardBody>
+      </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {data?.agents?.map((agent: any) => (
-            <div
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 mc-stagger">
+        {agentList.map((agent) => {
+          const isSelected = selectedAgent === agent.id;
+          const running = String(agent.status ?? '').toLowerCase() === 'running' ||
+            String(agent.status ?? '').toLowerCase() === 'active';
+          return (
+            <Card
               key={agent.id}
-              className={`p-4 border-2 rounded-lg transition-all cursor-pointer ${
-                selectedAgent === agent.id
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-              onClick={() => setSelectedAgent(agent.id)}
+              as="article"
+              interactive
+              className={cn(
+                'cursor-pointer',
+                isSelected && 'border-blue-300/30 ring-1 ring-blue-400/20',
+              )}
             >
-              <div className="flex items-start justify-between mb-3">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Bot className="w-6 h-6 text-purple-600" />
+              <button
+                type="button"
+                onClick={() => setSelectedAgent(agent.id)}
+                className="w-full p-4 text-left outline-none focus-visible:ring-4 focus-visible:ring-blue-400/20"
+              >
+                <div className="flex items-start justify-between">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.05] text-violet-200">
+                    <Bot className="h-5 w-5" />
+                  </span>
+                  <StatusDot
+                    tone={statusTone(agent.status)}
+                    pulse={running}
+                    label={agent.status || 'inactive'}
+                  />
                 </div>
-                <span
-                  className={`px-2 py-1 rounded text-xs font-medium ${
-                    agent.status === 'active'
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-gray-100 text-gray-700'
-                  }`}
-                >
-                  {agent.status || 'inactive'}
-                </span>
-              </div>
-              <h3 className="font-semibold text-gray-900 mb-1">{agent.name}</h3>
-              <p className="text-sm text-gray-600 mb-3">{agent.description || 'No description'}</p>
-              <div className="space-y-1 text-xs text-gray-500 mb-3">
-                <p>Role: {agent.role}</p>
-                <p>Executor: {agent.executor}</p>
-                <p>Backend: {agent.backend}</p>
-                {agent.model && <p>Model: {agent.model}</p>}
-              </div>
-              <div className="flex gap-2">
-                <button
+                <h3 className="mt-3 text-sm font-semibold tracking-tight text-slate-100">
+                  {agent.name}
+                </h3>
+                <p className="mt-1 line-clamp-2 text-xs text-slate-500">
+                  {agent.description || 'No description'}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {agent.role && <Badge tone="slate">{agent.role}</Badge>}
+                  {agent.executor && <Badge tone="blue">{agent.executor}</Badge>}
+                  {agent.model && <Badge tone="purple">{agent.model}</Badge>}
+                </div>
+              </button>
+              <div className="flex gap-2 border-t border-white/8 px-4 py-3">
+                <Button
+                  icon={Play}
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDispatch(agent.id);
+                    dispatchMutation.mutate({ agentId: agent.id });
                   }}
                   disabled={dispatchMutation.isPending || !task.trim()}
-                  className="flex-1 px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-1"
+                  className="flex-1"
                 >
-                  <Play className="w-3 h-3" />
                   Run
-                </button>
-                <button
+                </Button>
+                <IconButton
+                  icon={Pause}
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (agent.sessionId) {
-                      killMutation.mutate(agent.id);
-                    } else {
-                      restoreMutation.mutate(agent.id);
-                    }
+                    if (agent.sessionId) killMutation.mutate(agent.id);
+                    else restoreMutation.mutate(agent.id);
                   }}
                   disabled={killMutation.isPending || restoreMutation.isPending}
-                  className="px-3 py-1.5 bg-slate-200 text-slate-700 rounded text-sm hover:bg-slate-300 disabled:opacity-50 flex items-center justify-center gap-1"
-                >
-                  <Pause className="w-3 h-3" />
-                </button>
-                <button
+                  tone="secondary"
+                  aria-label={agent.sessionId ? 'Stop agent' : 'Restore agent'}
+                />
+                <IconButton
+                  icon={RefreshCw}
                   onClick={(e) => {
                     e.stopPropagation();
                     queryClient.invalidateQueries({ queryKey: ['agents'] });
                     queryClient.invalidateQueries({ queryKey: ['agent-status'] });
                   }}
-                  className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded text-sm hover:bg-gray-300 flex items-center justify-center gap-1"
-                >
-                  <RefreshCw className="w-3 h-3" />
-                </button>
+                  tone="ghost"
+                  aria-label="Refresh agents"
+                />
               </div>
-            </div>
-          ))}
-        </div>
+            </Card>
+          );
+        })}
 
-        {data?.agents?.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            No agents available.
-          </div>
-        )}
-
-        {selectedAgentRecord && (
-          <div className="mt-8 p-4 border border-gray-200 rounded-lg bg-gray-50">
-            <div className="flex items-center gap-2 mb-3">
-              <Terminal className="w-5 h-5 text-gray-600" />
-              <h3 className="font-semibold text-gray-900">Selected Agent Runtime</h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-gray-500 mb-1">Agent</p>
-                <p className="text-gray-900 font-medium">{selectedAgentRecord.name}</p>
-              </div>
-              <div>
-                <p className="text-gray-500 mb-1">Session ID</p>
-                <p className="text-gray-900 font-mono break-all">
-                  {selectedAgentRecord.sessionId || 'No active session'}
-                </p>
-              </div>
-              <div>
-                <p className="text-gray-500 mb-1">Last Run</p>
-                <p className="text-gray-900">
-                  {selectedAgentRecord.lastRunStatus || 'No recorded runs'}
-                </p>
-              </div>
-              <div>
-                <p className="text-gray-500 mb-1">Status Probe</p>
-                <p className="text-gray-900 break-all">
-                  {selectedStatus?.status?.body || 'No runtime probe loaded'}
-                </p>
-              </div>
-            </div>
+        {agentList.length === 0 && (
+          <div className="col-span-full">
+            <EmptyState
+              icon={Bot}
+              title="No agents available"
+              description="Register or import an agent pack to get started."
+            />
           </div>
         )}
       </div>
-    </div>
+
+      {selectedAgentRecord && (
+        <Card>
+          <CardHeader
+            title="Selected Agent Runtime"
+            icon={Terminal}
+            eyebrow="Detail"
+            description={selectedAgentRecord.name}
+          />
+          <CardBody>
+            <DescriptionList>
+              <KeyValue label="Agent">
+                {selectedAgentRecord.name}
+              </KeyValue>
+              <KeyValue label="Session ID" mono>
+                {selectedAgentRecord.sessionId || 'No active session'}
+              </KeyValue>
+              <KeyValue label="Last run">
+                {selectedAgentRecord.lastRunStatus || 'No recorded runs'}
+              </KeyValue>
+              <KeyValue label="Status probe">
+                <span className="break-all text-xs text-slate-400">
+                  {selectedStatus?.status?.body || 'No runtime probe loaded'}
+                </span>
+              </KeyValue>
+            </DescriptionList>
+          </CardBody>
+        </Card>
+      )}
+    </PageContainer>
   );
 }

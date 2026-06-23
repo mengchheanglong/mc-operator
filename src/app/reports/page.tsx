@@ -4,7 +4,84 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { reports } from '@/features/reports/api';
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { FileText, Trash2 } from 'lucide-react';
+import {
+  FileText,
+  Trash2,
+  Plus,
+  Filter,
+  Target,
+  Search,
+} from 'lucide-react';
+import {
+  Badge,
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  EmptyState,
+  ErrorState,
+  Field,
+  IconButton,
+  LabeledField,
+  LoadingState,
+  PageContainer,
+  PageHeader,
+  Select,
+  Surface,
+  Timestamp,
+  Toolbar,
+  cn,
+  inputClassName,
+  textareaClassName,
+  type Tone,
+} from '@/components/ui/primitives';
+import { toast } from '@/components/ui/toast';
+
+interface CreateReportPayload {
+  title: string;
+  content: string;
+  category: string;
+  status: string;
+  source: string;
+  area?: string;
+  topics?: string[];
+}
+
+interface Report {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  status: string;
+  source: string;
+  area: string | null;
+  topics: string[];
+  date: string;
+}
+
+const categoryTones: Record<string, Tone> = {
+  system: 'slate',
+  task: 'blue',
+  chat: 'purple',
+  file: 'cyan',
+  research: 'green',
+  error: 'red',
+  maintenance: 'amber',
+};
+
+const statusTones: Record<string, Tone> = {
+  info: 'blue',
+  success: 'green',
+  warning: 'amber',
+  error: 'red',
+};
+
+const areaTones: Record<string, Tone> = {
+  automation: 'cyan',
+  context: 'purple',
+  graph: 'green',
+  ui: 'blue',
+};
 
 export default function ReportsPage() {
   const queryClient = useQueryClient();
@@ -14,7 +91,7 @@ export default function ReportsPage() {
     area: '',
   });
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newReport, setNewReport] = useState({
+  const [newReport, setNewReport] = useState<CreateReportPayload>({
     title: '',
     content: '',
     category: 'system',
@@ -22,16 +99,29 @@ export default function ReportsPage() {
     source: 'manual',
     area: '',
     topics: '',
-  });
+  } as CreateReportPayload & { topics: string });
 
-  const { data, isLoading, error } = useQuery({
+  const {
+    data,
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ['reports', filters],
     queryFn: () => reports.list(filters),
     staleTime: 3 * 60 * 1000,
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => reports.create(data),
+    mutationFn: (payload: {
+      title: string;
+      content: string;
+      category: string;
+      status: string;
+      source: string;
+      area?: string;
+      topics?: string[];
+    }) => reports.create(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reports'] });
       setShowCreateForm(false);
@@ -43,7 +133,11 @@ export default function ReportsPage() {
         source: 'manual',
         area: '',
         topics: '',
-      });
+      } as CreateReportPayload & { topics: string });
+      toast.success('Report created', 'The report has been added.');
+    },
+    onError: () => {
+      toast.error('Failed to create report', 'Please try again.');
     },
   });
 
@@ -51,6 +145,10 @@ export default function ReportsPage() {
     mutationFn: (id: string) => reports.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reports'] });
+      toast.success('Report deleted');
+    },
+    onError: () => {
+      toast.error('Failed to delete report', 'Please try again.');
     },
   });
 
@@ -60,235 +158,272 @@ export default function ReportsPage() {
     createMutation.mutate({
       ...newReport,
       area: newReport.area || undefined,
-      topics: newReport.topics
+      topics: (newReport as unknown as { topics: string }).topics
         .split(',')
-        .map((topic) => topic.trim())
+        .map((topic: string) => topic.trim())
         .filter(Boolean),
     });
   };
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500 animate-pulse">Loading reports...</div>
-      </div>
+      <PageContainer>
+        <LoadingState label="Loading reports..." />
+      </PageContainer>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-        <h3 className="text-red-800 font-semibold mb-2">Failed to load reports</h3>
-        <p className="text-red-600 text-sm">{error.message}</p>
-      </div>
+      <PageContainer>
+        <ErrorState
+          title="Failed to load reports"
+          message={error.message}
+          onRetry={() => refetch()}
+        />
+      </PageContainer>
     );
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Reports</h2>
-          <button
-            onClick={() => setShowCreateForm(!showCreateForm)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-          >
-            <FileText className="w-4 h-4" />
-            New Report
-          </button>
-        </div>
+  const activeFilters = [filters.category, filters.status, filters.area].filter(Boolean).length;
 
-        {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
-          <select
-            value={filters.category}
-            onChange={(e) => setFilters({ ...filters, category: e.target.value })}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">All Categories</option>
-            <option value="system">System</option>
-            <option value="task">Task</option>
-            <option value="chat">Chat</option>
-            <option value="file">File</option>
-            <option value="research">Research</option>
-            <option value="error">Error</option>
-            <option value="maintenance">Maintenance</option>
-          </select>
-          <select
-            value={filters.status}
-            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">All Statuses</option>
-            <option value="info">Info</option>
-            <option value="success">Success</option>
-            <option value="warning">Warning</option>
-            <option value="error">Error</option>
-          </select>
-          <select
-            value={filters.area}
-            onChange={(e) => setFilters({ ...filters, area: e.target.value })}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">All Areas</option>
-            <option value="automation">Automation</option>
-            <option value="context">Context</option>
-            <option value="graph">Graph</option>
-            <option value="ui">UI</option>
-          </select>
+  return (
+    <PageContainer>
+      <Surface>
+        <div className="px-5 py-5">
+          <PageHeader
+            title="Reports"
+            description="System reports, logs, and operational messages."
+            actions={
+              <Button
+                icon={Plus}
+                onClick={() => setShowCreateForm((v) => !v)}
+                tone={showCreateForm ? 'secondary' : 'primary'}
+              >
+                {showCreateForm ? 'Close' : 'New Report'}
+              </Button>
+            }
+          />
+
+          {/* Filters */}
+          <Toolbar>
+            <div className="flex items-center gap-2 text-sm font-medium text-slate-400 lg:w-28">
+              <Filter className="h-4 w-4 text-blue-200" />
+              Filters
+              {activeFilters > 0 && <Badge tone="blue">{activeFilters}</Badge>}
+            </div>
+            <Select
+              value={filters.category}
+              onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+            >
+              <option value="">All Categories</option>
+              <option value="system">System</option>
+              <option value="task">Task</option>
+              <option value="chat">Chat</option>
+              <option value="file">File</option>
+              <option value="research">Research</option>
+              <option value="error">Error</option>
+              <option value="maintenance">Maintenance</option>
+            </Select>
+            <Select
+              value={filters.status}
+              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+            >
+              <option value="">All Statuses</option>
+              <option value="info">Info</option>
+              <option value="success">Success</option>
+              <option value="warning">Warning</option>
+              <option value="error">Error</option>
+            </Select>
+            <Select
+              value={filters.area}
+              onChange={(e) => setFilters({ ...filters, area: e.target.value })}
+            >
+              <option value="">All Areas</option>
+              <option value="automation">Automation</option>
+              <option value="context">Context</option>
+              <option value="graph">Graph</option>
+              <option value="ui">UI</option>
+            </Select>
+          </Toolbar>
         </div>
 
         {/* Create Form */}
         {showCreateForm && (
-          <form onSubmit={handleSubmit} className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
-            <div className="space-y-3">
-              <input
-                type="text"
-                placeholder="Report title"
-                value={newReport.title}
-                onChange={(e) => setNewReport({ ...newReport, title: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                required
-              />
-              <div className="grid grid-cols-2 gap-3">
-                <select
-                  value={newReport.category}
-                  onChange={(e) => setNewReport({ ...newReport, category: e.target.value })}
-                  className="px-3 py-2 border border-gray-300 rounded-lg"
-                >
-                  <option value="system">System</option>
-                  <option value="task">Task</option>
-                  <option value="chat">Chat</option>
-                  <option value="file">File</option>
-                  <option value="research">Research</option>
-                  <option value="error">Error</option>
-                  <option value="maintenance">Maintenance</option>
-                </select>
-                <select
-                  value={newReport.status}
-                  onChange={(e) => setNewReport({ ...newReport, status: e.target.value })}
-                  className="px-3 py-2 border border-gray-300 rounded-lg"
-                >
-                  <option value="info">Info</option>
-                  <option value="success">Success</option>
-                  <option value="warning">Warning</option>
-                  <option value="error">Error</option>
-                </select>
+          <form onSubmit={handleSubmit} className="border-t border-white/8 px-5 py-4">
+            <div className="space-y-4">
+              <LabeledField label="Title" required htmlFor="report-title">
+                <Field icon={Target}>
+                  <input
+                    id="report-title"
+                    type="text"
+                    value={newReport.title}
+                    onChange={(e) => setNewReport({ ...newReport, title: e.target.value })}
+                    placeholder="Report title"
+                    className={cn(inputClassName, 'pl-9')}
+                    required
+                  />
+                </Field>
+              </LabeledField>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <LabeledField label="Category" htmlFor="report-category">
+                  <Select
+                    id="report-category"
+                    value={newReport.category}
+                    onChange={(e) => setNewReport({ ...newReport, category: e.target.value })}
+                  >
+                    <option value="system">System</option>
+                    <option value="task">Task</option>
+                    <option value="chat">Chat</option>
+                    <option value="file">File</option>
+                    <option value="research">Research</option>
+                    <option value="error">Error</option>
+                    <option value="maintenance">Maintenance</option>
+                  </Select>
+                </LabeledField>
+                <LabeledField label="Status" htmlFor="report-status">
+                  <Select
+                    id="report-status"
+                    value={newReport.status}
+                    onChange={(e) => setNewReport({ ...newReport, status: e.target.value })}
+                  >
+                    <option value="info">Info</option>
+                    <option value="success">Success</option>
+                    <option value="warning">Warning</option>
+                    <option value="error">Error</option>
+                  </Select>
+                </LabeledField>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <select
-                  value={newReport.area}
-                  onChange={(e) => setNewReport({ ...newReport, area: e.target.value })}
-                  className="px-3 py-2 border border-gray-300 rounded-lg"
-                >
-                  <option value="">No area</option>
-                  <option value="automation">Automation</option>
-                  <option value="context">Context</option>
-                  <option value="graph">Graph</option>
-                  <option value="ui">UI</option>
-                </select>
-                <input
-                  type="text"
-                  placeholder="Topics (comma-separated)"
-                  value={newReport.topics}
-                  onChange={(e) => setNewReport({ ...newReport, topics: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              <div className="grid gap-4 sm:grid-cols-2">
+                <LabeledField label="Area" htmlFor="report-area">
+                  <Select
+                    id="report-area"
+                    value={newReport.area}
+                    onChange={(e) => setNewReport({ ...newReport, area: e.target.value })}
+                  >
+                    <option value="">No area</option>
+                    <option value="automation">Automation</option>
+                    <option value="context">Context</option>
+                    <option value="graph">Graph</option>
+                    <option value="ui">UI</option>
+                  </Select>
+                </LabeledField>
+                <LabeledField label="Topics (comma-separated)" htmlFor="report-topics">
+                  <input
+                    id="report-topics"
+                    type="text"
+                    placeholder="Topics (comma-separated)"
+                    value={(newReport as unknown as { topics: string }).topics}
+                    onChange={(e) =>
+                      setNewReport({ ...newReport, topics: e.target.value } as CreateReportPayload & { topics: string })
+                    }
+                    className={inputClassName}
+                  />
+                </LabeledField>
+              </div>
+              <LabeledField label="Content (markdown)" required htmlFor="report-content">
+                <textarea
+                  id="report-content"
+                  placeholder="Report content (markdown supported)"
+                  value={newReport.content}
+                  onChange={(e) => setNewReport({ ...newReport, content: e.target.value })}
+                  rows={8}
+                  className={textareaClassName}
+                  required
                 />
-              </div>
-              <textarea
-                placeholder="Report content (markdown supported)"
-                value={newReport.content}
-                onChange={(e) => setNewReport({ ...newReport, content: e.target.value })}
-                rows={8}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                required
-              />
+              </LabeledField>
               <div className="flex gap-2">
-                <button
+                <Button
                   type="submit"
-                  disabled={createMutation.isPending}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  icon={Plus}
+                  disabled={createMutation.isPending || !newReport.title.trim() || !newReport.content.trim()}
                 >
                   {createMutation.isPending ? 'Creating...' : 'Create Report'}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
                   onClick={() => setShowCreateForm(false)}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                  tone="secondary"
                 >
                   Cancel
-                </button>
+                </Button>
               </div>
             </div>
           </form>
         )}
 
-        <div className="space-y-4">
-          {data?.reports?.map((report: any) => (
-            <div
-              key={report.id}
-              className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-blue-600" />
-                  <h3 className="font-semibold text-gray-900">{report.title}</h3>
+        {/* Reports List */}
+        <div className="space-y-2 px-5 py-5">
+          {data?.reports?.map((report: Report) => (
+            <Card key={report.id} as="article" padding="md">
+              <CardHeader
+                title={report.title}
+                icon={FileText}
+                action={
+                  <IconButton
+                    onClick={() => deleteMutation.mutate(report.id)}
+                    icon={Trash2}
+                    tone="danger"
+                    aria-label="Delete report"
+                  />
+                }
+              />
+              <CardBody>
+                <div className="mb-3 flex flex-wrap gap-2">
+                  <Badge tone={categoryTones[report.category] ?? 'slate'}>
+                    {report.category}
+                  </Badge>
+                  <Badge tone={statusTones[report.status] ?? 'slate'}>
+                    {report.status}
+                  </Badge>
+                  <Badge tone="purple">{report.source}</Badge>
+                  {report.area && (
+                    <Badge tone={areaTones[report.area] ?? 'amber'}>
+                      {report.area}
+                    </Badge>
+                  )}
                 </div>
-                <button
-                  onClick={() => deleteMutation.mutate(report.id)}
-                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="flex gap-2 mb-3">
-                <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
-                  {report.category}
-                </span>
-                <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs font-medium">
-                  {report.status}
-                </span>
-                <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium">
-                  {report.source}
-                </span>
-                {report.area && (
-                  <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded text-xs font-medium">
-                    {report.area}
-                  </span>
+                {report.topics?.length > 0 && (
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {report.topics.map((topic: string) => (
+                      <Badge key={topic} tone="slate">
+                        {topic}
+                      </Badge>
+                    ))}
+                  </div>
                 )}
-              </div>
-              {report.topics?.length > 0 && (
-                <div className="flex gap-2 mb-3 flex-wrap">
-                  {report.topics.map((topic: string) => (
-                    <span
-                      key={topic}
-                      className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs font-medium"
-                    >
-                      {topic}
-                    </span>
-                  ))}
+                <div className="prose prose-sm max-w-none text-slate-200">
+                  <ReactMarkdown>{report.content}</ReactMarkdown>
                 </div>
-              )}
-              <div className="prose prose-sm max-w-none">
-                <ReactMarkdown>{report.content}</ReactMarkdown>
+              </CardBody>
+              <div className="border-t border-white/8 px-5 py-3">
+                <Timestamp
+                  value={report.date}
+                  format="datetime"
+                  className="text-xs text-slate-500"
+                />
               </div>
-              <p className="text-xs text-gray-500 mt-3">
-                {report.date ? new Date(report.date).toLocaleString() : 'No timestamp'}
-              </p>
-            </div>
+            </Card>
           ))}
 
-          {data?.reports?.length === 0 && (
-            <div className="text-center py-8 text-gray-500">No reports found.</div>
+          {(!data?.reports || data.reports.length === 0) && (
+            <EmptyState
+              icon={FileText}
+              title="No reports found"
+              description="Adjust filters or create a new report."
+            />
           )}
         </div>
 
         {data?.meta && (
-          <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600">
-            {data.meta.total} total reports. Loaded {data.meta.loaded}. More available: {data.meta.hasMore ? 'yes' : 'no'}.
+          <div className="border-t border-white/8 px-5 py-3">
+            <p className="text-sm text-slate-500">
+              {data.meta.total} total reports. Loaded {data.meta.loaded}. More available:{' '}
+              {data.meta.hasMore ? 'yes' : 'no'}.
+            </p>
           </div>
         )}
-      </div>
-    </div>
+      </Surface>
+    </PageContainer>
   );
 }

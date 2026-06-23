@@ -2,8 +2,42 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { docs } from '@/features/docs/api';
+import type { CreateDocPayload, DocScope } from '@/features/docs/api';
 import { useState } from 'react';
-import { FileText, Search, Tag, Plus, Trash2 } from 'lucide-react';
+import { FileText, FolderOpen, Plus, Search, Tag, Trash2 } from 'lucide-react';
+import {
+  Badge,
+  Button,
+  EmptyState,
+  ErrorState,
+  Field,
+  IconButton,
+  LoadingState,
+  PageHeader,
+  Surface,
+  Toolbar,
+  cn,
+  iconInputClassName,
+  inputClassName,
+  textareaClassName,
+} from '@/components/ui/primitives';
+
+type NewDocForm = Omit<CreateDocPayload, 'tags'> & {
+  fileType: string;
+  scope: DocScope;
+  tags: string;
+};
+
+function formatUpdatedAt(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Unknown';
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+}
 
 export default function DocsPage() {
   const queryClient = useQueryClient();
@@ -11,7 +45,7 @@ export default function DocsPage() {
   const [tag, setTag] = useState('');
   const [fileType, setFileType] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newDoc, setNewDoc] = useState({
+  const [newDoc, setNewDoc] = useState<NewDocForm>({
     title: '',
     content: '',
     fileType: '.md',
@@ -31,7 +65,7 @@ export default function DocsPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => docs.create(data),
+    mutationFn: (data: CreateDocPayload) => docs.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['docs'] });
       setShowCreateForm(false);
@@ -54,96 +88,113 @@ export default function DocsPage() {
       content: newDoc.content,
       fileType: newDoc.fileType,
       scope: newDoc.scope,
-      tags: newDoc.tags.split(',').map(t => t.trim()).filter(Boolean),
+      tags: newDoc.tags.split(',').map((t) => t.trim()).filter(Boolean),
     });
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500 animate-pulse">Loading documents...</div>
-      </div>
-    );
+    return <LoadingState label="Loading documents..." />;
   }
 
   if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-        <h3 className="text-red-800 font-semibold mb-2">Failed to load documents</h3>
-        <p className="text-red-600 text-sm">{error.message}</p>
-      </div>
-    );
+    return <ErrorState title="Failed to load documents" message={error.message} />;
   }
 
+  const docList = data?.docs ?? [];
+  const sharedCount = docList.filter((doc) => doc.scope === 'shared').length;
+  const projectCount = docList.length - sharedCount;
+  const activeFilters = [search, tag, fileType].filter(Boolean).length;
+
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Documents</h2>
-          <button
-            onClick={() => setShowCreateForm(!showCreateForm)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            New Document
-          </button>
+    <div className="space-y-5">
+      <Surface>
+        <div className="px-5 py-5">
+          <PageHeader
+            eyebrow="Knowledge"
+            title="Documents"
+            description="Workspace notes, source material, and shared operational context."
+            actions={
+              <Button
+                icon={Plus}
+                onClick={() => setShowCreateForm((visible) => !visible)}
+                tone={showCreateForm ? 'secondary' : 'primary'}
+              >
+                {showCreateForm ? 'Close' : 'New Document'}
+              </Button>
+            }
+          />
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            {[
+              ['Visible docs', docList.length],
+              ['Project scope', projectCount],
+              ['Shared scope', sharedCount],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                className="rounded-lg border border-white/8 bg-white/[0.035] px-4 py-3"
+              >
+                <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+                  {label}
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Search & Filter */}
-        <div className="flex gap-3 mb-6">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+        <Toolbar>
+          <Field icon={Search} className="lg:flex-1">
             <input
               type="text"
-              placeholder="Search documents..."
+              placeholder="Search documents"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className={iconInputClassName}
             />
-          </div>
-          <div className="relative">
-            <Tag className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          </Field>
+          <Field icon={Tag} className="lg:w-56">
             <input
               type="text"
               placeholder="Filter by tag"
               value={tag}
               onChange={(e) => setTag(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className={iconInputClassName}
             />
-          </div>
+          </Field>
           <select
             value={fileType}
             onChange={(e) => setFileType(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className={cn(inputClassName, 'lg:w-48')}
           >
             <option value="">All file types</option>
             <option value=".md">Markdown</option>
           </select>
-        </div>
+          {activeFilters > 0 && <Badge tone="blue">{activeFilters} active</Badge>}
+        </Toolbar>
 
-        {/* Create Form */}
         {showCreateForm && (
-          <form onSubmit={handleSubmit} className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
-            <div className="space-y-3">
+          <form onSubmit={handleSubmit} className="border-b border-white/8 px-5 py-4">
+            <div className="grid gap-3 lg:grid-cols-[1fr_170px_170px]">
               <input
                 type="text"
                 placeholder="Document title"
                 value={newDoc.title}
                 onChange={(e) => setNewDoc({ ...newDoc, title: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                className={cn(inputClassName, 'lg:col-span-3')}
                 required
               />
               <select
                 value={newDoc.fileType}
                 onChange={(e) => setNewDoc({ ...newDoc, fileType: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                className={inputClassName}
               >
                 <option value=".md">Markdown (.md)</option>
               </select>
               <select
                 value={newDoc.scope}
-                onChange={(e) => setNewDoc({ ...newDoc, scope: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                onChange={(e) => setNewDoc({ ...newDoc, scope: e.target.value as DocScope })}
+                className={inputClassName}
               >
                 <option value="project">Project scope</option>
                 <option value="shared">Shared scope</option>
@@ -153,79 +204,84 @@ export default function DocsPage() {
                 placeholder="Tags (comma-separated)"
                 value={newDoc.tags}
                 onChange={(e) => setNewDoc({ ...newDoc, tags: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                className={inputClassName}
               />
               <textarea
                 placeholder="Document content (markdown supported)"
                 value={newDoc.content}
                 onChange={(e) => setNewDoc({ ...newDoc, content: e.target.value })}
                 rows={6}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                className={cn(textareaClassName, 'lg:col-span-3')}
                 required
               />
-              <div className="flex gap-2">
-                <button
+              <div className="flex gap-2 lg:col-span-3">
+                <Button
                   type="submit"
                   disabled={createMutation.isPending}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  icon={Plus}
+                  className="flex-1"
                 >
-                  {createMutation.isPending ? 'Creating...' : 'Create Document'}
-                </button>
-                <button
+                  {createMutation.isPending ? 'Creating...' : 'Create'}
+                </Button>
+                <Button
                   type="button"
                   onClick={() => setShowCreateForm(false)}
-                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                  tone="secondary"
                 >
                   Cancel
-                </button>
+                </Button>
               </div>
             </div>
           </form>
         )}
 
-        {/* Documents List */}
-        <div className="space-y-4">
-          {data?.docs?.map((doc: any) => (
-            <div
+        <div className="space-y-2 px-5 py-5">
+          {docList.map((doc) => (
+            <article
               key={doc.id}
-              className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
+              className="group rounded-lg border border-white/8 bg-white/[0.035] px-4 py-3 transition hover:-translate-y-0.5 hover:border-blue-300/22 hover:bg-white/[0.055]"
             >
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-blue-600" />
-                  <h3 className="font-semibold text-gray-900">{doc.title}</h3>
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-blue-300/15 bg-blue-400/10 text-blue-100">
+                  <FileText className="h-4 w-4" />
                 </div>
-                <button
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="break-words text-sm font-semibold leading-6 text-slate-100">
+                      {doc.title}
+                    </h3>
+                    <Badge tone={doc.scope === 'shared' ? 'purple' : 'blue'}>{doc.scope}</Badge>
+                    <Badge tone="slate">{doc.fileType || '.md'}</Badge>
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-400">{doc.content}</p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Badge tone="slate">Updated {formatUpdatedAt(doc.updatedAt)}</Badge>
+                    {doc.tags?.map((docTag) => (
+                      <Badge key={docTag} tone="green">
+                        {docTag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+                <IconButton
                   onClick={() => deleteMutation.mutate(doc.id)}
-                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                  icon={Trash2}
+                  tone="danger"
+                  title="Delete"
+                />
               </div>
-              <div className="flex gap-2 mb-2">
-                <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
-                  {doc.fileType || '.md'}
-                </span>
-                <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium">
-                  {doc.scope || 'project'}
-                </span>
-                {doc.tags?.map((tag: string) => (
-                  <span key={tag} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-              <p className="text-sm text-gray-600 line-clamp-2">{doc.content}</p>
-            </div>
+            </article>
           ))}
 
-          {data?.docs?.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              No documents found. Create one to get started!
-            </div>
+          {docList.length === 0 && (
+            <EmptyState
+              icon={FolderOpen}
+              title="No documents found"
+              description="Adjust filters or add a document to this workspace."
+            />
           )}
         </div>
-      </div>
+      </Surface>
     </div>
   );
 }
