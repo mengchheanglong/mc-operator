@@ -1,6 +1,14 @@
 @import "tailwindcss";
 
+/* ==========================================================================
+   Mission Control — Design Token System
+   A world-class operator control plane aesthetic: dark, refined, status-forward.
+   Tokens are layered: legacy tokens kept for backward compatibility, new
+   semantic scales added for typography, motion, radius, elevation, and z-index.
+   ========================================================================== */
+
 :root {
+  /* --- Legacy HSL semantic tokens (kept for compatibility) --- */
   --background: 222 18% 8%;
   --foreground: 210 20% 96%;
   --card: 224 16% 11%;
@@ -21,16 +29,20 @@
   --input: 220 13% 20%;
   --ring: 220 88% 61%;
 
+  /* --- Surface scale (depth from app background to elevated panels) --- */
   --surface-0: #090a0d;
   --surface-1: #0f1117;
   --surface-2: #141824;
   --surface-3: #1b2230;
   --surface-elevated: rgba(23, 29, 40, 0.92);
 
+  /* --- Text scale --- */
   --text-1: #f4f7fb;
   --text-2: #c4cad7;
   --text-3: #8f98ab;
+  --text-4: #5b6577;
 
+  /* --- Semantic accent colors (soft = tinted bg, strong = readable fg) --- */
   --blue-soft: rgba(67, 112, 255, 0.18);
   --blue-strong: #7f9cff;
   --green-soft: rgba(41, 173, 109, 0.16);
@@ -42,25 +54,136 @@
   --purple-soft: rgba(143, 92, 255, 0.16);
   --purple-strong: #b89bff;
 
+  /* --- Accent scale (full ramp for precise control) --- */
+  --accent-blue: #6b8cff;
+  --accent-blue-dim: #4a6ae6;
+  --accent-emerald: #34d399;
+  --accent-amber: #fbbf24;
+  --accent-rose: #fb7185;
+  --accent-violet: #a78bfa;
+  --accent-cyan: #22d3ee;
+  --accent-slate: #94a3b8;
+
+  /* --- Status colors (operational semantics) --- */
+  --status-ok: #34d399;
+  --status-ok-soft: rgba(52, 211, 153, 0.14);
+  --status-info: #6b8cff;
+  --status-info-soft: rgba(107, 140, 255, 0.14);
+  --status-warn: #fbbf24;
+  --status-warn-soft: rgba(251, 191, 36, 0.14);
+  --status-error: #fb7185;
+  --status-error-soft: rgba(251, 113, 133, 0.14);
+  --status-neutral: #94a3b8;
+  --status-neutral-soft: rgba(148, 163, 184, 0.12);
+
+  /* --- Shadow / elevation scale --- */
   --shadow-soft: 0 24px 60px rgba(0, 0, 0, 0.34);
   --shadow-card: 0 18px 44px rgba(0, 0, 0, 0.26);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.24);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.28);
+  --shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.32);
+  --shadow-xl: 0 28px 70px rgba(0, 0, 0, 0.38);
+  --shadow-glow-blue: 0 0 0 1px rgba(107, 140, 255, 0.18), 0 8px 30px rgba(67, 112, 255, 0.22);
+  --shadow-glow-emerald: 0 0 0 1px rgba(52, 211, 153, 0.18), 0 8px 30px rgba(52, 211, 153, 0.18);
+  --shadow-inset-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+
+  /* --- Border tokens --- */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --border-focus: rgba(114, 144, 255, 0.55);
+
+  /* --- Radius scale --- */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-full: 9999px;
+
+  /* --- Typography scale --- */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
+  --text-xs: 0.75rem;
+  --text-xs--lh: 1.125rem;
+  --text-sm: 0.875rem;
+  --text-sm--lh: 1.375rem;
+  --text-base: 1rem;
+  --text-base--lh: 1.625rem;
+  --text-lg: 1.125rem;
+  --text-lg--lh: 1.75rem;
+  --text-xl: 1.25rem;
+  --text-xl--lh: 1.875rem;
+  --text-2xl: 1.5rem;
+  --text-2xl--lh: 2rem;
+  --text-3xl: 1.875rem;
+  --text-3xl--lh: 2.25rem;
+  --text-4xl: 2.25rem;
+  --text-4xl--lh: 2.5rem;
+  --tracking-tight: -0.018em;
+  --tracking-tighter: -0.028em;
+  --tracking-wide: 0.04em;
+  --tracking-wider: 0.08em;
+  --tracking-widest: 0.18em;
+
+  /* --- Motion tokens --- */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --duration-slow: 280ms;
+  --duration-slower: 420ms;
+
+  /* --- Z-index scale --- */
+  --z-base: 0;
+  --z-raised: 10;
+  --z-sticky: 30;
+  --z-header: 40;
+  --z-dropdown: 50;
+  --z-overlay: 60;
+  --z-modal: 70;
+  --z-toast: 80;
+  --z-tooltip: 90;
+
+  /* --- Layout tokens --- */
+  --shell-header-h: 64px;
+  --shell-sidebar-w: 17rem;
+  --shell-sidebar-w-collapsed: 4.5rem;
+  --content-max: 1400px;
 }
 
-* {
-  border-color: hsl(var(--border));
-}
+/* ==========================================================================
+   Base styles
+   ========================================================================== */
+
+/* NOTE: Do NOT set a universal border-color — it overrides Tailwind's
+   border-white/N utilities. Tailwind v4 handles border colors via classes. */
 
 html {
   color-scheme: dark;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 body {
   min-height: 100vh;
   background:
-    radial-gradient(circle at top, rgba(56, 79, 137, 0.14), transparent 34%),
-    radial-gradient(circle at 20% 20%, rgba(97, 114, 164, 0.1), transparent 24%),
-    linear-gradient(180deg, #0a0b10 0%, #0b0d12 48%, #090a0d 100%);
+    radial-gradient(1200px 600px at 80% -10%, rgba(67, 112, 255, 0.06), transparent 60%),
+    radial-gradient(900px 500px at 0% 10%, rgba(143, 92, 255, 0.04), transparent 55%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0) 18rem),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.016) 1px, transparent 1px),
+    #090a0d;
+  background-size: auto, auto, auto, 44px 44px, 44px 44px, auto;
+  background-attachment: fixed;
   color: var(--text-1);
+  font-family: var(--font-sans);
+  letter-spacing: var(--tracking-tight);
 }
 
 ::selection {
@@ -74,11 +197,12 @@ input,
 select,
 textarea {
   transition:
-    background-color 160ms ease,
-    border-color 160ms ease,
-    color 160ms ease,
-    box-shadow 160ms ease,
-    transform 160ms ease;
+    background-color var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out),
+    opacity var(--duration-base) var(--ease-out);
 }
 
 input,
@@ -86,27 +210,216 @@ textarea,
 select {
   background: rgba(13, 16, 24, 0.88);
   color: var(--text-1);
-  border-color: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-default);
 }
 
 input::placeholder,
 textarea::placeholder {
-  color: var(--text-3);
+  color: var(--text-4);
 }
 
 input:focus,
 textarea:focus,
 select:focus {
   outline: none;
-  border-color: rgba(114, 144, 255, 0.55);
+  border-color: var(--border-focus);
   box-shadow: 0 0 0 3px rgba(90, 120, 255, 0.16);
 }
 
-.shadow-sm,
-.shadow,
-.shadow-md {
-  box-shadow: var(--shadow-card) !important;
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
+
+/* ==========================================================================
+   Keyframe animations
+   ========================================================================== */
+
+@keyframes mc-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes mc-fade-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes mc-scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes mc-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes mc-pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(107, 140, 255, 0.5); }
+  70% { box-shadow: 0 0 0 8px rgba(107, 140, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(107, 140, 255, 0); }
+}
+
+@keyframes mc-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes mc-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.mc-animate-fade-in { animation: mc-fade-in var(--duration-slow) var(--ease-out) both; }
+.mc-animate-fade-in-up { animation: mc-fade-in-up var(--duration-slow) var(--ease-out) both; }
+.mc-animate-scale-in { animation: mc-scale-in var(--duration-base) var(--ease-spring) both; }
+
+/* Staggered list entrance helper */
+.mc-stagger > * {
+  animation: mc-fade-in-up var(--duration-slow) var(--ease-out) both;
+}
+.mc-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.mc-stagger > *:nth-child(2) { animation-delay: 40ms; }
+.mc-stagger > *:nth-child(3) { animation-delay: 80ms; }
+.mc-stagger > *:nth-child(4) { animation-delay: 120ms; }
+.mc-stagger > *:nth-child(5) { animation-delay: 160ms; }
+.mc-stagger > *:nth-child(6) { animation-delay: 200ms; }
+.mc-stagger > *:nth-child(7) { animation-delay: 240ms; }
+.mc-stagger > *:nth-child(8) { animation-delay: 280ms; }
+
+/* Skeleton shimmer */
+.mc-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.08) 37%,
+    rgba(255, 255, 255, 0.04) 63%
+  );
+  background-size: 200% 100%;
+  animation: mc-shimmer 1.6s var(--ease-in-out) infinite;
+}
+
+/* Spinner */
+.mc-spinner {
+  animation: mc-spin 0.7s linear infinite;
+}
+
+/* Live status pulse */
+.mc-pulse {
+  animation: mc-pulse-ring 2s var(--ease-out) infinite;
+}
+
+.mc-blink {
+  animation: mc-blink 1.6s var(--ease-in-out) infinite;
+}
+
+/* ==========================================================================
+   Utility helpers
+   ========================================================================== */
+
+/* Shadow utilities — set box-shadow directly to avoid Tailwind v4's broken
+   arbitrary-value variable composition for shadows. */
+.mc-shadow-xs { box-shadow: var(--shadow-xs); }
+.mc-shadow-sm { box-shadow: var(--shadow-sm); }
+.mc-shadow-md { box-shadow: var(--shadow-md); }
+.mc-shadow-lg { box-shadow: var(--shadow-lg); }
+.mc-shadow-xl { box-shadow: var(--shadow-xl); }
+.mc-shadow-soft { box-shadow: var(--shadow-soft); }
+.mc-shadow-card { box-shadow: var(--shadow-card); }
+.mc-shadow-glow-blue { box-shadow: var(--shadow-glow-blue); }
+.mc-shadow-glow-slate { box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.14), 0 8px 24px rgba(148, 163, 184, 0.16); }
+.mc-shadow-glow-green,
+.mc-shadow-glow-emerald { box-shadow: var(--shadow-glow-emerald); }
+.mc-shadow-glow-amber { box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.18), 0 8px 30px rgba(251, 191, 36, 0.18); }
+.mc-shadow-glow-red,
+.mc-shadow-glow-rose { box-shadow: 0 0 0 1px rgba(251, 113, 133, 0.18), 0 8px 30px rgba(251, 113, 133, 0.18); }
+.mc-shadow-glow-purple,
+.mc-shadow-glow-violet { box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.18), 0 8px 30px rgba(167, 139, 250, 0.18); }
+.mc-shadow-glow-cyan { box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.18), 0 8px 30px rgba(34, 211, 238, 0.18); }
+.mc-shadow-inset-hl { box-shadow: var(--shadow-inset-highlight); }
+
+/* Z-index utilities — same reason as shadows. */
+.mc-z-header { z-index: var(--z-header); }
+.mc-z-modal { z-index: var(--z-modal); }
+.mc-z-toast { z-index: var(--z-toast); }
+.mc-z-tooltip { z-index: var(--z-tooltip); }
+.mc-z-dropdown { z-index: var(--z-dropdown); }
+
+/* Card surface — gradient bg + border + shadow + inner highlight, all direct. */
+.mc-card {
+  background: linear-gradient(180deg, rgba(22, 27, 38, 0.96), rgba(14, 18, 26, 0.94));
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md), var(--shadow-inset-highlight);
+}
+.mc-card-interactive {
+  transition: transform var(--duration-base) var(--ease-out),
+              border-color var(--duration-base) var(--ease-out),
+              box-shadow var(--duration-base) var(--ease-out);
+}
+.mc-card-interactive:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-lg), var(--shadow-inset-highlight);
+}
+
+/* Surface — the legacy section wrapper, slightly deeper shadow. */
+.mc-surface {
+  background: linear-gradient(180deg, rgba(22, 27, 38, 0.96), rgba(14, 18, 26, 0.94));
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg), var(--shadow-inset-highlight);
+  overflow: hidden;
+}
+
+/* Nav item active accent bar. */
+.mc-nav-active-bar {
+  box-shadow: 0 0 10px rgba(147, 197, 253, 0.7);
+}
+
+.mc-grad-card {
+  background: linear-gradient(180deg, rgba(20, 24, 35, 0.96), rgba(13, 16, 24, 0.94));
+}
+
+.mc-grad-header {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0));
+}
+
+.mc-scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.28) transparent;
+}
+
+.mc-text-balance {
+  text-wrap: balance;
+}
+
+.mc-grid-bg {
+  background-image:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.016) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+/* ==========================================================================
+   Legacy compatibility overrides
+   These map light-themed Tailwind classes to the dark surface system so that
+   pages still using the older inline pattern render correctly. New work should
+   use the design-system primitives instead.
+   ========================================================================== */
+
+/* Legacy: only override Tailwind's named shadow utilities (not arbitrary values
+   or our mc-shadow-* classes). These help old inline-styled pages look right. */
+.shadow-sm { box-shadow: var(--shadow-sm) !important; }
+.shadow { box-shadow: var(--shadow-md) !important; }
+.shadow-md { box-shadow: var(--shadow-md) !important; }
 
 .bg-white {
   background-color: rgba(18, 21, 29, 0.94) !important;
@@ -288,4 +601,23 @@ button:disabled {
   cursor: not-allowed;
   opacity: 0.58;
   filter: saturate(0.85);
+}
+
+::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.28);
+  border: 2px solid rgba(9, 10, 13, 0.92);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.42);
 }

@@ -45,7 +45,10 @@ function shouldAttachProjectId(pathname: string): boolean {
   return pathname !== `${API_PREFIX}/health`;
 }
 
-export async function apiRequest(path: string, options?: ApiRequestOptions): Promise<any> {
+export async function apiRequest<TResponse = any>(
+  path: string,
+  options?: ApiRequestOptions,
+): Promise<TResponse> {
   const requestOptions = options;
   const projectScope = requestOptions?.projectScope ?? 'auto';
   const { activeProject } = useAppState.getState();
@@ -108,13 +111,13 @@ export async function apiRequest(path: string, options?: ApiRequestOptions): Pro
   }
 
   if (response.status === 204) {
-    return null;
+    return null as TResponse;
   }
 
   const contentType = response.headers.get('content-type') || '';
   if (contentType.includes('application/json')) {
-    return response.json();
+    return response.json() as Promise<TResponse>;
   }
 
-  return response.text();
+  return response.text() as Promise<TResponse>;
 }

@@ -3,6 +3,7 @@ import { apiRequest } from '@/features/shared/api-client';
 export const projects = {
   list: () => apiRequest('projects', { projectScope: 'none' }),
   active: () => apiRequest('projects/active', { projectScope: 'none' }),
+  graph: () => apiRequest('projects/graph', { projectScope: 'none' }),
   activate: (id: string) =>
     apiRequest('projects/active', {
       method: 'PUT',
@@ -10,4 +11,3 @@ export const projects = {
       body: JSON.stringify({ projectId: id }),
     }),
 };
-

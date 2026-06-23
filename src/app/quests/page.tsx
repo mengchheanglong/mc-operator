@@ -2,8 +2,54 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { quests } from '@/features/quests/api';
+import type { CreateQuestPayload, Quest, QuestDifficulty, QuestStatus } from '@/features/quests/api';
 import { useState } from 'react';
-import { Plus, Trash2, CheckCircle, Circle } from 'lucide-react';
+import {
+  CheckCircle,
+  Circle,
+  Filter,
+  ListChecks,
+  Plus,
+  Search,
+  Target,
+  Trash2,
+} from 'lucide-react';
+import {
+  Badge,
+  Button,
+  EmptyState,
+  ErrorState,
+  Field,
+  IconButton,
+  LoadingState,
+  PageHeader,
+  Surface,
+  Toolbar,
+  cn,
+  inputClassName,
+} from '@/components/ui/primitives';
+
+const statusLabels: Record<QuestStatus, string> = {
+  open: 'Open',
+  in_progress: 'In progress',
+  blocked: 'Blocked',
+  done: 'Done',
+};
+
+const statusTones: Record<QuestStatus, 'blue' | 'slate' | 'green' | 'amber' | 'red' | 'purple'> = {
+  open: 'blue',
+  in_progress: 'purple',
+  blocked: 'amber',
+  done: 'green',
+};
+
+const difficultyTones: Record<QuestDifficulty, 'blue' | 'slate' | 'green' | 'amber' | 'red' | 'purple'> = {
+  easy: 'green',
+  normal: 'blue',
+  hard: 'amber',
+  nightmare: 'red',
+  hell: 'red',
+};
 
 export default function QuestsPage() {
   const queryClient = useQueryClient();
@@ -13,7 +59,7 @@ export default function QuestsPage() {
     completed: '',
   });
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newQuest, setNewQuest] = useState({
+  const [newQuest, setNewQuest] = useState<CreateQuestPayload>({
     goal: '',
     difficulty: 'normal',
     area: '',
@@ -26,7 +72,7 @@ export default function QuestsPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => quests.create(data),
+    mutationFn: (data: CreateQuestPayload) => quests.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quests'] });
       setShowCreateForm(false);
@@ -61,7 +107,7 @@ export default function QuestsPage() {
     }
   };
 
-  const handleComplete = (quest: any) => {
+  const handleComplete = (quest: Quest) => {
     const verificationSummary = window.prompt(
       `Record verification before completing "${quest.goal}".`,
       'Verified behavior manually.',
@@ -76,52 +122,75 @@ export default function QuestsPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500 animate-pulse">Loading quests...</div>
-      </div>
-    );
+    return <LoadingState label="Loading quests..." />;
   }
 
   if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-        <h3 className="text-red-800 font-semibold mb-2">Failed to load quests</h3>
-        <p className="text-red-600 text-sm">{error.message}</p>
-      </div>
-    );
+    return <ErrorState title="Failed to load quests" message={error.message} />;
   }
 
+  const questList = data?.quests ?? [];
+  const meta = data?.meta;
+  const activeFilters = [filters.status, filters.completed, filters.area].filter(Boolean).length;
+
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Quests</h2>
-          <button
-            onClick={() => setShowCreateForm(!showCreateForm)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            New Quest
-          </button>
+    <div className="space-y-5">
+      <Surface>
+        <div className="px-5 py-5">
+          <PageHeader
+            eyebrow="Execution"
+            title="Quests"
+            description="Current work, verification status, and delivery flow."
+            actions={
+              <Button
+                icon={Plus}
+                onClick={() => setShowCreateForm((visible) => !visible)}
+                tone={showCreateForm ? 'secondary' : 'primary'}
+              >
+                {showCreateForm ? 'Close' : 'New Quest'}
+              </Button>
+            }
+          />
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              ['Total', meta?.total ?? questList.length],
+              ['Open', meta?.statusCounts?.open ?? 0],
+              ['In progress', meta?.statusCounts?.in_progress ?? 0],
+              ['Done', meta?.statusCounts?.done ?? 0],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                className="rounded-lg border border-white/8 bg-white/[0.035] px-4 py-3"
+              >
+                <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
+                  {label}
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-white">{value}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Create Quest Form */}
         {showCreateForm && (
-          <form onSubmit={handleSubmit} className="mb-6 p-4 bg-gray-50 rounded-lg space-y-3">
-            <input
-              type="text"
-              value={newQuest.goal}
-              onChange={(e) => setNewQuest({ ...newQuest, goal: e.target.value })}
-              placeholder="Quest goal..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-            <div className="flex gap-3">
+          <form onSubmit={handleSubmit} className="border-t border-white/8 px-5 py-4">
+            <div className="grid gap-3 lg:grid-cols-[1fr_180px_220px_auto_auto]">
+              <Field icon={Target}>
+                <input
+                  type="text"
+                  value={newQuest.goal}
+                  onChange={(e) => setNewQuest({ ...newQuest, goal: e.target.value })}
+                  placeholder="Quest goal"
+                  className={cn(inputClassName, 'pl-9')}
+                  required
+                />
+              </Field>
               <select
                 value={newQuest.difficulty}
-                onChange={(e) => setNewQuest({ ...newQuest, difficulty: e.target.value })}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) =>
+                  setNewQuest({ ...newQuest, difficulty: e.target.value as QuestDifficulty })
+                }
+                className={inputClassName}
               >
                 <option value="easy">Easy</option>
                 <option value="normal">Normal</option>
@@ -131,34 +200,37 @@ export default function QuestsPage() {
                 type="text"
                 value={newQuest.area}
                 onChange={(e) => setNewQuest({ ...newQuest, area: e.target.value })}
-                placeholder="Area (optional)"
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Area"
+                className={inputClassName}
               />
-            </div>
-            <div className="flex gap-2">
-              <button
+              <Button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                icon={Plus}
+                disabled={createMutation.isPending || !newQuest.goal.trim()}
               >
-                Create Quest
-              </button>
-              <button
+                {createMutation.isPending ? 'Creating...' : 'Create'}
+              </Button>
+              <Button
                 type="button"
                 onClick={() => setShowCreateForm(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                tone="secondary"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </form>
         )}
 
-        {/* Filters */}
-        <div className="mb-4 flex gap-3">
+        <Toolbar>
+          <div className="flex items-center gap-2 text-sm font-medium text-slate-400 lg:w-28">
+            <Filter className="h-4 w-4 text-blue-200" />
+            Filters
+            {activeFilters > 0 && <Badge tone="blue">{activeFilters}</Badge>}
+          </div>
           <select
             value={filters.status}
             onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={cn(inputClassName, 'lg:w-48')}
           >
             <option value="">All Statuses</option>
             <option value="open">Open</option>
@@ -169,93 +241,89 @@ export default function QuestsPage() {
           <select
             value={filters.completed}
             onChange={(e) => setFilters({ ...filters, completed: e.target.value })}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={cn(inputClassName, 'lg:w-44')}
           >
             <option value="">All</option>
             <option value="true">Completed</option>
             <option value="false">Active</option>
           </select>
-          <input
-            type="text"
-            value={filters.area}
-            onChange={(e) => setFilters({ ...filters, area: e.target.value })}
-            placeholder="Filter by area"
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
+          <Field icon={Search} className="lg:min-w-64 lg:flex-1">
+            <input
+              type="text"
+              value={filters.area}
+              onChange={(e) => setFilters({ ...filters, area: e.target.value })}
+              placeholder="Filter by area"
+              className={cn(inputClassName, 'pl-9')}
+            />
+          </Field>
+        </Toolbar>
 
-        {/* Quests List */}
-        <div className="space-y-3">
-          {data?.quests?.map((quest: any) => (
-            <div
+        <div className="space-y-2 px-5 py-5">
+          {questList.map((quest) => (
+            <article
               key={quest.id}
-              className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
+              className={cn(
+                'group rounded-lg border bg-white/[0.035] px-4 py-3 transition hover:-translate-y-0.5 hover:border-blue-300/22 hover:bg-white/[0.055]',
+                quest.completed ? 'border-emerald-300/16' : 'border-white/8',
+              )}
             >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    {quest.completed ? (
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                    ) : (
-                      <Circle className="w-5 h-5 text-gray-400" />
+              <div className="flex items-start gap-3">
+                <div className="pt-0.5">
+                  {quest.completed ? (
+                    <CheckCircle className="h-5 w-5 text-emerald-300" />
+                  ) : (
+                    <Circle className="h-5 w-5 text-slate-500" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3
+                    className={cn(
+                      'break-words text-sm font-semibold leading-6',
+                      quest.completed ? 'text-slate-500 line-through' : 'text-slate-100',
                     )}
-                    <h3
-                      className={`font-semibold ${
-                        quest.completed ? 'line-through text-gray-500' : 'text-gray-900'
-                      }`}
-                    >
-                      {quest.goal}
-                    </h3>
-                  </div>
-                  <div className="flex gap-2 ml-7">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
-                      {quest.difficulty}
-                    </span>
-                    <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs font-medium">
-                      {quest.status}
-                    </span>
-                    {quest.area && (
-                      <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-medium">
-                        {quest.area}
-                      </span>
-                    )}
+                  >
+                    {quest.goal}
+                  </h3>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <Badge tone={difficultyTones[quest.difficulty]}>{quest.difficulty}</Badge>
+                    <Badge tone={statusTones[quest.status]}>{statusLabels[quest.status]}</Badge>
+                    {quest.area && <Badge tone="purple">{quest.area}</Badge>}
+                    {quest.topics.slice(0, 3).map((topic) => (
+                      <Badge key={topic} tone="slate">
+                        {topic}
+                      </Badge>
+                    ))}
                   </div>
                 </div>
-                <div className="flex gap-2 ml-4">
+                <div className="flex shrink-0 gap-2">
                   {!quest.completed && (
-                    <button
+                    <IconButton
                       onClick={() => handleComplete(quest)}
-                      className="p-2 text-green-600 hover:bg-green-50 rounded transition-colors"
+                      icon={CheckCircle}
+                      tone="success"
                       title="Mark complete"
-                    >
-                      <CheckCircle className="w-4 h-4" />
-                    </button>
+                    />
                   )}
-                  <button
+                  <IconButton
                     onClick={() => deleteMutation.mutate(quest.id)}
-                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                    icon={Trash2}
+                    tone="danger"
                     title="Delete"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  />
                 </div>
               </div>
-            </div>
+            </article>
           ))}
 
-          {data?.quests?.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              No quests found. Create one to get started!
-            </div>
+          {questList.length === 0 && (
+            <EmptyState
+              icon={ListChecks}
+              title="No quests found"
+              description="Adjust filters or add a quest to this workspace."
+            />
           )}
         </div>
-
-        {data?.meta && (
-          <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600">
-            {data.meta.total} total quests. Open: {data.meta.statusCounts?.open ?? 0}, in progress: {data.meta.statusCounts?.in_progress ?? 0}, blocked: {data.meta.statusCounts?.blocked ?? 0}, done: {data.meta.statusCounts?.done ?? 0}.
-          </div>
-        )}
-      </div>
+      </Surface>
     </div>
   );
 }
